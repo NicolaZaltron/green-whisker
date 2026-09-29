@@ -16,6 +16,7 @@ import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import { isFavorite, toggleFavorite, addShoppingItems, saveMealPlanEntry } from '../db/database';
 import { getWeekDays } from '../services/plannerService';
+import { scaleIngredient } from '../utils/servingsScaler';
 
 interface RecipeModalProps {
   recipe: Recipe | null;
@@ -84,16 +85,21 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const formatScaledIngredient = (item: IngredientItem) => {
-    if (item.quantita === null || item.quantita === undefined) {
-      return item.testo;
-    }
-    const scaledQty = Math.round(item.quantita * scale * 10) / 10;
-    const qtyStr = scaledQty % 1 === 0 ? scaledQty.toString() : scaledQty.toFixed(1);
+    return scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale).formattedText;
+  };
 
-    if (item.unita) {
-      return `${qtyStr} ${item.unita} ${item.ingrediente}`;
-    }
-    return `${qtyStr} ${item.ingrediente}`;
+  const handleAddSingleToShopping = async (item: IngredientItem) => {
+    const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+    await addShoppingItems([{
+      recipeId: recipe.id,
+      recipeTitle: `${recipe.titolo} (${currentServings} porz.)`,
+      ingredientText: scaled.formattedText,
+      name: scaled.name,
+      amount: scaled.scaledAmount,
+      unit: scaled.unit,
+      category: item.sezione || 'Generale'
+    }]);
+    showToast(`🛒 "${scaled.name}" aggiunto per ${currentServings} porzioni!`);
   };
 
   const handleAddAllToShopping = async () => {
@@ -107,17 +113,18 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       category?: string;
     }> = [];
 
+    const titleWithServings = `${recipe.titolo} (${currentServings} porz.)`;
+
     if (recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0) {
       for (const item of recipe.ingredienti_dettagliati) {
-        const text = formatScaledIngredient(item);
-        const scaledQty = item.quantita ? Math.round(item.quantita * scale * 10) / 10 : null;
+        const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
         itemsToAdd.push({
           recipeId: recipe.id,
-          recipeTitle: recipe.titolo,
-          ingredientText: text,
-          name: item.ingrediente || item.testo,
-          amount: scaledQty,
-          unit: item.unita,
+          recipeTitle: titleWithServings,
+          ingredientText: scaled.formattedText,
+          name: scaled.name,
+          amount: scaled.scaledAmount,
+          unit: scaled.unit,
           category: item.sezione || 'Generale'
         });
       }
@@ -125,7 +132,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       for (const ing of recipe.ingredienti) {
         itemsToAdd.push({
           recipeId: recipe.id,
-          recipeTitle: recipe.titolo,
+          recipeTitle: titleWithServings,
           ingredientText: ing,
           name: ing,
           category: 'Generale'
@@ -134,7 +141,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
     }
 
     await addShoppingItems(itemsToAdd);
-    showToast(`🛒 ${itemsToAdd.length} ingredienti aggiunti alla Spesa!`);
+    showToast(`🛒 ${itemsToAdd.length} ingredienti aggiunti per ${currentServings} porzioni!`);
   };
 
   const handleScheduleMeal = async (dateStr: string) => {
@@ -328,31 +335,50 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 </View>
               )}
 
-              {/* Dynamic Servings Scaler */}
+              {/* Dynamic Servings Scaler with Quick Presets */}
               <View style={styles.scalerCard}>
                 <View style={styles.scalerInfo}>
                   <Text style={styles.scalerTitle}>Dosi e ingredienti</Text>
                   <Text style={styles.scalerSub}>
-                    {scale !== 1 ? `Ricalcolate per ${currentServings} porzioni` : recipe.porzioni_testo}
+                    {scale !== 1 ? `Ricalcolate per ${currentServings} porzioni` : (recipe.porzioni_testo || `Per ${baseServings} porzioni`)}
+                    {scale !== 1 && ` (base: ${baseServings})`}
                   </Text>
                 </View>
-                <View style={styles.scalerControls}>
-                  <TouchableOpacity
-                    style={[styles.scaleBtn, currentServings <= 1 && styles.scaleBtnDisabled]}
-                    onPress={() => changeServings(-1)}
-                    disabled={currentServings <= 1}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="remove" size={18} color={currentServings <= 1 ? '#C2CDC4' : '#4A6B53'} />
-                  </TouchableOpacity>
-                  <Text style={styles.scaleNumber}>{currentServings}</Text>
-                  <TouchableOpacity
-                    style={styles.scaleBtn}
-                    onPress={() => changeServings(1)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={18} color="#4A6B53" />
-                  </TouchableOpacity>
+
+                <View style={styles.scalerRightCol}>
+                  <View style={styles.scalerPresetsRow}>
+                    {[1, 2, 4, 6].map(num => (
+                      <TouchableOpacity
+                        key={num}
+                        style={[styles.presetChip, currentServings === num && styles.presetChipActive]}
+                        onPress={() => setCurrentServings(num)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.presetChipText, currentServings === num && styles.presetChipTextActive]}>
+                          {num}p
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <View style={styles.scalerControls}>
+                    <TouchableOpacity
+                      style={[styles.scaleBtn, currentServings <= 1 && styles.scaleBtnDisabled]}
+                      onPress={() => changeServings(-1)}
+                      disabled={currentServings <= 1}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="remove" size={16} color={currentServings <= 1 ? '#C2CDC4' : '#4A6B53'} />
+                    </TouchableOpacity>
+                    <Text style={styles.scaleNumber}>{currentServings}</Text>
+                    <TouchableOpacity
+                      style={styles.scaleBtn}
+                      onPress={() => changeServings(1)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={16} color="#4A6B53" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
 
@@ -369,19 +395,29 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                       const text = formatScaledIngredient(ing);
 
                       return (
-                        <TouchableOpacity
-                          key={key}
-                          style={[styles.ingredientRow, isChecked && styles.ingredientRowChecked]}
-                          onPress={() => toggleIngredient(key)}
-                          activeOpacity={0.6}
-                        >
-                          <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                            {isChecked && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                          </View>
-                          <Text style={[styles.ingredientText, isChecked && styles.ingredientTextChecked]}>
-                            {text}
-                          </Text>
-                        </TouchableOpacity>
+                        <View key={key} style={[styles.ingredientRow, isChecked && styles.ingredientRowChecked]}>
+                          <TouchableOpacity
+                            style={styles.ingredientMainTouch}
+                            onPress={() => toggleIngredient(key)}
+                            activeOpacity={0.6}
+                          >
+                            <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+                              {isChecked && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                            </View>
+                            <Text style={[styles.ingredientText, isChecked && styles.ingredientTextChecked]}>
+                              {text}
+                            </Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.singleAddBtn}
+                            onPress={() => handleAddSingleToShopping(ing)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="cart-outline" size={16} color="#7E8B80" />
+                          </TouchableOpacity>
+                        </View>
                       );
                     })}
                   </View>
@@ -747,6 +783,35 @@ const styles = StyleSheet.create({
     color: '#7E8B80',
     marginTop: 2,
   },
+  scalerRightCol: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  scalerPresetsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  presetChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: '#F3F5F3',
+    borderWidth: 1,
+    borderColor: '#ECE7DF',
+  },
+  presetChipActive: {
+    backgroundColor: '#4A6B53',
+    borderColor: '#4A6B53',
+  },
+  presetChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#556658',
+  },
+  presetChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
   scalerControls: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -755,8 +820,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   scaleBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -771,10 +836,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   scaleNumber: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#2B332B',
-    minWidth: 36,
+    minWidth: 32,
     textAlign: 'center',
   },
   ingredientsContainer: {
@@ -795,13 +860,24 @@ const styles = StyleSheet.create({
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 6,
     borderWidth: 1,
     borderColor: '#F0ECE4',
+  },
+  ingredientMainTouch: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  singleAddBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F5F3',
+    marginLeft: 8,
   },
   ingredientRowChecked: {
     backgroundColor: '#F7F6F2',

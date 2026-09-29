@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
+import { PantryView } from '../../components/PantryView';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
 import { searchRecipes } from '../../services/searchService';
@@ -40,6 +41,7 @@ const QUICK_TAGS = ['< 30 min', 'Senza Glutine', 'Al forno', 'Senza cottura', 'F
 
 export default function ExploreScreen() {
   const { width } = useResponsiveDimensions();
+  const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -82,113 +84,161 @@ export default function ExploreScreen() {
             </View>
           </View>
 
-          {/* Search Bar with Debounce & Clear Button */}
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Cerca per ricetta o ingrediente (es. zucca, pasta)..."
-              placeholderTextColor="#8C988F"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close-circle" size={18} color="#7E8B80" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Categories Horizontal Carousel */}
-        <View style={styles.categoriesSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {CATEGORIES.map(cat => {
-              const isSelected = selectedCategory === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                  onPress={() => setSelectedCategory(cat)}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Quick Tag Filters */}
-        <View style={styles.tagsBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsContainer}>
-            {QUICK_TAGS.map(tag => {
-              const isSelected = selectedTag === tag;
-              return (
-                <TouchableOpacity
-                  key={tag}
-                  style={[styles.tagPill, isSelected && styles.tagPillSelected]}
-                  onPress={() => toggleTag(tag)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.tagPillText, isSelected && styles.tagPillTextSelected]}>
-                    {tag}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Results Counter */}
-        <View style={styles.counterRow}>
-          <Text style={styles.counterText}>
-            {filteredRecipes.length} {filteredRecipes.length === 1 ? 'ricetta trovata' : 'ricette trovate'}
-          </Text>
-        </View>
-
-        {/* Recipes Grid */}
-        <FlatList
-          key={`grid-cols-${numColumns}`}
-          data={filteredRecipes}
-          keyExtractor={item => item.id}
-          numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
-          contentContainerStyle={styles.listContent}
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={Keyboard.dismiss}
-          initialNumToRender={8}
-          maxToRenderPerBatch={10}
-          windowSize={7}
-          removeClippedSubviews={true}
-          renderItem={({ item }) => (
-            <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
-              <RecipeCard
-                recipe={item}
-                onPress={() => setSelectedRecipe(item)}
+          {/* Mode Switcher: Catalogo vs Svuotafrigo */}
+          <View style={styles.modeToggleContainer}>
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, viewMode === 'catalog' && styles.modeToggleBtnActive]}
+              onPress={() => setViewMode('catalog')}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="book-outline"
+                size={14}
+                color={viewMode === 'catalog' ? '#FFFFFF' : '#5E6D60'}
+                style={{ marginRight: 6 }}
               />
+              <Text style={[styles.modeToggleText, viewMode === 'catalog' && styles.modeToggleTextActive]}>
+                Tutte le Ricette
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, viewMode === 'pantry' && styles.modeToggleBtnActive]}
+              onPress={() => setViewMode('pantry')}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="restaurant-outline"
+                size={14}
+                color={viewMode === 'pantry' ? '#FFFFFF' : '#5E6D60'}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={[styles.modeToggleText, viewMode === 'pantry' && styles.modeToggleTextActive]}>
+                Svuotafrigo
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {viewMode === 'catalog' && (
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Cerca per ricetta o ingrediente (es. zucca, pasta)..."
+                placeholderTextColor="#8C988F"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={18} color="#7E8B80" />
+                </TouchableOpacity>
+              )}
             </View>
           )}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color="#A3B2A6" />
-              <Text style={styles.emptyTitle}>Nessuna ricetta trovata</Text>
-              <Text style={styles.emptySubtitle}>
-                Prova a cercare con un altro ingrediente o rimuovi i filtri selezionati.
+        </View>
+
+        {viewMode === 'catalog' ? (
+          <>
+            {/* Categories Horizontal Carousel */}
+            <View style={styles.categoriesSection}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesContainer}
+              >
+                {CATEGORIES.map(cat => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                      onPress={() => setSelectedCategory(cat)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
+                      >
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Quick Tag Filters */}
+            <View style={styles.tagsBar}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsContainer}>
+                {QUICK_TAGS.map(tag => {
+                  const isSelected = selectedTag === tag;
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[styles.tagPill, isSelected && styles.tagPillSelected]}
+                      onPress={() => toggleTag(tag)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.tagPillText, isSelected && styles.tagPillTextSelected]}>
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Results Counter */}
+            <View style={styles.counterRow}>
+              <Text style={styles.counterText}>
+                {filteredRecipes.length} {filteredRecipes.length === 1 ? 'ricetta trovata' : 'ricette trovate'}
               </Text>
             </View>
-          }
-        />
+
+            {/* Recipes Grid */}
+            <FlatList
+              key={`grid-cols-${numColumns}`}
+              data={filteredRecipes}
+              keyExtractor={item => item.id}
+              numColumns={numColumns}
+              columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
+              contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={Keyboard.dismiss}
+              initialNumToRender={8}
+              maxToRenderPerBatch={10}
+              windowSize={7}
+              removeClippedSubviews={true}
+              renderItem={({ item }) => (
+                <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
+                  <RecipeCard
+                    recipe={item}
+                    onPress={() => setSelectedRecipe(item)}
+                  />
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="search-outline" size={48} color="#A3B2A6" />
+                  <Text style={styles.emptyTitle}>Nessuna ricetta trovata</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Prova a cercare con un altro ingrediente o rimuovi i filtri selezionati.
+                  </Text>
+                </View>
+              }
+            />
+          </>
+        ) : (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: 60 }}
+          >
+            <PantryView onSelectRecipe={setSelectedRecipe} />
+          </ScrollView>
+        )}
 
         {/* Modal Dettaglio Ricetta */}
         <RecipeModal
@@ -246,6 +296,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#718073',
+  },
+  modeToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ECE7DF',
+    borderRadius: 14,
+    padding: 3,
+    marginBottom: 12,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: 11,
+  },
+  modeToggleBtnActive: {
+    backgroundColor: '#34523C',
+    shadowColor: '#1A2E1F',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modeToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#556658',
+  },
+  modeToggleTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   searchBar: {
     flexDirection: 'row',

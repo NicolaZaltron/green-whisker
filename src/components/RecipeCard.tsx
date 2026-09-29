@@ -5,13 +5,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { isFavorite, toggleFavorite } from '../db/database';
 
+export interface PantryMatchInfo {
+  percentage: number;
+  missingCount: number;
+  missing: string[];
+}
+
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
   onFavoriteChange?: (isFav: boolean) => void;
+  pantryMatch?: PantryMatchInfo;
+  onAddMissingToShopping?: (missing: string[], recipeTitle: string) => void;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavoriteChange }) => {
+export const RecipeCard: React.FC<RecipeCardProps> = ({
+  recipe,
+  onPress,
+  onFavoriteChange,
+  pantryMatch,
+  onAddMissingToShopping
+}) => {
   const [favorite, setFavorite] = useState(false);
 
   useEffect(() => {
@@ -77,6 +91,28 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavor
       </View>
 
       <View style={styles.content}>
+        {pantryMatch && (
+          <View style={[
+            styles.pantryBadge,
+            pantryMatch.missingCount === 0 ? styles.pantryBadgeFull : styles.pantryBadgePartial
+          ]}>
+            <Ionicons
+              name={pantryMatch.missingCount === 0 ? 'checkmark-circle' : 'basket-outline'}
+              size={13}
+              color={pantryMatch.missingCount === 0 ? '#1B6334' : '#995200'}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={[
+              styles.pantryBadgeText,
+              pantryMatch.missingCount === 0 ? styles.pantryBadgeTextFull : styles.pantryBadgeTextPartial
+            ]}>
+              {pantryMatch.missingCount === 0
+                ? '100% • Pronta subito!'
+                : `Hai il ${pantryMatch.percentage}% (mancano ${pantryMatch.missingCount})`}
+            </Text>
+          </View>
+        )}
+
         <Text style={styles.title} numberOfLines={2}>
           {recipe.titolo}
         </Text>
@@ -98,6 +134,22 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress, onFavor
             <Text style={styles.diffText}>{recipe.difficolta}</Text>
           </View>
         </View>
+
+        {pantryMatch && pantryMatch.missingCount > 0 && onAddMissingToShopping && (
+          <TouchableOpacity
+            style={styles.addMissingBtn}
+            onPress={(e: any) => {
+              e?.stopPropagation?.();
+              onAddMissingToShopping(pantryMatch.missing, recipe.titolo);
+            }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cart-outline" size={13} color="#4A6B53" style={{ marginRight: 5 }} />
+            <Text style={styles.addMissingText}>
+              Aggiungi {pantryMatch.missingCount} {pantryMatch.missingCount === 1 ? 'mancante' : 'mancanti'} alla spesa
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -224,5 +276,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#556658',
+  },
+  pantryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  pantryBadgeFull: {
+    backgroundColor: '#E8F5E9',
+  },
+  pantryBadgePartial: {
+    backgroundColor: '#FFF4E5',
+  },
+  pantryBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  pantryBadgeTextFull: {
+    color: '#1B6334',
+  },
+  pantryBadgeTextPartial: {
+    color: '#995200',
+  },
+  addMissingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F5F1',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#D8E4DA',
+  },
+  addMissingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#34523C',
   },
 });

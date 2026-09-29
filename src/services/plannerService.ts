@@ -1,5 +1,6 @@
 import { Recipe, MealPlanEntry, IngredientItem } from '../types/recipe';
 import { addShoppingItems } from '../db/database';
+import { scaleIngredient } from '../utils/servingsScaler';
 
 export function getWeekDays(startDate?: Date): Array<{ dateString: string; dayName: string; dayNumber: number; isToday: boolean }> {
   const base = startDate ? new Date(startDate) : new Date();
@@ -46,22 +47,19 @@ export async function aggregateAndAddToShopping(
 
     const baseServings = recipe.porzioni || 4;
     const factor = entry.servings / baseServings;
+    const titleWithServings = `${recipe.titolo} (${entry.servings} porz.)`;
 
     if (recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0) {
       for (const ing of recipe.ingredienti_dettagliati) {
-        let scaledAmt = ing.quantita !== null ? Math.round(ing.quantita * factor * 10) / 10 : null;
-        let text = ing.testo;
-        if (scaledAmt !== null && ing.unita) {
-          text = `${scaledAmt} ${ing.unita} ${ing.ingrediente}`.trim();
-        }
+        const scaled = scaleIngredient(ing.quantita, ing.unita, ing.ingrediente, ing.testo, factor);
 
         itemsToAdd.push({
           recipeId: recipe.id,
-          recipeTitle: recipe.titolo,
-          ingredientText: text,
-          name: ing.ingrediente || ing.testo,
-          amount: scaledAmt,
-          unit: ing.unita,
+          recipeTitle: titleWithServings,
+          ingredientText: scaled.formattedText,
+          name: scaled.name,
+          amount: scaled.scaledAmount,
+          unit: scaled.unit,
           category: ing.sezione || 'Generale'
         });
       }
@@ -69,7 +67,7 @@ export async function aggregateAndAddToShopping(
       for (const ingStr of recipe.ingredienti) {
         itemsToAdd.push({
           recipeId: recipe.id,
-          recipeTitle: recipe.titolo,
+          recipeTitle: titleWithServings,
           ingredientText: ingStr,
           name: ingStr,
           category: 'Generale'
