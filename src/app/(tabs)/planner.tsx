@@ -78,7 +78,7 @@ export default function PlannerScreen() {
     });
     setPickerVisible(false);
     loadPlans();
-    showToast(`Pianificato per ${targetSlot === 'pranzo' ? 'Pranzo' : 'Cena'}! 🌿`);
+    showToast(`Pianificato per ${targetSlot === 'pranzo' ? 'Pranzo' : 'Cena'}!`);
   };
 
   const handleDeleteSlot = async (id: string) => {
@@ -93,7 +93,7 @@ export default function PlannerScreen() {
       return;
     }
     const count = await aggregateAndAddToShopping(plans, recipeMap);
-    showToast(`🛒 ${count} ingredienti generati e aggiunti alla Spesa!`);
+    showToast(`${count} ingredienti generati e aggiunti alla Spesa!`);
   };
 
   const pickerFiltered = useMemo(() => {

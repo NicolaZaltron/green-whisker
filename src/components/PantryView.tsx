@@ -109,7 +109,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       }))
     );
 
-    const msg = `✓ ${missing.length} ${missing.length === 1 ? 'ingrediente aggiunto' : 'ingredienti aggiunti'} alla Spesa!`;
+    const msg = `${missing.length} ${missing.length === 1 ? 'ingrediente aggiunto' : 'ingredienti aggiunti'} alla Spesa!`;
     setFeedbackToast(msg);
     if (onToastMessage) onToastMessage(msg);
 

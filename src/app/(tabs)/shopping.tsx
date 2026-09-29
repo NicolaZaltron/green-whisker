@@ -19,6 +19,7 @@ import {
   clearAllShoppingItems,
   addShoppingItems
 } from '../../db/database';
+import { cleanShoppingIngredientText } from '../../utils/servingsScaler';
 
 export default function ShoppingScreen() {
   const [items, setItems] = useState<ShoppingItem[]>([]);
@@ -151,7 +152,7 @@ export default function ShoppingScreen() {
                 </View>
                 <View style={styles.itemContent}>
                   <Text style={[styles.itemText, item.checked && styles.itemTextChecked]}>
-                    {item.ingredient_text}
+                    {cleanShoppingIngredientText(item.ingredient_text, item.name)}
                   </Text>
                   {item.recipe_title && (
                     <Text style={styles.itemRecipe}>Da: {item.recipe_title}</Text>

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { ShoppingItem, MealPlanEntry } from '../types/recipe';
+import { cleanShoppingIngredientText } from '../utils/servingsScaler';
 
 let dbInstance: any = null;
 let isWebFallback = false;
@@ -8,7 +9,8 @@ let isWebFallback = false;
 const WEB_STORAGE_KEYS = {
   FAVORITES: 'gw_favorites',
   SHOPPING: 'gw_shopping',
-  PLANNER: 'gw_planner'
+  PLANNER: 'gw_planner',
+  NOTES: 'gw_notes'
 };
 
 function getWebData<T>(key: string, defaultValue: T): T {
@@ -72,6 +74,12 @@ export async function initDatabase(): Promise<void> {
         servings INTEGER NOT NULL DEFAULT 2,
         notes TEXT,
         created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS recipe_notes (
+        recipe_id TEXT PRIMARY KEY,
+        notes TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
@@ -171,18 +179,24 @@ export async function addShoppingItems(items: Array<{
   unit?: string;
   category?: string;
 }>): Promise<void> {
-  const newItems: ShoppingItem[] = items.map(item => ({
-    id: `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    recipe_id: item.recipeId,
-    recipe_title: item.recipeTitle,
-    ingredient_text: item.ingredientText,
-    name: item.name,
-    amount: item.amount ?? null,
-    unit: item.unit || '',
-    checked: false,
-    category: item.category || 'Generale',
-    created_at: Date.now()
-  }));
+  const newItems: ShoppingItem[] = items.map(item => {
+    const isQbUnit = item.unit ? (item.unit.toLowerCase().includes('q.b') || item.unit.toLowerCase().includes('quanto basta')) : false;
+    const cleanedText = cleanShoppingIngredientText(item.ingredientText, item.name);
+    const cleanedName = cleanShoppingIngredientText(item.name, cleanedText);
+
+    return {
+      id: `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      recipe_id: item.recipeId,
+      recipe_title: item.recipeTitle,
+      ingredient_text: cleanedText,
+      name: cleanedName,
+      amount: isQbUnit ? null : (item.amount ?? null),
+      unit: isQbUnit ? '' : (item.unit || ''),
+      checked: false,
+      category: item.category || 'Generale',
+      created_at: Date.now()
+    };
+  });
 
   if (isWebFallback || !dbInstance) {
     const existing = getWebData<ShoppingItem[]>(WEB_STORAGE_KEYS.SHOPPING, []);
@@ -354,3 +368,67 @@ export async function clearMealPlans(): Promise<void> {
     console.error('clearMealPlans error', e);
   }
 }
+
+// --- RECIPE NOTES ---
+export async function getRecipeNote(recipeId: string): Promise<string> {
+  if (isWebFallback || !dbInstance) {
+    const notesMap = getWebData<Record<string, string>>(WEB_STORAGE_KEYS.NOTES, {});
+    return notesMap[recipeId] || '';
+  }
+
+  try {
+    const row = await dbInstance.getFirstAsync('SELECT notes FROM recipe_notes WHERE recipe_id = ?', [recipeId]);
+    return row ? (row as any).notes : '';
+  } catch (e) {
+    console.error('getRecipeNote error', e);
+    return '';
+  }
+}
+
+export async function saveRecipeNote(recipeId: string, notes: string): Promise<void> {
+  const trimmed = notes.trim();
+
+  if (isWebFallback || !dbInstance) {
+    const notesMap = getWebData<Record<string, string>>(WEB_STORAGE_KEYS.NOTES, {});
+    if (!trimmed) {
+      delete notesMap[recipeId];
+    } else {
+      notesMap[recipeId] = trimmed;
+    }
+    setWebData(WEB_STORAGE_KEYS.NOTES, notesMap);
+    return;
+  }
+
+  try {
+    if (!trimmed) {
+      await dbInstance.runAsync('DELETE FROM recipe_notes WHERE recipe_id = ?', [recipeId]);
+    } else {
+      await dbInstance.runAsync(`
+        INSERT INTO recipe_notes (recipe_id, notes, updated_at) 
+        VALUES (?, ?, ?)
+        ON CONFLICT(recipe_id) DO UPDATE SET notes = excluded.notes, updated_at = excluded.updated_at
+      `, [recipeId, trimmed, Date.now()]);
+    }
+  } catch (e) {
+    console.error('saveRecipeNote error', e);
+  }
+}
+
+export async function getAllRecipeNotes(): Promise<Record<string, string>> {
+  if (isWebFallback || !dbInstance) {
+    return getWebData<Record<string, string>>(WEB_STORAGE_KEYS.NOTES, {});
+  }
+
+  try {
+    const rows = await dbInstance.getAllAsync('SELECT recipe_id, notes FROM recipe_notes');
+    const result: Record<string, string> = {};
+    for (const r of rows as any[]) {
+      result[r.recipe_id] = r.notes;
+    }
+    return result;
+  } catch (e) {
+    console.error('getAllRecipeNotes error', e);
+    return {};
+  }
+}
+

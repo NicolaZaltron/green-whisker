@@ -3,6 +3,12 @@ import { Recipe } from '../types/recipe';
 
 const defaultRecipes = require('../../assets/ricette.json') as Recipe[];
 
+export interface AdvancedFilterOptions {
+  maxMinutes?: number | null; // e.g. 20, 35, 50
+  difficolta?: 'Facile' | 'Media' | 'Difficile' | null;
+  tag?: string | null; // e.g. 'Senza Glutine', 'Al forno', 'Senza cottura'
+}
+
 function createFuse(recipes: Recipe[]): Fuse<Recipe> {
   return new Fuse(recipes, {
     keys: [
@@ -25,7 +31,11 @@ export function initializeSearchIndex(recipes: Recipe[]): void {
   fuseInstance = createFuse(recipes);
 }
 
-export function searchRecipes(query: string, categoryFilter: string, tagFilter: string | null): Recipe[] {
+export function searchRecipes(
+  query: string,
+  categoryFilter: string,
+  filters?: string | AdvancedFilterOptions | null
+): Recipe[] {
   let list = currentDataset;
 
   // 1. Text Search (Fuzzy or Exact)
@@ -40,18 +50,30 @@ export function searchRecipes(query: string, categoryFilter: string, tagFilter: 
     list = list.filter(r => r.categoria === categoryFilter);
   }
 
-  // 3. Quick Tag Filter
-  if (tagFilter) {
-    if (tagFilter === '< 30 min') {
+  // 3. String Tag Filter (backward compat)
+  if (typeof filters === 'string' && filters) {
+    if (filters === '< 30 min') {
       list = list.filter(r => r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 30);
-    } else if (tagFilter === 'Senza Glutine') {
+    } else if (filters === 'Senza Glutine') {
       list = list.filter(r => r.tags.some(t => t.toLowerCase().includes('senza glutine')));
-    } else if (tagFilter === 'Al forno') {
+    } else if (filters === 'Al forno') {
       list = list.filter(r => r.tags.some(t => t.toLowerCase().includes('al forno')));
-    } else if (tagFilter === 'Senza cottura') {
+    } else if (filters === 'Senza cottura') {
       list = list.filter(r => r.tags.some(t => t.toLowerCase().includes('senza cottura')));
-    } else if (tagFilter === 'Facile') {
+    } else if (filters === 'Facile') {
       list = list.filter(r => r.difficolta === 'Facile');
+    }
+  } else if (filters && typeof filters === 'object') {
+    // 4. Advanced Filters
+    if (filters.maxMinutes) {
+      list = list.filter(r => r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= filters.maxMinutes!);
+    }
+    if (filters.difficolta) {
+      list = list.filter(r => r.difficolta === filters.difficolta);
+    }
+    if (filters.tag) {
+      const lower = filters.tag.toLowerCase();
+      list = list.filter(r => r.tags.some(t => t.toLowerCase().includes(lower)));
     }
   }
 

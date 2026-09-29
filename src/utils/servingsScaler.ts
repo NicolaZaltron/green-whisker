@@ -115,3 +115,27 @@ export function scaleIngredient(
     name: cleanName
   };
 }
+
+/**
+ * Rimuove 'q.b.', 'quanto basta' e simili dai testi degli ingredienti per la lista della spesa,
+ * restituendo il nome pulito dell'alimento (es. "Olio evo", "Sale fino", "Pepe").
+ */
+export function cleanShoppingIngredientText(text: string, fallbackName?: string): string {
+  if (!text) return fallbackName || '';
+
+  // Rimuove 'q.b.' / 'quanto basta' iniziale con eventuale 'di' o "d'"
+  let cleaned = text.replace(/^(?:q\.?\s*b\.?|quanto basta)\s*(?:di\s+|d')?/i, '').trim();
+
+  // Rimuove 'q.b.' / 'quanto basta' finale o tra parentesi
+  cleaned = cleaned.replace(/[,;\s]*\(?(?:q\.?\s*b\.?|quanto basta)\)?\s*$/i, '').trim();
+
+  // Rimuove ', q.b.' nel mezzo
+  cleaned = cleaned.replace(/,\s*\(?(?:q\.?\s*b\.?|quanto basta)\)?/i, '').trim();
+
+  if (cleaned.length > 0) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+
+  return cleaned || fallbackName || text;
+}
+

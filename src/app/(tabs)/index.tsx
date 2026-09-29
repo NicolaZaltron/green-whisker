@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  Keyboard
+  Keyboard,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -18,7 +19,7 @@ import { RecipeModal } from '../../components/RecipeModal';
 import { PantryView } from '../../components/PantryView';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
-import { searchRecipes } from '../../services/searchService';
+import { searchRecipes, AdvancedFilterOptions } from '../../services/searchService';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
@@ -37,23 +38,44 @@ const CATEGORIES = [
   'Bevande e frullati',
 ];
 
-const QUICK_TAGS = ['< 30 min', 'Senza Glutine', 'Al forno', 'Senza cottura', 'Facile'];
-
 export default function ExploreScreen() {
   const { width } = useResponsiveDimensions();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  // Advanced Filters State
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+  const [filters, setFilters] = useState<AdvancedFilterOptions>({
+    maxMinutes: null,
+    difficolta: null,
+    tag: null,
+  });
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.maxMinutes) count++;
+    if (filters.difficolta) count++;
+    if (filters.tag) count++;
+    return count;
+  }, [filters]);
+
+  const handleResetFilters = () => {
+    setFilters({
+      maxMinutes: null,
+      difficolta: null,
+      tag: null,
+    });
+  };
 
   // Debounced search query for butter-smooth typing on mobile
   const debouncedQuery = useDebounce(searchQuery, 150);
 
-  // Filter recipes using Fuse.js fuzzy engine + category + quick tags
+  // Filter recipes using Fuse.js fuzzy engine + category + advanced filters
   const filteredRecipes = useMemo(() => {
-    return searchRecipes(debouncedQuery, selectedCategory, selectedTag);
-  }, [debouncedQuery, selectedCategory, selectedTag]);
+    return searchRecipes(debouncedQuery, selectedCategory, filters);
+  }, [debouncedQuery, selectedCategory, filters]);
 
   // Responsive column count calculation
   const numColumns = useMemo(() => {
@@ -61,10 +83,6 @@ export default function ExploreScreen() {
     if (width >= 600) return 2;
     return 1;
   }, [width]);
-
-  const toggleTag = (tag: string) => {
-    setSelectedTag(prev => (prev === tag ? null : tag));
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -120,35 +138,69 @@ export default function ExploreScreen() {
           </View>
 
           {viewMode === 'catalog' && (
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Cerca per ricetta o ingrediente (es. zucca, pasta)..."
-                placeholderTextColor="#8C988F"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="search"
-                clearButtonMode="while-editing"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name="close-circle" size={18} color="#7E8B80" />
-                </TouchableOpacity>
-              )}
+            <View style={styles.searchRow}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Cerca per ricetta o ingrediente (es. zucca, pasta)..."
+                  placeholderTextColor="#8C988F"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  clearButtonMode="while-editing"
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <Ionicons name="close-circle" size={18} color="#7E8B80" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[styles.filterBtn, activeFiltersCount > 0 && styles.filterBtnActive]}
+                onPress={() => setShowFilterSheet(true)}
+                activeOpacity={0.8}
+                accessibilityLabel="Filtri avanzati"
+              >
+                <Ionicons
+                  name={activeFiltersCount > 0 ? 'options' : 'options-outline'}
+                  size={20}
+                  color={activeFiltersCount > 0 ? '#FFFFFF' : '#4A6B53'}
+                />
+                {activeFiltersCount > 0 && (
+                  <View style={styles.filterBadge}>
+                    <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
         {viewMode === 'catalog' ? (
           <>
-            {/* Categories Horizontal Carousel */}
+            {/* Single Fluid Horizontal Category Bar */}
             <View style={styles.categoriesSection}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesContainer}
               >
+                {/* Active Filters Reset Chip (if any active) */}
+                {activeFiltersCount > 0 && (
+                  <TouchableOpacity
+                    style={styles.activeFiltersPill}
+                    onPress={handleResetFilters}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="close-circle" size={14} color="#FFF" style={{ marginRight: 4 }} />
+                    <Text style={styles.activeFiltersPillText}>
+                      {activeFiltersCount} {activeFiltersCount === 1 ? 'filtro' : 'filtri'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
                 {CATEGORIES.map(cat => {
                   const isSelected = selectedCategory === cat;
                   return (
@@ -162,27 +214,6 @@ export default function ExploreScreen() {
                         style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
                       >
                         {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {/* Quick Tag Filters */}
-            <View style={styles.tagsBar}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagsContainer}>
-                {QUICK_TAGS.map(tag => {
-                  const isSelected = selectedTag === tag;
-                  return (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[styles.tagPill, isSelected && styles.tagPillSelected]}
-                      onPress={() => toggleTag(tag)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.tagPillText, isSelected && styles.tagPillTextSelected]}>
-                        {tag}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -246,6 +277,157 @@ export default function ExploreScreen() {
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
         />
+
+        {/* Modal Filtri Avanzati (Bottom Sheet) */}
+        <Modal
+          visible={showFilterSheet}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowFilterSheet(false)}
+        >
+          <TouchableOpacity
+            style={styles.sheetOverlay}
+            activeOpacity={1}
+            onPress={() => setShowFilterSheet(false)}
+          >
+            <View
+              style={[styles.sheetContainer, width >= 768 && styles.sheetContainerTablet]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.sheetHeader}>
+                <View>
+                  <Text style={styles.sheetTitle}>Filtri Avanzati</Text>
+                  <Text style={styles.sheetSub}>Personalizza la ricerca delle ricette</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.sheetCloseBtn}
+                  onPress={() => setShowFilterSheet(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={20} color="#2B332B" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
+                {/* Tempo Massimo */}
+                <View style={styles.sheetSection}>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="time-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Text style={styles.sheetSectionTitle}>Tempo Massimo</Text>
+                  </View>
+                  <View style={styles.sheetChipsRow}>
+                    {[
+                      { label: 'Qualsiasi', value: null },
+                      { label: '< 20 min', value: 20 },
+                      { label: '< 35 min', value: 35 },
+                      { label: '< 50 min', value: 50 },
+                    ].map(opt => {
+                      const isSel = filters.maxMinutes === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.label}
+                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
+                          onPress={() => setFilters(prev => ({ ...prev, maxMinutes: opt.value }))}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Difficoltà */}
+                <View style={styles.sheetSection}>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="speedometer-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Text style={styles.sheetSectionTitle}>Difficoltà</Text>
+                  </View>
+                  <View style={styles.sheetChipsRow}>
+                    {[
+                      { label: 'Tutte', value: null },
+                      { label: 'Facile', value: 'Facile' },
+                      { label: 'Media', value: 'Media' },
+                      { label: 'Difficile', value: 'Difficile' },
+                    ].map(opt => {
+                      const isSel = filters.difficolta === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.label}
+                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
+                          onPress={() => setFilters(prev => ({ ...prev, difficolta: opt.value as any }))}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Caratteristiche */}
+                <View style={styles.sheetSection}>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="leaf-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Text style={styles.sheetSectionTitle}>Caratteristiche</Text>
+                  </View>
+                  <View style={styles.sheetChipsRow}>
+                    {[
+                      { label: 'Tutte', value: null },
+                      { label: 'Senza Glutine', value: 'Senza Glutine' },
+                      { label: 'Al forno', value: 'Al forno' },
+                      { label: 'Senza cottura', value: 'Senza cottura' },
+                    ].map(opt => {
+                      const isSel = filters.tag === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.label}
+                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
+                          onPress={() => setFilters(prev => ({ ...prev, tag: opt.value }))}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Sheet Footer */}
+              <View style={styles.sheetFooter}>
+                {activeFiltersCount > 0 ? (
+                  <TouchableOpacity
+                    style={styles.sheetResetBtn}
+                    onPress={handleResetFilters}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh-outline" size={15} color="#6E7E72" style={{ marginRight: 4 }} />
+                    <Text style={styles.sheetResetText}>Azzera</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View />
+                )}
+
+                <TouchableOpacity
+                  style={styles.sheetApplyBtn}
+                  onPress={() => setShowFilterSheet(false)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.sheetApplyText}>
+                    Mostra {filteredRecipes.length} {filteredRecipes.length === 1 ? 'ricetta' : 'ricette'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -328,7 +510,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   searchBar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -348,14 +536,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2B332B',
   },
+  filterBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#ECE7DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: '#1A2E1F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  filterBtnActive: {
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#D97757',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#FBF9F5',
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
   categoriesSection: {
-    marginTop: 6,
+    marginTop: 4,
     marginBottom: 4,
   },
   categoriesContainer: {
     paddingHorizontal: 20,
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
+  },
+  activeFiltersPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D97757',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  activeFiltersPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   categoryChip: {
     paddingHorizontal: 14,
@@ -375,31 +615,6 @@ const styles = StyleSheet.create({
     color: '#657367',
   },
   categoryChipTextSelected: {
-    color: '#FFFFFF',
-  },
-  tagsBar: {
-    marginBottom: 6,
-  },
-  tagsContainer: {
-    paddingHorizontal: 20,
-    gap: 6,
-    paddingVertical: 4,
-  },
-  tagPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: '#F3EFE8',
-  },
-  tagPillSelected: {
-    backgroundColor: '#D97757',
-  },
-  tagPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6E786F',
-  },
-  tagPillTextSelected: {
     color: '#FFFFFF',
   },
   counterRow: {
@@ -442,5 +657,132 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
+  },
+  // Filter Bottom Sheet Styles
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#FBF9F5',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  sheetContainerTablet: {
+    maxWidth: 520,
+    width: '100%',
+    alignSelf: 'center',
+    borderRadius: 24,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEBE4',
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2B332B',
+  },
+  sheetSub: {
+    fontSize: 13,
+    color: '#7E8B80',
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EBE5DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetScroll: {
+    maxHeight: 340,
+  },
+  sheetSection: {
+    marginBottom: 20,
+  },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sheetSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2B332B',
+  },
+  sheetChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sheetChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#ECE7DF',
+  },
+  sheetChipSelected: {
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
+  },
+  sheetChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#556658',
+  },
+  sheetChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  sheetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EFEBE4',
+    marginTop: 8,
+  },
+  sheetResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  sheetResetText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6E7E72',
+  },
+  sheetApplyBtn: {
+    backgroundColor: '#34523C',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    marginLeft: 'auto',
+  },
+  sheetApplyText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

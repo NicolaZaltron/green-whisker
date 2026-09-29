@@ -8,15 +8,31 @@ import {
   StyleSheet,
   Linking,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  TextInput,
+  Platform
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
-import { isFavorite, toggleFavorite, addShoppingItems, saveMealPlanEntry } from '../db/database';
+import {
+  isFavorite,
+  toggleFavorite,
+  addShoppingItems,
+  saveMealPlanEntry,
+  getRecipeNote,
+  saveRecipeNote
+} from '../db/database';
 import { getWeekDays } from '../services/plannerService';
 import { scaleIngredient } from '../utils/servingsScaler';
+import {
+  formatRecipeShareText,
+  shareToTelegram,
+  shareToWhatsApp,
+  shareNative,
+  copyRecipeToClipboard
+} from '../utils/shareHelper';
 
 interface RecipeModalProps {
   recipe: Recipe | null;
@@ -34,10 +50,18 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<'pranzo' | 'cena'>('pranzo');
+  const [scrollY, setScrollY] = useState(0);
+
+  // Sharing & Personal Notes State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [includeNotesInShare, setIncludeNotesInShare] = useState(true);
+  const [userNote, setUserNote] = useState('');
+  const [savedNoteStatus, setSavedNoteStatus] = useState<string | null>(null);
+  const [isEditingNote, setIsEditingNote] = useState(false);
 
   const weekDays = getWeekDays();
 
-  // Reset & load favorite status
+  // Reset & load favorite status and personal notes
   useEffect(() => {
     if (recipe) {
       setCurrentServings(recipe.porzioni || 4);
@@ -45,8 +69,13 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       setCompletedSteps({});
       setFeedbackMessage(null);
       setShowPlanPicker(false);
+      setShowShareModal(false);
+      setIsEditingNote(false);
+      setSavedNoteStatus(null);
+      setScrollY(0);
 
       isFavorite(recipe.id).then(setFavorite);
+      getRecipeNote(recipe.id).then(note => setUserNote(note || ''));
     }
   }, [recipe?.id]);
 
@@ -66,7 +95,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
     const newFav = await toggleFavorite(recipe.id);
     setFavorite(newFav);
     if (onFavoriteChange) onFavoriteChange(newFav);
-    showToast(newFav ? 'Aggiunta ai Preferiti ❤️' : 'Rimossa dai Preferiti');
+    showToast(newFav ? 'Aggiunta ai Preferiti' : 'Rimossa dai Preferiti');
   };
 
   const changeServings = (delta: number) => {
@@ -99,7 +128,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       unit: scaled.unit,
       category: item.sezione || 'Generale'
     }]);
-    showToast(`🛒 "${scaled.name}" aggiunto per ${currentServings} porzioni!`);
+    showToast(`"${scaled.name}" aggiunto per ${currentServings} porzioni!`);
   };
 
   const handleAddAllToShopping = async () => {
@@ -141,7 +170,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
     }
 
     await addShoppingItems(itemsToAdd);
-    showToast(`🛒 ${itemsToAdd.length} ingredienti aggiunti per ${currentServings} porzioni!`);
+    showToast(`${itemsToAdd.length} ingredienti aggiunti per ${currentServings} porzioni!`);
   };
 
   const handleScheduleMeal = async (dateStr: string) => {
@@ -152,7 +181,65 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       servings: currentServings
     });
     setShowPlanPicker(false);
-    showToast(`📅 Pianificato per ${selectedSlot === 'pranzo' ? 'Pranzo' : 'Cena'}!`);
+    showToast(`Pianificato per ${selectedSlot === 'pranzo' ? 'Pranzo' : 'Cena'}!`);
+  };
+
+  const handleSaveNote = async () => {
+    await saveRecipeNote(recipe.id, userNote);
+    setIsEditingNote(false);
+    setSavedNoteStatus('Salvata');
+    showToast('Nota personale salvata!');
+    setTimeout(() => setSavedNoteStatus(null), 3000);
+  };
+
+  const getShareText = () => {
+    const scaledList = (recipe.ingredienti_dettagliati || []).map(item => {
+      const sc = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+      return {
+        ...item,
+        quantita: sc.scaledAmount ?? null,
+        testo: sc.formattedText,
+      };
+    });
+    return formatRecipeShareText(
+      recipe,
+      scaledList,
+      currentServings,
+      includeNotesInShare ? userNote : undefined
+    );
+  };
+
+  const handleShareTelegram = async () => {
+    const text = getShareText();
+    const ok = await shareToTelegram(text);
+    if (ok) {
+      setShowShareModal(false);
+      showToast('Apertura Telegram in corso...');
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    const text = getShareText();
+    const ok = await shareToWhatsApp(text);
+    if (ok) {
+      setShowShareModal(false);
+      showToast('Apertura WhatsApp in corso...');
+    }
+  };
+
+  const handleShareNative = async () => {
+    const text = getShareText();
+    setShowShareModal(false);
+    await shareNative(recipe.titolo, text);
+  };
+
+  const handleCopyClipboard = async () => {
+    const text = getShareText();
+    const ok = await copyRecipeToClipboard(text);
+    if (ok) {
+      setShowShareModal(false);
+      showToast('Ricetta copiata negli appunti!');
+    }
   };
 
   // Group detailed ingredients by section
@@ -173,25 +260,45 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
-          {/* Navigation Bar Header */}
-          <View style={styles.topNav}>
-            <TouchableOpacity style={styles.navBtn} onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close" size={24} color="#2B332B" />
+          {/* Dynamic Sticky Top Navigation Bar */}
+          <View style={[styles.topNav, scrollY > 20 && styles.topNavScrolled]}>
+            <TouchableOpacity
+              style={styles.navBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              accessibilityLabel="Chiudi ricetta"
+            >
+              <Ionicons name="close" size={22} color="#2B332B" />
             </TouchableOpacity>
 
-            <Text style={styles.topNavTitle} numberOfLines={1}>
+            <Text
+              style={[
+                styles.topNavTitle,
+                { opacity: scrollY > 30 ? Math.min(1, (scrollY - 30) / 40) : 0 }
+              ]}
+              numberOfLines={1}
+            >
               {recipe.titolo}
             </Text>
 
             <View style={styles.navActions}>
               <TouchableOpacity
                 style={styles.navBtn}
+                onPress={() => setShowShareModal(true)}
+                activeOpacity={0.7}
+                accessibilityLabel="Condividi ricetta"
+              >
+                <Ionicons name="share-social-outline" size={19} color="#4A6B53" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.navBtn, { marginLeft: 8 }]}
                 onPress={handleToggleFavorite}
                 activeOpacity={0.7}
+                accessibilityLabel="Preferiti"
               >
                 <Ionicons
                   name={favorite ? 'heart' : 'heart-outline'}
-                  size={22}
+                  size={20}
                   color={favorite ? '#D9534F' : '#4A6B53'}
                 />
               </TouchableOpacity>
@@ -199,8 +306,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 style={[styles.navBtn, { marginLeft: 8 }]}
                 onPress={() => Linking.openURL(recipe.url)}
                 activeOpacity={0.7}
+                accessibilityLabel="Apri sul web"
               >
-                <Ionicons name="open-outline" size={20} color="#4A6B53" />
+                <Ionicons name="open-outline" size={19} color="#4A6B53" />
               </TouchableOpacity>
             </View>
           </View>
@@ -213,7 +321,13 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             </View>
           )}
 
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={e => setScrollY(e.nativeEvent.contentOffset.y)}
+            scrollEventThrottle={16}
+          >
             {/* Main Image with expo-image */}
             {recipe.immagine ? (
               <View style={styles.imageContainer}>
@@ -269,71 +383,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                   <Text style={styles.metricValue}>{recipe.difficolta}</Text>
                 </View>
               </View>
-
-              {/* Quick Action Hub: Spesa & Planner */}
-              <View style={styles.actionHub}>
-                <TouchableOpacity
-                  style={styles.actionHubBtn}
-                  onPress={handleAddAllToShopping}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="cart-outline" size={18} color="#4A6B53" />
-                  <Text style={styles.actionHubBtnText}>Aggiungi alla Spesa</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionHubBtn, styles.actionHubBtnAlt]}
-                  onPress={() => setShowPlanPicker(!showPlanPicker)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="calendar-outline" size={18} color="#D97757" />
-                  <Text style={[styles.actionHubBtnText, { color: '#D97757' }]}>Pianifica Pasto</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Meal Plan Quick Picker Drawer */}
-              {showPlanPicker && (
-                <View style={styles.planDrawer}>
-                  <Text style={styles.planDrawerTitle}>Scegli quando cucinare questa ricetta:</Text>
-                  <View style={styles.slotToggleRow}>
-                    <TouchableOpacity
-                      style={[styles.slotToggle, selectedSlot === 'pranzo' && styles.slotToggleActive]}
-                      onPress={() => setSelectedSlot('pranzo')}
-                    >
-                      <Ionicons name="sunny-outline" size={14} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
-                      <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
-                        Pranzo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.slotToggle, selectedSlot === 'cena' && styles.slotToggleActive]}
-                      onPress={() => setSelectedSlot('cena')}
-                    >
-                      <Ionicons name="moon-outline" size={14} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
-                      <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
-                        Cena
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
-                    {weekDays.map(d => (
-                      <TouchableOpacity
-                        key={d.dateString}
-                        style={[styles.dayCard, d.isToday && styles.dayCardToday]}
-                        onPress={() => handleScheduleMeal(d.dateString)}
-                      >
-                        <Text style={[styles.dayCardName, d.isToday && styles.dayCardNameToday]}>
-                          {d.dayName.slice(0, 3)}
-                        </Text>
-                        <Text style={[styles.dayCardNum, d.isToday && styles.dayCardNumToday]}>
-                          {d.dayNumber}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
 
               {/* Dynamic Servings Scaler with Quick Presets */}
               <View style={styles.scalerCard}>
@@ -451,6 +500,51 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 })}
               </View>
 
+              {/* Personal Notes Section */}
+              <View style={styles.notesCard}>
+                <View style={styles.notesHeader}>
+                  <View style={styles.notesTitleRow}>
+                    <Ionicons name="journal-outline" size={18} color="#4A6B53" />
+                    <Text style={styles.notesTitle}>Le mie note & varianti</Text>
+                  </View>
+                  {savedNoteStatus && (
+                    <View style={styles.savedNoteBadge}>
+                      <Ionicons name="checkmark-circle" size={13} color="#2D5A27" style={{ marginRight: 3 }} />
+                      <Text style={styles.savedNoteBadgeText}>{savedNoteStatus}</Text>
+                    </View>
+                  )}
+                </View>
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="Es. Forno statico a 180° per 25 min; ottima anche con farina d'avena..."
+                  placeholderTextColor="#9EA89F"
+                  multiline
+                  numberOfLines={3}
+                  value={userNote}
+                  onChangeText={(txt) => {
+                    setUserNote(txt);
+                    setIsEditingNote(true);
+                  }}
+                  onBlur={() => {
+                    if (isEditingNote) {
+                      handleSaveNote();
+                    }
+                  }}
+                />
+                {isEditingNote && (
+                  <View style={styles.notesActionRow}>
+                    <TouchableOpacity
+                      style={styles.notesSaveBtn}
+                      onPress={handleSaveNote}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                      <Text style={styles.notesSaveBtnText}>Salva Nota</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
               {/* Tips & Storage */}
               {recipe.suggerimenti && recipe.suggerimenti.length > 0 && (
                 <View style={styles.tipsBox}>
@@ -466,6 +560,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 </View>
               )}
 
+
               {/* Tags */}
               <View style={styles.tagsContainer}>
                 {recipe.tags.map((t, idx) => (
@@ -475,10 +570,210 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 ))}
               </View>
 
-              <View style={{ height: 40 }} />
+              <View style={{ height: 20 }} />
             </View>
           </ScrollView>
+
+          {/* Sticky Meal Plan Drawer (pops up when showPlanPicker is open) */}
+          {showPlanPicker && (
+            <View style={styles.stickyPlanDrawer}>
+              <View style={styles.planDrawerHeader}>
+                <Text style={styles.planDrawerTitle}>Scegli quando cucinare:</Text>
+                <TouchableOpacity
+                  onPress={() => setShowPlanPicker(false)}
+                  style={styles.planDrawerCloseBtn}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={18} color="#556658" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.slotToggleRow}>
+                <TouchableOpacity
+                  style={[styles.slotToggle, selectedSlot === 'pranzo' && styles.slotToggleActive]}
+                  onPress={() => setSelectedSlot('pranzo')}
+                >
+                  <Ionicons name="sunny-outline" size={14} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
+                  <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
+                    Pranzo
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.slotToggle, selectedSlot === 'cena' && styles.slotToggleActive]}
+                  onPress={() => setSelectedSlot('cena')}
+                >
+                  <Ionicons name="moon-outline" size={14} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
+                  <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
+                    Cena
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
+                {weekDays.map(d => (
+                  <TouchableOpacity
+                    key={d.dateString}
+                    style={[styles.dayCard, d.isToday && styles.dayCardToday]}
+                    onPress={() => handleScheduleMeal(d.dateString)}
+                  >
+                    <Text style={[styles.dayCardName, d.isToday && styles.dayCardNameToday]}>
+                      {d.dayName.slice(0, 3)}
+                    </Text>
+                    <Text style={[styles.dayCardNum, d.isToday && styles.dayCardNumToday]}>
+                      {d.dayNumber}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Sticky Persistent Action Bar */}
+          <View style={styles.stickyActionBar}>
+            <TouchableOpacity
+              style={styles.stickyAddBtn}
+              onPress={handleAddAllToShopping}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="cart-outline" size={19} color="#FFF" style={{ marginRight: 8 }} />
+              <Text style={styles.stickyAddBtnText}>
+                Aggiungi alla Spesa ({currentServings} porz.)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.stickyPlanBtn, showPlanPicker && styles.stickyPlanBtnActive]}
+              onPress={() => setShowPlanPicker(!showPlanPicker)}
+              activeOpacity={0.85}
+              accessibilityLabel="Pianifica pasto"
+            >
+              <Ionicons
+                name={showPlanPicker ? 'calendar' : 'calendar-outline'}
+                size={19}
+                color={showPlanPicker ? '#FFF' : '#D97757'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* Share Modal Dialog */}
+        <Modal
+          visible={showShareModal}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowShareModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowShareModal(false)}
+          >
+            <View
+              style={[styles.shareSheet, width >= 768 && styles.shareSheetTablet]}
+              onStartShouldSetResponder={() => true}
+            >
+              <View style={styles.shareSheetHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.shareSheetTitle}>Condividi Ricetta</Text>
+                  <Text style={styles.shareSheetSub} numberOfLines={1}>
+                    {recipe.titolo} • {currentServings} {currentServings === 1 ? 'porzione' : 'porzioni'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.shareCloseBtn}
+                  onPress={() => setShowShareModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={20} color="#2B332B" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Note inclusion toggle if note exists */}
+              {userNote.trim().length > 0 && (
+                <TouchableOpacity
+                  style={styles.includeNotesToggle}
+                  onPress={() => setIncludeNotesInShare(!includeNotesInShare)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={includeNotesInShare ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={includeNotesInShare ? '#4A6B53' : '#7E8B80'}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.includeNotesText}>Includi le mie note personali</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Share Channels */}
+              <View style={styles.shareGrid}>
+                {/* Telegram */}
+                <TouchableOpacity
+                  style={[styles.shareOption, styles.shareOptionTelegram]}
+                  onPress={handleShareTelegram}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shareIconCircle, { backgroundColor: '#2AABEE' }]}>
+                    <Ionicons name="paper-plane" size={19} color="#FFF" />
+                  </View>
+                  <View style={styles.shareOptionTextCol}>
+                    <Text style={[styles.shareOptionTitle, { color: '#0E73A6' }]}>Telegram</Text>
+                    <Text style={styles.shareOptionSub}>Invia in chat o canale Telegram</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#2AABEE" />
+                </TouchableOpacity>
+
+                {/* WhatsApp */}
+                <TouchableOpacity
+                  style={[styles.shareOption, styles.shareOptionWhatsapp]}
+                  onPress={handleShareWhatsApp}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shareIconCircle, { backgroundColor: '#25D366' }]}>
+                    <Ionicons name="logo-whatsapp" size={19} color="#FFF" />
+                  </View>
+                  <View style={styles.shareOptionTextCol}>
+                    <Text style={[styles.shareOptionTitle, { color: '#1B8742' }]}>WhatsApp</Text>
+                    <Text style={styles.shareOptionSub}>Condividi con contatti o gruppi</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#25D366" />
+                </TouchableOpacity>
+
+                {/* Native System Share */}
+                <TouchableOpacity
+                  style={[styles.shareOption, styles.shareOptionNative]}
+                  onPress={handleShareNative}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shareIconCircle, { backgroundColor: '#4A6B53' }]}>
+                    <Ionicons name="share-outline" size={19} color="#FFF" />
+                  </View>
+                  <View style={styles.shareOptionTextCol}>
+                    <Text style={[styles.shareOptionTitle, { color: '#2C4A34' }]}>Altre Applicazioni...</Text>
+                    <Text style={styles.shareOptionSub}>Menu di condivisione di sistema</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#4A6B53" />
+                </TouchableOpacity>
+
+                {/* Copy to Clipboard */}
+                <TouchableOpacity
+                  style={[styles.shareOption, styles.shareOptionClipboard]}
+                  onPress={handleCopyClipboard}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shareIconCircle, { backgroundColor: '#607D8B' }]}>
+                    <Ionicons name="copy-outline" size={19} color="#FFF" />
+                  </View>
+                  <View style={styles.shareOptionTextCol}>
+                    <Text style={[styles.shareOptionTitle, { color: '#37474F' }]}>Copia negli Appunti</Text>
+                    <Text style={styles.shareOptionSub}>Testo formattato con ingredienti e dosi</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#607D8B" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );
@@ -511,6 +806,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EFEBE4',
     backgroundColor: '#FBF9F5',
+    zIndex: 10,
+  },
+  topNavScrolled: {
+    borderBottomColor: '#E2DCD1',
+    shadowColor: '#1A2E1F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 3,
   },
   navBtn: {
     width: 36,
@@ -524,7 +828,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#2B332B',
     marginHorizontal: 12,
   },
@@ -548,6 +852,9 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     width: '100%',
+  },
+  scrollContent: {
+    paddingBottom: 20,
   },
   imageContainer: {
     width: '100%',
@@ -659,45 +966,85 @@ const styles = StyleSheet.create({
     height: 28,
     backgroundColor: '#EFEBE4',
   },
-  actionHub: {
+  // Sticky Action Bar & Plan Drawer Styles
+  stickyActionBar: {
     flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FBF9F5',
+    borderTopWidth: 1,
+    borderTopColor: '#EFEBE4',
     gap: 10,
-    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 8,
   },
-  actionHubBtn: {
+  stickyAddBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF0EB',
-    paddingVertical: 12,
+    backgroundColor: '#34523C',
+    paddingVertical: 13,
     borderRadius: 14,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#D4E2D6',
+    shadowColor: '#1A2E1F',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  actionHubBtnAlt: {
-    backgroundColor: '#FDF3EE',
-    borderColor: '#F6DDD2',
-  },
-  actionHubBtnText: {
-    fontSize: 13,
+  stickyAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
-    color: '#4A6B53',
   },
-  planDrawer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+  stickyPlanBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FDF3EE',
     borderWidth: 1,
+    borderColor: '#F6DDD2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stickyPlanBtnActive: {
+    backgroundColor: '#D97757',
+    borderColor: '#D97757',
+  },
+  stickyPlanDrawer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    borderTopWidth: 1,
     borderColor: '#EFEBE4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  planDrawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  planDrawerCloseBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F3EFE8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   planDrawerTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: '#2B332B',
-    marginBottom: 10,
   },
   slotToggleRow: {
     flexDirection: 'row',
@@ -999,5 +1346,181 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#556658',
     fontWeight: '500',
+  },
+  // Notes Section Styles
+  notesCard: {
+    backgroundColor: '#FAF8F4',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E7E1D4',
+    marginBottom: 20,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  notesTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notesTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2B332B',
+  },
+  savedNoteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E2F0D9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  savedNoteBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2D5A27',
+  },
+  notesInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    color: '#2B332B',
+    borderWidth: 1,
+    borderColor: '#DFD8CB',
+    minHeight: 70,
+    textAlignVertical: 'top',
+  },
+  notesActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  notesSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4A6B53',
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  notesSaveBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  // Share Modal & Sheet Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'flex-end',
+  },
+  shareSheet: {
+    backgroundColor: '#FBF9F5',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  shareSheetTablet: {
+    maxWidth: 520,
+    width: '100%',
+    alignSelf: 'center',
+    borderRadius: 24,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+  },
+  shareSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  shareSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2B332B',
+  },
+  shareSheetSub: {
+    fontSize: 13,
+    color: '#7E8B80',
+    marginTop: 2,
+  },
+  shareCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EBE5DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  includeNotesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0ECE3',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+  includeNotesText: {
+    fontSize: 13,
+    color: '#3B473D',
+    fontWeight: '500',
+  },
+  shareGrid: {
+    gap: 10,
+  },
+  shareOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  shareOptionTelegram: {
+    backgroundColor: '#F0F8FD',
+    borderColor: '#D1EAF8',
+  },
+  shareOptionWhatsapp: {
+    backgroundColor: '#F0FAF3',
+    borderColor: '#D2F2DD',
+  },
+  shareOptionNative: {
+    backgroundColor: '#F2F7F3',
+    borderColor: '#D4E6D9',
+  },
+  shareOptionClipboard: {
+    backgroundColor: '#F5F6F7',
+    borderColor: '#DFE3E6',
+  },
+  shareIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  shareOptionTextCol: {
+    flex: 1,
+  },
+  shareOptionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  shareOptionSub: {
+    fontSize: 12,
+    color: '#718075',
+    marginTop: 1,
   },
 });
