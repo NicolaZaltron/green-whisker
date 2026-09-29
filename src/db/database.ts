@@ -320,7 +320,7 @@ export async function getMealPlans(): Promise<MealPlanEntry[]> {
 
 export async function saveMealPlanEntry(entry: {
   date: string;
-  slot: 'colazione' | 'spuntino' | 'pranzo' | 'cena';
+  slot: 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
   recipeId: string;
   sideRecipeId?: string;
   servings: number;
@@ -384,6 +384,22 @@ export async function updateMealPlanServings(id: string, delta: number): Promise
     console.error('updateMealPlanServings error', e);
   }
 }
+
+export async function updateMealPlanSideRecipe(id: string, sideRecipeId: string | null): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    const updated = existing.map(p => p.id === id ? { ...p, side_recipe_id: sideRecipeId || undefined } : p);
+    setWebData(WEB_STORAGE_KEYS.PLANNER, updated);
+    return;
+  }
+
+  try {
+    await dbInstance.runAsync('UPDATE meal_plan SET side_recipe_id = ? WHERE id = ?', [sideRecipeId, id]);
+  } catch (e) {
+    console.error('updateMealPlanSideRecipe error', e);
+  }
+}
+
 
 export async function saveMealPlanEntriesBulk(entries: MealPlanEntry[]): Promise<void> {
   if (!entries || entries.length === 0) return;

@@ -76,79 +76,99 @@ const SNACK_CATEGORIES = new Set([
   'Bevande e frullati',
 ]);
 
-/** Tipo slot giornaliero */
-export type MealSlot = 'colazione' | 'spuntino' | 'pranzo' | 'cena';
+/** Tipo slot giornaliero (5 pasti giornalieri) */
+export type MealSlot = 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
 
-/** Ordine canonico degli slot nel giorno (per display e loop) */
-export const SLOT_ORDER: MealSlot[] = ['colazione', 'pranzo', 'spuntino', 'cena'];
+/** Ordine canonico dei 5 slot nel giorno (per display e loop) */
+export const SLOT_ORDER: MealSlot[] = [
+  'colazione',
+  'spuntino_mattina',
+  'pranzo',
+  'spuntino_pomeriggio',
+  'cena',
+];
 
 /** Etichette italiane degli slot */
 export const SLOT_LABELS: Record<MealSlot, string> = {
   colazione: 'Colazione',
-  spuntino: 'Spuntino',
+  spuntino_mattina: 'Spuntino Mattina',
   pranzo: 'Pranzo',
+  spuntino_pomeriggio: 'Spuntino Pomeriggio',
   cena: 'Cena',
 };
 
 /** Icone Ionicons per ogni slot */
 export const SLOT_ICONS: Record<MealSlot, string> = {
   colazione: 'cafe-outline',
-  spuntino: 'nutrition-outline',
+  spuntino_mattina: 'nutrition-outline',
   pranzo: 'sunny-outline',
+  spuntino_pomeriggio: 'leaf-outline',
   cena: 'moon-outline',
 };
 
 /** Colori per ogni slot */
 export const SLOT_COLORS: Record<MealSlot, { color: string; bgColor: string }> = {
-  colazione: { color: '#C07A3A', bgColor: '#FDF5EC' },
-  spuntino:  { color: '#7B6FA3', bgColor: '#F2F0FA' },
-  pranzo:    { color: '#4A6B53', bgColor: '#EAF0EB' },
-  cena:      { color: '#D97757', bgColor: '#FDF0EE' },
+  colazione:           { color: '#C07A3A', bgColor: '#FDF5EC' },
+  spuntino_mattina:   { color: '#7B6FA3', bgColor: '#F2F0FA' },
+  pranzo:             { color: '#4A6B53', bgColor: '#EAF0EB' },
+  spuntino_pomeriggio: { color: '#3A8C7E', bgColor: '#E6F4F1' },
+  cena:               { color: '#D97757', bgColor: '#FDF0EE' },
 };
 
 /**
- * Restituisce le ricette adatte e consigliate per ciascuno slot pasto.
+ * Restituisce le ricette adatte e consigliate per ciascuno dei 5 slot pasto.
  */
 export function getRecipesForSlot(slot: MealSlot): Recipe[] {
   if (slot === 'colazione') {
     return rawRecipes.filter(r =>
-      BREAKFAST_CATEGORIES.has(r.categoria) ||
-      (r.categoria === 'Dolci' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 25) ||
-      (r.categoria === 'Lievitati, pane e pizze' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 30)
+      r.slot_consigliato ? r.slot_consigliato === 'colazione' : (
+        BREAKFAST_CATEGORIES.has(r.categoria) ||
+        (r.categoria === 'Dolci' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 25) ||
+        (r.categoria === 'Lievitati, pane e pizze' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 30)
+      )
     );
   }
-  if (slot === 'spuntino') {
+  if (slot === 'spuntino_mattina' || slot === 'spuntino_pomeriggio') {
     return rawRecipes.filter(r =>
-      SNACK_CATEGORIES.has(r.categoria) ||
-      (r.categoria === 'Dolci' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 20)
+      r.slot_consigliato ? r.slot_consigliato === 'spuntino' : (
+        SNACK_CATEGORIES.has(r.categoria) ||
+        (r.categoria === 'Dolci' && r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 20)
+      )
     );
   }
-  return rawRecipes.filter(r => MEAL_CATEGORIES.has(r.categoria));
+  return rawRecipes.filter(r =>
+    r.slot_consigliato ? r.slot_consigliato === 'pranzo_cena' : MEAL_CATEGORIES.has(r.categoria)
+  );
 }
 
 /**
- * Ingredienti che identificano legumi interi o frullati (priorità: legumi specifici vs generici)
+ * Ingredienti che identificano legumi interi o frullati
  */
 const LEGUME_KEYWORDS = [
-  'ceci', 'lenticchie', 'fagioli cannellini', 'fagioli borlotti',
-  'fagioli neri', 'fagioli', 'cicerchia', 'lupini', 'piselli',
-  'fave', 'edamame', 'hummus',
+  'ceci', 'lenticchie', 'fagioli', 'cicerchia', 'lupini', 'piselli',
+  'hummus', 'farina di ceci',
 ];
 
 /**
  * Ingredienti che identificano derivati della soia e proteine lavorate
  */
 const SOYA_KEYWORDS = [
-  'tofu', 'tempeh', 'granulare di soia', 'seitan',
+  'tofu', 'tempeh', 'granulare di soia', 'seitan', 'bistecche di soia', 'spezzatino di soia', 'edamame',
+];
+
+/**
+ * Exclusions to prevent false positives in soy/legume detection
+ */
+const SOY_EXCLUSIONS = [
+  'salsa di soia', 'latte di soia', 'yogurt di soia', 'panna di soia', 'germogli di soia', 'olio di soia',
 ];
 
 /**
  * Cereali integrali e tuberi (carboidrati complessi)
  */
 const COMPLEX_CARB_KEYWORDS = [
-  'riso integrale', 'farro', 'orzo perlato', 'orzo', 'quinoa',
-  'bulgur', 'polenta', 'grano saraceno', 'amaranto', 'miglio',
-  'patate', 'patata dolce',
+  'riso integrale', 'farro', 'orzo', 'quinoa', 'bulgur',
+  'grano saraceno', 'amaranto', 'miglio', 'patate', 'patata dolce', 'avena',
 ];
 
 /**
@@ -157,7 +177,7 @@ const COMPLEX_CARB_KEYWORDS = [
 const SIMPLE_CARB_KEYWORDS = [
   'pasta', 'spaghetti', 'rigatoni', 'penne', 'fusilli', 'orecchiette',
   'tagliatelle', 'gnocchi', 'cous cous', 'couscous', 'riso',
-  'pane', 'pizza',
+  'pane', 'pizza', 'piadina', 'sfoglia',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,24 +185,28 @@ const SIMPLE_CARB_KEYWORDS = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Classifica la fonte proteica principale di una ricetta analizzando
- * `ingredienti_dettagliati` (più preciso) con fallback sugli `ingredienti` raw.
+ * Classifica la fonte proteica principale di una ricetta.
+ * Utilizza `gruppi_alimentari` e controlli puntuali per distinguere soia, legumi e verdure.
  */
 export function classifyProtein(recipe: Recipe): ProteinType {
-  const ingredients = recipe.ingredienti_dettagliati.length > 0
+  const ingredients = recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0
     ? recipe.ingredienti_dettagliati.map(i => i.ingrediente.toLowerCase())
     : recipe.ingredienti.map(i => i.toLowerCase());
 
-  // Soya ha priorità (ingrediente meno comune, più specifico)
-  const hasSoya = ingredients.some(ing =>
-    SOYA_KEYWORDS.some(kw => ing.includes(kw))
-  );
+  const hasSoya = ingredients.some(ing => {
+    const matchSoy = SOYA_KEYWORDS.some(kw => ing.includes(kw));
+    if (!matchSoy) return false;
+    return !(SOY_EXCLUSIONS.some(ex => ing.includes(ex)) && !SOYA_KEYWORDS.some(kw => ing.includes(kw) && kw !== 'soia'));
+  });
   if (hasSoya) return 'soya';
 
   const hasLegume = ingredients.some(ing =>
-    LEGUME_KEYWORDS.some(kw => ing.includes(kw))
+    LEGUME_KEYWORDS.some(kw => !ing.includes('fagiolini') && ing.includes(kw))
   );
-  if (hasLegume) return 'legumi';
+
+  const isProteinRich = recipe.gruppi_alimentari?.includes('cibi_proteici');
+
+  if (hasLegume || isProteinRich) return 'legumi';
 
   return 'verdure';
 }
@@ -191,7 +215,7 @@ export function classifyProtein(recipe: Recipe): ProteinType {
  * Classifica il tipo di carboidrato principale di una ricetta.
  */
 export function classifyCarb(recipe: Recipe): CarbType {
-  const ingredients = recipe.ingredienti_dettagliati.length > 0
+  const ingredients = recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0
     ? recipe.ingredienti_dettagliati.map(i => i.ingrediente.toLowerCase())
     : recipe.ingredienti.map(i => i.toLowerCase());
 
@@ -204,6 +228,10 @@ export function classifyCarb(recipe: Recipe): CarbType {
     SIMPLE_CARB_KEYWORDS.some(kw => ing.includes(kw))
   );
   if (hasSimple) return 'semplici';
+
+  if (recipe.gruppi_alimentari?.includes('cereali')) {
+    return 'semplici';
+  }
 
   return null;
 }
@@ -342,7 +370,7 @@ export function generateBalancedWeekPlan(
   // ── Pre-processing del pool ricette ──────────────────────────────────────
   const mealPool = getRecipesForSlot('pranzo');
   const breakfastPool = getRecipesForSlot('colazione');
-  const snackPool = getRecipesForSlot('spuntino');
+  const snackPool = getRecipesForSlot('spuntino_mattina');
   const sidePool = rawRecipes.filter(r => r.categoria === 'Contorni e insalate');
 
   // Indice nutrizionale pre-calcolato per evitare ricalcoli nel loop
@@ -387,25 +415,27 @@ export function generateBalancedWeekPlan(
   // Partiamo dall'ultimo pasto esistente prima di questa settimana (se c'è)
   const recentProteins: ProteinType[] = [];
 
-  // ── Loop sui giorni: 4 slot per giorno nell'ordine canonico ─────────────
-  // colazione → pranzo → spuntino → cena
+  // ── Loop sui giorni: 5 slot per giorno nell'ordine canonico ─────────────
+  // colazione → spuntino_mattina → pranzo → spuntino_pomeriggio → cena
   const slots: Array<{
     dateString: string;
     slot: MealSlot;
     isWeekend: boolean;
     isWeekdayLunch: boolean;
-    isMeal: boolean;      // true = pranzo/cena (logica proteica)
-    isBreakfast: boolean; // true = colazione
-    isSnack: boolean;     // true = spuntino
+    isMeal: boolean;       // true = pranzo/cena (logica proteica)
+    isBreakfast: boolean;  // true = colazione
+    isSnackMat: boolean;   // true = spuntino mattina
+    isSnackPom: boolean;   // true = spuntino pomeriggio
   }> = [];
 
   days.forEach((day, idx) => {
     const isWeekend = idx >= 5;
     if (isWeekend && !options.includeWeekend) return;
-    slots.push({ dateString: day.dateString, slot: 'colazione', isWeekend, isWeekdayLunch: false, isMeal: false, isBreakfast: true, isSnack: false });
-    slots.push({ dateString: day.dateString, slot: 'pranzo',    isWeekend, isWeekdayLunch: !isWeekend, isMeal: true,  isBreakfast: false, isSnack: false });
-    slots.push({ dateString: day.dateString, slot: 'spuntino',  isWeekend, isWeekdayLunch: false, isMeal: false, isBreakfast: false, isSnack: true });
-    slots.push({ dateString: day.dateString, slot: 'cena',      isWeekend, isWeekdayLunch: false, isMeal: true,  isBreakfast: false, isSnack: false });
+    slots.push({ dateString: day.dateString, slot: 'colazione',           isWeekend, isWeekdayLunch: false,       isMeal: false, isBreakfast: true,  isSnackMat: false, isSnackPom: false });
+    slots.push({ dateString: day.dateString, slot: 'spuntino_mattina',   isWeekend, isWeekdayLunch: false,       isMeal: false, isBreakfast: false, isSnackMat: true,  isSnackPom: false });
+    slots.push({ dateString: day.dateString, slot: 'pranzo',              isWeekend, isWeekdayLunch: !isWeekend,  isMeal: true,  isBreakfast: false, isSnackMat: false, isSnackPom: false });
+    slots.push({ dateString: day.dateString, slot: 'spuntino_pomeriggio',isWeekend, isWeekdayLunch: false,       isMeal: false, isBreakfast: false, isSnackMat: false, isSnackPom: true });
+    slots.push({ dateString: day.dateString, slot: 'cena',                isWeekend, isWeekdayLunch: false,       isMeal: true,  isBreakfast: false, isSnackMat: false, isSnackPom: false });
   });
 
   // Quanti slot rimangono vuoti da riempire
@@ -427,24 +457,31 @@ export function generateBalancedWeekPlan(
   const usedBreakfastIds = new Set<string>(
     existingPlans.filter(p => p.slot === 'colazione').map(p => p.recipe_id)
   );
-  const usedSnackIds = new Set<string>(
-    existingPlans.filter(p => p.slot === 'spuntino').map(p => p.recipe_id)
+  const usedSnackMatIds = new Set<string>(
+    existingPlans.filter(p => p.slot === 'spuntino_mattina').map(p => p.recipe_id)
   );
-  // lastBreakfast e lastSnack per anti-ripetizione consecutiva
+  const usedSnackPomIds = new Set<string>(
+    existingPlans.filter(p => p.slot === 'spuntino_pomeriggio').map(p => p.recipe_id)
+  );
+
   const bfEntries = existingPlans.filter(p => p.slot === 'colazione').sort((a, b) => a.date < b.date ? -1 : 1);
   let lastBreakfastId: string | null = bfEntries.length > 0 ? bfEntries[bfEntries.length - 1].recipe_id : null;
-  const snkEntries = existingPlans.filter(p => p.slot === 'spuntino').sort((a, b) => a.date < b.date ? -1 : 1);
-  let lastSnackId: string | null = snkEntries.length > 0 ? snkEntries[snkEntries.length - 1].recipe_id : null;
+
+  const snkMatEntries = existingPlans.filter(p => p.slot === 'spuntino_mattina').sort((a, b) => a.date < b.date ? -1 : 1);
+  let lastSnackMatId: string | null = snkMatEntries.length > 0 ? snkMatEntries[snkMatEntries.length - 1].recipe_id : null;
+
+  const snkPomEntries = existingPlans.filter(p => p.slot === 'spuntino_pomeriggio').sort((a, b) => a.date < b.date ? -1 : 1);
+  let lastSnackPomId: string | null = snkPomEntries.length > 0 ? snkPomEntries[snkPomEntries.length - 1].recipe_id : null;
 
   // ── Sliding window: ultime 2 proteine assegnate (solo su pranzo/cena) ────
   const lastTwoProteins: ProteinType[] = [];
   if (existingPlans.length > 0) {
-    const slotOrder: Record<MealSlot, number> = { colazione: 0, pranzo: 1, spuntino: 2, cena: 3 };
+    const slotOrderMap: Record<MealSlot, number> = { colazione: 0, spuntino_mattina: 1, pranzo: 2, spuntino_pomeriggio: 3, cena: 4 };
     const sorted = [...existingPlans]
       .filter(p => p.slot === 'pranzo' || p.slot === 'cena')
       .sort((a, b) => {
-        const ka = `${a.date}-${slotOrder[a.slot]}`;
-        const kb = `${b.date}-${slotOrder[b.slot]}`;
+        const ka = `${a.date}-${slotOrderMap[a.slot]}`;
+        const kb = `${b.date}-${slotOrderMap[b.slot]}`;
         return ka < kb ? -1 : 1;
       });
     sorted.slice(-2).forEach(p => {
@@ -452,7 +489,7 @@ export function generateBalancedWeekPlan(
     });
   }
 
-  let lastCarb: string | null = null; // Anti-ripetizione carboidrati tra slot adiacenti
+  let lastCarb: string | null = null; // Anti-ripetizione carboidrati tra pasti principali adiacenti
 
   for (const slotInfo of slots) {
     const key = `${slotInfo.dateString}-${slotInfo.slot}`;
@@ -467,8 +504,10 @@ export function generateBalancedWeekPlan(
         if (lastTwoProteins.length > 2) lastTwoProteins.shift();
       } else if (slotInfo.isBreakfast) {
         lastBreakfastId = existing.recipe_id;
-      } else if (slotInfo.isSnack) {
-        lastSnackId = existing.recipe_id;
+      } else if (slotInfo.isSnackMat) {
+        lastSnackMatId = existing.recipe_id;
+      } else if (slotInfo.isSnackPom) {
+        lastSnackPomId = existing.recipe_id;
       }
       continue;
     }
@@ -496,22 +535,45 @@ export function generateBalancedWeekPlan(
       continue;
     }
 
-    // ── SPUNTINO ─────────────────────────────────────────────────────────────
-    if (slotInfo.isSnack) {
+    // ── SPUNTINO MATTINA ──────────────────────────────────────────────────────
+    if (slotInfo.isSnackMat) {
       const snkCandidates = shuffle(snackPool).filter(r =>
-        !usedSnackIds.has(r.id) && r.id !== lastSnackId
+        !usedSnackMatIds.has(r.id) && r.id !== lastSnackMatId
       );
       const selectedSnk = snkCandidates[0] ??
-        shuffle(snackPool).find(r => !usedSnackIds.has(r.id)) ??
+        shuffle(snackPool).find(r => !usedSnackMatIds.has(r.id)) ??
         shuffle(snackPool)[0];
       if (!selectedSnk) continue;
 
-      usedSnackIds.add(selectedSnk.id);
-      lastSnackId = selectedSnk.id;
+      usedSnackMatIds.add(selectedSnk.id);
+      lastSnackMatId = selectedSnk.id;
       newEntries.push({
-        id: `plan-${slotInfo.dateString}-spuntino-${Math.random().toString(36).slice(2, 7)}`,
+        id: `plan-${slotInfo.dateString}-spuntino_mattina-${Math.random().toString(36).slice(2, 7)}`,
         date: slotInfo.dateString,
-        slot: 'spuntino',
+        slot: 'spuntino_mattina',
+        recipe_id: selectedSnk.id,
+        servings: options.servings,
+        created_at: Date.now(),
+      });
+      continue;
+    }
+
+    // ── SPUNTINO POMERIGGIO ───────────────────────────────────────────────────
+    if (slotInfo.isSnackPom) {
+      const snkCandidates = shuffle(snackPool).filter(r =>
+        !usedSnackPomIds.has(r.id) && r.id !== lastSnackPomId
+      );
+      const selectedSnk = snkCandidates[0] ??
+        shuffle(snackPool).find(r => !usedSnackPomIds.has(r.id)) ??
+        shuffle(snackPool)[0];
+      if (!selectedSnk) continue;
+
+      usedSnackPomIds.add(selectedSnk.id);
+      lastSnackPomId = selectedSnk.id;
+      newEntries.push({
+        id: `plan-${slotInfo.dateString}-spuntino_pomeriggio-${Math.random().toString(36).slice(2, 7)}`,
+        date: slotInfo.dateString,
+        slot: 'spuntino_pomeriggio',
         recipe_id: selectedSnk.id,
         servings: options.servings,
         created_at: Date.now(),
@@ -521,19 +583,21 @@ export function generateBalancedWeekPlan(
 
     // ── PRANZO / CENA (logica proteica + anti-ripetizione carb) ─────────────
     const lastProtein = lastTwoProteins[lastTwoProteins.length - 1] ?? null;
-    const blockedProtein: ProteinType | null =
-      lastTwoProteins.length === 2 && lastTwoProteins[0] === lastTwoProteins[1]
-        ? lastTwoProteins[0]
-        : null;
 
-    // Priorità: rispetta i budget settimanali rimanenti, evita il tipo bloccato
+    // Ruota in modo alternato per evitare blocchi o ripetizioni consecutive
     let targetProtein: ProteinType;
-    if (legumiRemaining > 0 && blockedProtein !== 'legumi') {
-      targetProtein = 'legumi';
-    } else if (soyaRemaining > 0 && blockedProtein !== 'soya') {
-      targetProtein = 'soya';
+    if (lastProtein === 'legumi') {
+      targetProtein = (soyaRemaining > 0) ? 'soya' : 'verdure';
+    } else if (lastProtein === 'soya') {
+      targetProtein = (legumiRemaining > 0) ? 'legumi' : 'verdure';
     } else {
-      targetProtein = 'verdure';
+      if (legumiRemaining >= soyaRemaining && legumiRemaining > 0) {
+        targetProtein = 'legumi';
+      } else if (soyaRemaining > 0) {
+        targetProtein = 'soya';
+      } else {
+        targetProtein = 'verdure';
+      }
     }
 
     // Scegli il pool giusto
@@ -850,8 +914,9 @@ export function formatWeekPlanShareText(
 
   const SLOT_EMOJIS: Record<MealSlot, string> = {
     colazione: '☕',
+    spuntino_mattina: '🍎',
     pranzo: '☀️',
-    spuntino: '🍎',
+    spuntino_pomeriggio: '🥑',
     cena: '🌙',
   };
 

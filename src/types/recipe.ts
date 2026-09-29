@@ -18,6 +18,9 @@ export interface RecipeTimes {
   tempi_display: string;
 }
 
+export type SlotConsigliato = 'colazione' | 'spuntino' | 'pranzo_cena';
+export type GruppoAlimentare = 'cereali' | 'verdura' | 'frutta' | 'frutta_secca_semi' | 'cibi_proteici' | 'grassi';
+
 export interface Recipe {
   id: string;
   titolo: string;
@@ -35,6 +38,8 @@ export interface Recipe {
   istruzioni: string[];
   suggerimenti: string[];
   tags: string[];
+  slot_consigliato?: SlotConsigliato;
+  gruppi_alimentari?: GruppoAlimentare[];
 }
 
 export interface ShoppingItem {
@@ -53,7 +58,7 @@ export interface ShoppingItem {
 export interface MealPlanEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  slot: 'colazione' | 'spuntino' | 'pranzo' | 'cena';
+  slot: 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
   recipe_id: string;
   side_recipe_id?: string;
   servings: number;

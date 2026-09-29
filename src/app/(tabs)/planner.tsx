@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
-import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans } from '../../db/database';
+import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans, updateMealPlanSideRecipe } from '../../db/database';
 import {
   getWeekDays,
   aggregateAndAddToShopping,
@@ -59,6 +59,8 @@ export default function PlannerScreen() {
 
   // Recipe Picker Modal State
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerTargetType, setPickerTargetType] = useState<'main' | 'side'>('main');
+  const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
   const [pickerQuery, setPickerQuery] = useState('');
   const [pickerFilterMode, setPickerFilterMode] = useState<'recommended' | 'all'>('recommended');
@@ -122,6 +124,17 @@ export default function PlannerScreen() {
   }, [plans, selectedDate]);
 
   const handleOpenPicker = (slot: MealSlot) => {
+    setPickerTargetType('main');
+    setTargetEntryId(null);
+    setTargetSlot(slot);
+    setPickerQuery('');
+    setPickerFilterMode('recommended');
+    setPickerVisible(true);
+  };
+
+  const handleOpenSidePicker = (slot: MealSlot, entryId: string) => {
+    setPickerTargetType('side');
+    setTargetEntryId(entryId);
     setTargetSlot(slot);
     setPickerQuery('');
     setPickerFilterMode('recommended');
@@ -129,21 +142,34 @@ export default function PlannerScreen() {
   };
 
   const handleSelectRecipeForSlot = async (recipe: Recipe) => {
-    await saveMealPlanEntry({
-      date: selectedDate,
-      slot: targetSlot,
-      recipeId: recipe.id,
-      servings: prefs?.servings ?? 2,
-    });
-    setPickerVisible(false);
-    loadPlans();
-    showToast(`Pianificato per ${SLOT_LABELS[targetSlot]}!`);
+    if (pickerTargetType === 'side' && targetEntryId) {
+      await updateMealPlanSideRecipe(targetEntryId, recipe.id);
+      setPickerVisible(false);
+      loadPlans();
+      showToast('Contorno aggiornato!');
+    } else {
+      await saveMealPlanEntry({
+        date: selectedDate,
+        slot: targetSlot,
+        recipeId: recipe.id,
+        servings: prefs?.servings ?? 2,
+      });
+      setPickerVisible(false);
+      loadPlans();
+      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]}!`);
+    }
   };
 
   const handleDeleteSlot = async (id: string) => {
     await deleteMealPlanEntry(id);
     loadPlans();
     showToast('Pasto rimosso dal piano.');
+  };
+
+  const handleDeleteSide = async (entryId: string) => {
+    await updateMealPlanSideRecipe(entryId, null);
+    loadPlans();
+    showToast('Contorno rimosso.');
   };
 
   const handleGenerateShopping = async () => {
@@ -181,16 +207,23 @@ export default function PlannerScreen() {
   };
 
   const pickerFiltered = useMemo(() => {
-    const pool = pickerFilterMode === 'recommended'
-      ? getRecipesForSlot(targetSlot)
-      : rawRecipes;
+    let pool: Recipe[];
+    if (pickerTargetType === 'side') {
+      pool = pickerFilterMode === 'recommended'
+        ? rawRecipes.filter(r => r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni')))
+        : rawRecipes;
+    } else {
+      pool = pickerFilterMode === 'recommended'
+        ? getRecipesForSlot(targetSlot)
+        : rawRecipes;
+    }
 
     if (!pickerQuery.trim()) return pool.slice(0, 40);
     const q = pickerQuery.toLowerCase().trim();
     return pool
       .filter(r => r.titolo.toLowerCase().includes(q) || r.categoria.toLowerCase().includes(q))
       .slice(0, 40);
-  }, [pickerQuery, pickerFilterMode, targetSlot]);
+  }, [pickerQuery, pickerFilterMode, targetSlot, pickerTargetType]);
 
   const selectedDayInfo = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const weekPlansCount = plans.filter(p => weekDays.some(d => d.dateString === p.date)).length;
@@ -402,6 +435,8 @@ export default function PlannerScreen() {
                 onAdd={() => handleOpenPicker(slot)}
                 onDelete={(id) => handleDeleteSlot(id)}
                 onView={(r) => setSelectedDetailRecipe(r)}
+                onSwapSide={dayPlans[slot] ? () => handleOpenSidePicker(slot, dayPlans[slot]!.id) : undefined}
+                onDeleteSide={dayPlans[slot] ? () => handleDeleteSide(dayPlans[slot]!.id) : undefined}
               />
             );
           })}
@@ -571,7 +606,7 @@ export default function PlannerScreen() {
                 <Ionicons name="close" size={24} color="#2B332B" />
               </TouchableOpacity>
               <Text style={styles.pickerHeaderTitle}>
-                Pianifica per {SLOT_LABELS[targetSlot]}
+                {pickerTargetType === 'side' ? 'Scegli Contorno' : `Pianifica per ${SLOT_LABELS[targetSlot]}`}
               </Text>
               <View style={{ width: 36 }} />
             </View>
@@ -587,7 +622,7 @@ export default function PlannerScreen() {
                 activeOpacity={0.7}
               >
                 <Ionicons
-                  name={SLOT_ICONS[targetSlot] as any}
+                  name={pickerTargetType === 'side' ? 'leaf-outline' : (SLOT_ICONS[targetSlot] as any)}
                   size={14}
                   color={pickerFilterMode === 'recommended' ? '#FFF' : '#4A6B53'}
                   style={{ marginRight: 5 }}
@@ -598,7 +633,11 @@ export default function PlannerScreen() {
                     pickerFilterMode === 'recommended' && styles.pickerFilterChipTextActive,
                   ]}
                 >
-                  Consigliate ({getRecipesForSlot(targetSlot).length})
+                  Consigliate ({
+                    pickerTargetType === 'side'
+                      ? rawRecipes.filter(r => r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni'))).length
+                      : getRecipesForSlot(targetSlot).length
+                  })
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -630,7 +669,7 @@ export default function PlannerScreen() {
               <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
               <TextInput
                 style={styles.pickerInput}
-                placeholder={`Cerca per ${SLOT_LABELS[targetSlot].toLowerCase()}...`}
+                placeholder={pickerTargetType === 'side' ? 'Cerca contorno o insalata...' : `Cerca per ${SLOT_LABELS[targetSlot].toLowerCase()}...`}
                 placeholderTextColor="#8C988F"
                 value={pickerQuery}
                 onChangeText={setPickerQuery}
@@ -689,16 +728,19 @@ interface MealSlotCardProps {
   onAdd: () => void;
   onDelete: (id: string) => void;
   onView: (r: Recipe) => void;
+  onSwapSide?: () => void;
+  onDeleteSide?: (id: string) => void;
 }
 
 const EMPTY_SLOT_TEXTS: Record<MealSlot, string> = {
   colazione: 'Scegli cosa gustare a colazione',
+  spuntino_mattina: 'Scegli frutta fresca o frutta secca per la mattina',
   pranzo: 'Scegli cosa cucinare a pranzo',
-  spuntino: 'Scegli uno snack o merenda',
+  spuntino_pomeriggio: 'Scegli uno snack o merenda per il pomeriggio',
   cena: 'Scegli cosa preparare per cena',
 };
 
-function MealSlotCard({ slot, label, icon, color, bgColor, entry, onAdd, onDelete, onView }: MealSlotCardProps) {
+function MealSlotCard({ slot, label, icon, color, bgColor, entry, onAdd, onDelete, onView, onSwapSide, onDeleteSide }: MealSlotCardProps) {
   const recipe = entry ? recipeMap[entry.recipe_id] : null;
   const sideRecipe = entry?.side_recipe_id ? recipeMap[entry.side_recipe_id] : null;
 
@@ -712,49 +754,81 @@ function MealSlotCard({ slot, label, icon, color, bgColor, entry, onAdd, onDelet
       </View>
 
       {entry && recipe ? (
-        <View style={styles.mealCard}>
-          {recipe.immagine ? (
-            <Image source={{ uri: recipe.immagine }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
-          ) : (
-            <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-              <Ionicons name="restaurant-outline" size={24} color="#A3B2A6" />
-            </View>
-          )}
-          <View style={styles.mealInfo}>
-            <Text style={[styles.mealCategory, { color }]}>{recipe.categoria}</Text>
-            <Text style={styles.mealTitle} numberOfLines={2}>{recipe.titolo}</Text>
-            <View style={styles.mealMeta}>
-              <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-              <Text style={styles.mealMetaText}>{recipe.tempi.tempo_totale_minuti} min</Text>
-              <Text style={styles.mealMetaDivider}>·</Text>
-              <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-              <Text style={styles.mealMetaText}>{entry.servings} porz.</Text>
-            </View>
-            {sideRecipe && (
-              <TouchableOpacity
-                style={styles.sideDishTag}
-                onPress={() => onView(sideRecipe)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="leaf-outline" size={12} color="#2E6B42" />
-                <Text style={styles.sideDishTagText} numberOfLines={1}>
-                  Contorno: {sideRecipe.titolo}
-                </Text>
-              </TouchableOpacity>
+        <View style={styles.slotCardsGroup}>
+          <View style={styles.mealCard}>
+            {recipe.immagine ? (
+              <Image source={{ uri: recipe.immagine }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+            ) : (
+              <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+                <Ionicons name="restaurant-outline" size={24} color="#A3B2A6" />
+              </View>
             )}
+            <View style={styles.mealInfo}>
+              <Text style={[styles.mealCategory, { color }]}>{recipe.categoria}</Text>
+              <Text style={styles.mealTitle} numberOfLines={2}>{recipe.titolo}</Text>
+              <View style={styles.mealMeta}>
+                <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+                <Text style={styles.mealMetaText}>{recipe.tempi.tempo_totale_minuti} min</Text>
+                <Text style={styles.mealMetaDivider}>·</Text>
+                <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+                <Text style={styles.mealMetaText}>{entry.servings} porz.</Text>
+              </View>
+            </View>
+
+            <View style={styles.mealActions}>
+              <TouchableOpacity style={styles.viewMealBtn} onPress={() => onView(recipe)} activeOpacity={0.7}>
+                <Ionicons name="book-outline" size={17} color="#4A6B53" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.swapMealBtn} onPress={onAdd} activeOpacity={0.7}>
+                <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.deleteMealBtn} onPress={() => onDelete(entry.id)} activeOpacity={0.7}>
+                <Ionicons name="trash-outline" size={17} color="#D9534F" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={styles.mealActions}>
-            <TouchableOpacity style={styles.viewMealBtn} onPress={() => onView(recipe)} activeOpacity={0.7}>
-              <Ionicons name="book-outline" size={17} color="#4A6B53" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.swapMealBtn} onPress={onAdd} activeOpacity={0.7}>
-              <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteMealBtn} onPress={() => onDelete(entry.id)} activeOpacity={0.7}>
-              <Ionicons name="trash-outline" size={17} color="#D9534F" />
-            </TouchableOpacity>
-          </View>
+          {sideRecipe && (
+            <View style={styles.sideMealCard}>
+              {sideRecipe.immagine ? (
+                <Image source={{ uri: sideRecipe.immagine }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+              ) : (
+                <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+                  <Ionicons name="leaf-outline" size={24} color="#3A8C7E" />
+                </View>
+              )}
+              <View style={styles.mealInfo}>
+                <View style={styles.sideBadgeRow}>
+                  <Ionicons name="leaf" size={11} color="#3A8C7E" />
+                  <Text style={styles.sideMealCategory}>CONTORNO</Text>
+                </View>
+                <Text style={styles.mealTitle} numberOfLines={2}>{sideRecipe.titolo}</Text>
+                <View style={styles.mealMeta}>
+                  <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+                  <Text style={styles.mealMetaText}>{sideRecipe.tempi.tempo_totale_minuti} min</Text>
+                  <Text style={styles.mealMetaDivider}>·</Text>
+                  <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+                  <Text style={styles.mealMetaText}>{entry.servings} porz.</Text>
+                </View>
+              </View>
+
+              <View style={styles.mealActions}>
+                <TouchableOpacity style={styles.viewMealBtn} onPress={() => onView(sideRecipe)} activeOpacity={0.7}>
+                  <Ionicons name="book-outline" size={17} color="#4A6B53" />
+                </TouchableOpacity>
+                {onSwapSide && (
+                  <TouchableOpacity style={styles.swapMealBtn} onPress={onSwapSide} activeOpacity={0.7}>
+                    <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
+                  </TouchableOpacity>
+                )}
+                {onDeleteSide && (
+                  <TouchableOpacity style={styles.deleteMealBtn} onPress={() => onDeleteSide(entry.id)} activeOpacity={0.7}>
+                    <Ionicons name="trash-outline" size={17} color="#D9534F" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
         </View>
       ) : (
         <TouchableOpacity style={styles.emptySlot} onPress={onAdd} activeOpacity={0.8}>
@@ -873,6 +947,7 @@ const styles = StyleSheet.create({
   regenBtnText: { color: '#4A6B53', fontSize: 13, fontWeight: '700' },
 
   slotContainer: { marginBottom: 16 },
+  slotCardsGroup: { gap: 8 },
   slotHeader: { marginBottom: 8 },
   slotBadge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
@@ -886,20 +961,23 @@ const styles = StyleSheet.create({
     shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
+  sideMealCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: '#ECE7DF',
+    shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03, shadowRadius: 5, elevation: 1,
+  },
   mealImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
   mealImagePlaceholder: { backgroundColor: '#EAE5DC', alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1 },
   mealCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  sideBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  sideMealCategory: { fontSize: 10, fontWeight: '700', color: '#3A8C7E', letterSpacing: 0.5 },
   mealTitle: { fontSize: 14, fontWeight: '700', color: '#2B332B', marginTop: 2, lineHeight: 19 },
   mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   mealMetaText: { fontSize: 11, color: '#7E8B80', fontWeight: '500' },
   mealMetaDivider: { fontSize: 11, color: '#C5CEC7', marginHorizontal: 4 },
-  sideDishTag: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAF0EB',
-    paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, marginTop: 6, gap: 4,
-    alignSelf: 'flex-start', maxWidth: '100%',
-  },
-  sideDishTagText: { fontSize: 11, fontWeight: '600', color: '#2E6B42' },
   mealActions: { flexDirection: 'row', gap: 6 },
   viewMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center' },
   swapMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F5F3EF', alignItems: 'center', justifyContent: 'center' },
