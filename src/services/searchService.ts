@@ -1,12 +1,10 @@
 import Fuse from 'fuse.js';
 import { Recipe } from '../types/recipe';
 
-let fuseInstance: Fuse<Recipe> | null = null;
-let currentDataset: Recipe[] = [];
+const defaultRecipes = require('../../assets/ricette.json') as Recipe[];
 
-export function initializeSearchIndex(recipes: Recipe[]): void {
-  currentDataset = recipes;
-  fuseInstance = new Fuse(recipes, {
+function createFuse(recipes: Recipe[]): Fuse<Recipe> {
+  return new Fuse(recipes, {
     keys: [
       { name: 'titolo', weight: 0.6 },
       { name: 'ingredienti', weight: 0.3 },
@@ -17,6 +15,14 @@ export function initializeSearchIndex(recipes: Recipe[]): void {
     minMatchCharLength: 2,
     shouldSort: true
   });
+}
+
+let currentDataset: Recipe[] = defaultRecipes;
+let fuseInstance: Fuse<Recipe> | null = createFuse(defaultRecipes);
+
+export function initializeSearchIndex(recipes: Recipe[]): void {
+  currentDataset = recipes;
+  fuseInstance = createFuse(recipes);
 }
 
 export function searchRecipes(query: string, categoryFilter: string, tagFilter: string | null): Recipe[] {
