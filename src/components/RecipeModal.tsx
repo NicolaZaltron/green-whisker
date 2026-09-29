@@ -59,7 +59,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [savedNoteStatus, setSavedNoteStatus] = useState<string | null>(null);
   const [isEditingNote, setIsEditingNote] = useState(false);
 
-  const weekDays = getWeekDays();
+  const { days: weekDays } = getWeekDays();
 
   // Reset & load favorite status and personal notes
   useEffect(() => {

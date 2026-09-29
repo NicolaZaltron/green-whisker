@@ -53,8 +53,9 @@ export interface ShoppingItem {
 export interface MealPlanEntry {
   id: string;
   date: string; // YYYY-MM-DD
-  slot: 'pranzo' | 'cena';
+  slot: 'colazione' | 'spuntino' | 'pranzo' | 'cena';
   recipe_id: string;
+  side_recipe_id?: string;
   servings: number;
   notes?: string;
   created_at: number;

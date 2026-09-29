@@ -10,7 +10,9 @@ const WEB_STORAGE_KEYS = {
   FAVORITES: 'gw_favorites',
   SHOPPING: 'gw_shopping',
   PLANNER: 'gw_planner',
-  NOTES: 'gw_notes'
+  NOTES: 'gw_notes',
+  PLANNER_PREFS: 'gw_planner_prefs',
+  PLANNER_LAST_GEN: 'gw_planner_last_gen',
 };
 
 function getWebData<T>(key: string, defaultValue: T): T {
@@ -71,10 +73,17 @@ export async function initDatabase(): Promise<void> {
         date TEXT NOT NULL,
         slot TEXT NOT NULL,
         recipe_id TEXT NOT NULL,
+        side_recipe_id TEXT,
         servings INTEGER NOT NULL DEFAULT 2,
         notes TEXT,
         created_at INTEGER NOT NULL
       );
+
+      try {
+        await dbInstance.execAsync('ALTER TABLE meal_plan ADD COLUMN side_recipe_id TEXT;');
+      } catch {
+        // column already exists
+      }
 
       CREATE TABLE IF NOT EXISTS recipe_notes (
         recipe_id TEXT PRIMARY KEY,
@@ -83,6 +92,11 @@ export async function initDatabase(): Promise<void> {
       );
 
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
+
+      CREATE TABLE IF NOT EXISTS kv_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `);
   } catch (error) {
     console.warn('SQLite init failed, falling back to local storage:', error);
@@ -205,25 +219,27 @@ export async function addShoppingItems(items: Array<{
   }
 
   try {
-    for (const item of newItems) {
-      await dbInstance.runAsync(`
-        INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        item.id,
-        item.recipe_id ?? null,
-        item.recipe_title ?? null,
-        item.ingredient_text,
-        item.name,
-        item.amount,
-        item.unit,
-        item.checked ? 1 : 0,
-        item.category,
-        item.created_at
-      ]);
-    }
+    // Single atomic transaction: O(1) round-trips instead of O(N)
+    const statements = newItems.map(item =>
+      `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+       VALUES (
+         '${item.id}',
+         ${item.recipe_id ? `'${item.recipe_id.replace(/'/g, "''")}'` : 'NULL'},
+         ${item.recipe_title ? `'${item.recipe_title.replace(/'/g, "''")}'` : 'NULL'},
+         '${item.ingredient_text.replace(/'/g, "''")}',
+         '${item.name.replace(/'/g, "''")}',
+         ${item.amount ?? 'NULL'},
+         '${(item.unit || '').replace(/'/g, "''")}',
+         ${item.checked ? 1 : 0},
+         '${item.category.replace(/'/g, "''")}',
+         ${item.created_at}
+       );`
+    ).join('\n');
+
+    await dbInstance.execAsync(`BEGIN;\n${statements}\nCOMMIT;`);
   } catch (e) {
     console.error('addShoppingItems error', e);
+    try { await dbInstance.execAsync('ROLLBACK;'); } catch { /* ignore */ }
   }
 }
 
@@ -291,7 +307,7 @@ export async function getMealPlans(): Promise<MealPlanEntry[]> {
 
   try {
     const rows = await dbInstance.getAllAsync(`
-      SELECT id, date, slot, recipe_id, servings, notes, created_at 
+      SELECT id, date, slot, recipe_id, side_recipe_id, servings, notes, created_at 
       FROM meal_plan 
       ORDER BY date ASC, slot ASC
     `);
@@ -304,8 +320,9 @@ export async function getMealPlans(): Promise<MealPlanEntry[]> {
 
 export async function saveMealPlanEntry(entry: {
   date: string;
-  slot: 'pranzo' | 'cena';
+  slot: 'colazione' | 'spuntino' | 'pranzo' | 'cena';
   recipeId: string;
+  sideRecipeId?: string;
   servings: number;
   notes?: string;
 }): Promise<MealPlanEntry> {
@@ -314,6 +331,7 @@ export async function saveMealPlanEntry(entry: {
     date: entry.date,
     slot: entry.slot,
     recipe_id: entry.recipeId,
+    side_recipe_id: entry.sideRecipeId || undefined,
     servings: entry.servings,
     notes: entry.notes || '',
     created_at: Date.now()
@@ -332,13 +350,75 @@ export async function saveMealPlanEntry(entry: {
     // Delete existing slot entry if any
     await dbInstance.runAsync('DELETE FROM meal_plan WHERE date = ? AND slot = ?', [entry.date, entry.slot]);
     await dbInstance.runAsync(`
-      INSERT INTO meal_plan (id, date, slot, recipe_id, servings, notes, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [newEntry.id, newEntry.date, newEntry.slot, newEntry.recipe_id, newEntry.servings, newEntry.notes, newEntry.created_at]);
+      INSERT INTO meal_plan (id, date, slot, recipe_id, side_recipe_id, servings, notes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [newEntry.id, newEntry.date, newEntry.slot, newEntry.recipe_id, newEntry.side_recipe_id || null, newEntry.servings, newEntry.notes, newEntry.created_at]);
     return newEntry;
   } catch (e) {
     console.error('saveMealPlanEntry error', e);
     return newEntry;
+  }
+}
+
+export async function updateMealPlanServings(id: string, delta: number): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    const updated = existing.map(p => {
+      if (p.id === id) {
+        const next = Math.max(1, Math.min(24, p.servings + delta));
+        return { ...p, servings: next };
+      }
+      return p;
+    });
+    setWebData(WEB_STORAGE_KEYS.PLANNER, updated);
+    return;
+  }
+
+  try {
+    const current = await dbInstance.getFirstAsync('SELECT servings FROM meal_plan WHERE id = ?', [id]);
+    if (current) {
+      const next = Math.max(1, Math.min(24, (current as any).servings + delta));
+      await dbInstance.runAsync('UPDATE meal_plan SET servings = ? WHERE id = ?', [next, id]);
+    }
+  } catch (e) {
+    console.error('updateMealPlanServings error', e);
+  }
+}
+
+export async function saveMealPlanEntriesBulk(entries: MealPlanEntry[]): Promise<void> {
+  if (!entries || entries.length === 0) return;
+
+  if (isWebFallback || !dbInstance) {
+    const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    // Map of date-slot for new entries
+    const newKeys = new Set(entries.map(e => `${e.date}-${e.slot}`));
+    const filtered = existing.filter(p => !newKeys.has(`${p.date}-${p.slot}`));
+    setWebData(WEB_STORAGE_KEYS.PLANNER, [...filtered, ...entries]);
+    return;
+  }
+
+  try {
+    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
+      await (dbInstance as any).withTransactionAsync(async () => {
+        for (const entry of entries) {
+          await dbInstance.runAsync('DELETE FROM meal_plan WHERE date = ? AND slot = ?', [entry.date, entry.slot]);
+          await dbInstance.runAsync(
+            'INSERT INTO meal_plan (id, date, slot, recipe_id, side_recipe_id, servings, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [entry.id, entry.date, entry.slot, entry.recipe_id, entry.side_recipe_id || null, entry.servings, entry.notes || '', entry.created_at]
+          );
+        }
+      });
+    } else {
+      for (const entry of entries) {
+        await dbInstance.runAsync('DELETE FROM meal_plan WHERE date = ? AND slot = ?', [entry.date, entry.slot]);
+        await dbInstance.runAsync(
+          'INSERT INTO meal_plan (id, date, slot, recipe_id, side_recipe_id, servings, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [entry.id, entry.date, entry.slot, entry.recipe_id, entry.side_recipe_id || null, entry.servings, entry.notes || '', entry.created_at]
+        );
+      }
+    }
+  } catch (e) {
+    console.error('saveMealPlanEntriesBulk error', e);
   }
 }
 
@@ -432,3 +512,40 @@ export async function getAllRecipeNotes(): Promise<Record<string, string>> {
   }
 }
 
+// --- KV STORE (preferences, last-gen dates, etc.) ---
+export async function getKV(key: string): Promise<string | null> {
+  if (isWebFallback || !dbInstance) {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+    } catch { /* ignore */ }
+    return null;
+  }
+  try {
+    const row = await dbInstance.getFirstAsync('SELECT value FROM kv_store WHERE key = ?', [key]);
+    return row ? (row as any).value : null;
+  } catch (e) {
+    console.error('getKV error', e);
+    return null;
+  }
+}
+
+export async function setKV(key: string, value: string): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch { /* ignore */ }
+    return;
+  }
+  try {
+    await dbInstance.runAsync(
+      'INSERT INTO kv_store (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      [key, value]
+    );
+  } catch (e) {
+    console.error('setKV error', e);
+  }
+}
