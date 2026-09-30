@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -17,9 +17,11 @@ import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { PantryView } from '../../components/PantryView';
+import { MagicRecipeImporterModal } from '../../components/MagicRecipeImporterModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
-import { searchRecipes, AdvancedFilterOptions } from '../../services/searchService';
+import { searchRecipes, initializeSearchIndex, AdvancedFilterOptions } from '../../services/searchService';
+import { getCustomRecipes } from '../../db/database';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
@@ -44,6 +46,32 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showMagicImporter, setShowMagicImporter] = useState(false);
+  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+
+  // Load custom user recipes and index them
+  useEffect(() => {
+    loadCustomRecipes();
+  }, []);
+
+  const loadCustomRecipes = async () => {
+    try {
+      const customs = await getCustomRecipes();
+      setCustomRecipes(customs);
+      initializeSearchIndex([...customs, ...rawRecipes]);
+    } catch {
+      initializeSearchIndex(rawRecipes);
+    }
+  };
+
+  const handleRecipeSaved = (newRecipe: Recipe) => {
+    setCustomRecipes(prev => {
+      const updated = [newRecipe, ...prev.filter(r => r.id !== newRecipe.id)];
+      initializeSearchIndex([...updated, ...rawRecipes]);
+      return updated;
+    });
+    setSelectedRecipe(newRecipe);
+  };
 
   // Advanced Filters State
   const [showFilterSheet, setShowFilterSheet] = useState(false);
@@ -75,7 +103,7 @@ export default function ExploreScreen() {
   // Filter recipes using Fuse.js fuzzy engine + category + advanced filters
   const filteredRecipes = useMemo(() => {
     return searchRecipes(debouncedQuery, selectedCategory, filters);
-  }, [debouncedQuery, selectedCategory, filters]);
+  }, [debouncedQuery, selectedCategory, filters, customRecipes]);
 
   // Responsive column count calculation
   const numColumns = useMemo(() => {
@@ -90,16 +118,27 @@ export default function ExploreScreen() {
         {/* Header Green-Whisker */}
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <View style={styles.logoBadge}>
-              <Image
-                source={require('../../../assets/logo.png')}
-                style={styles.logoImage}
-                contentFit="contain"
-              />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={styles.logoBadge}>
+                <Image
+                  source={require('../../../assets/logo.png')}
+                  style={styles.logoImage}
+                  contentFit="contain"
+                />
+              </View>
+              <View>
+                <Text style={styles.brandTitle}>Green-Whisker</Text>
+              </View>
             </View>
-            <View>
-              <Text style={styles.brandTitle}>Green-Whisker</Text>
-            </View>
+
+            <TouchableOpacity
+              style={styles.magicImportBtn}
+              onPress={() => setShowMagicImporter(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="sparkles" size={15} color="#ffffff" style={{ marginRight: 6 }} />
+              <Text style={styles.magicImportBtnText}>Importa AI</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
@@ -428,6 +467,13 @@ export default function ExploreScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* Magic Recipe Importer AI Modal */}
+        <MagicRecipeImporterModal
+          visible={showMagicImporter}
+          onClose={() => setShowMagicImporter(false)}
+          onRecipeSaved={handleRecipeSaved}
+        />
       </View>
     </SafeAreaView>
   );
@@ -452,8 +498,26 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 14,
-    gap: 12,
+  },
+  magicImportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  magicImportBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   logoBadge: {
     width: 40,

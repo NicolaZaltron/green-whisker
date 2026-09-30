@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { ShoppingItem, MealPlanEntry } from '../types/recipe';
+import { Recipe, ShoppingItem, MealPlanEntry } from '../types/recipe';
 import { cleanShoppingIngredientText } from '../utils/servingsScaler';
 
 let dbInstance: any = null;
@@ -13,6 +13,7 @@ const WEB_STORAGE_KEYS = {
   NOTES: 'gw_notes',
   PLANNER_PREFS: 'gw_planner_prefs',
   PLANNER_LAST_GEN: 'gw_planner_last_gen',
+  CUSTOM_RECIPES: 'gw_custom_recipes',
 };
 
 function getWebData<T>(key: string, defaultValue: T): T {
@@ -96,6 +97,12 @@ export async function initDatabase(): Promise<void> {
       CREATE TABLE IF NOT EXISTS kv_store (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS custom_recipes (
+        id TEXT PRIMARY KEY,
+        json_data TEXT NOT NULL,
+        created_at INTEGER NOT NULL
       );
     `);
   } catch (error) {
@@ -565,3 +572,66 @@ export async function setKV(key: string, value: string): Promise<void> {
     console.error('setKV error', e);
   }
 }
+
+// --- CUSTOM RECIPES ---
+export async function saveCustomRecipe(recipe: Recipe): Promise<void> {
+  const jsonStr = JSON.stringify(recipe);
+
+  if (isWebFallback || !dbInstance) {
+    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+    const idx = list.findIndex(r => r.id === recipe.id);
+    if (idx !== -1) {
+      list[idx] = recipe;
+    } else {
+      list.unshift(recipe);
+    }
+    setWebData(WEB_STORAGE_KEYS.CUSTOM_RECIPES, list);
+    return;
+  }
+
+  try {
+    await dbInstance.runAsync(`
+      INSERT INTO custom_recipes (id, json_data, created_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET json_data = excluded.json_data
+    `, [recipe.id, jsonStr, Date.now()]);
+  } catch (e) {
+    console.error('saveCustomRecipe error', e);
+  }
+}
+
+export async function getCustomRecipes(): Promise<Recipe[]> {
+  if (isWebFallback || !dbInstance) {
+    return getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+  }
+
+  try {
+    const rows = await dbInstance.getAllAsync('SELECT json_data FROM custom_recipes ORDER BY created_at DESC');
+    return rows.map((r: any) => {
+      try {
+        return JSON.parse(r.json_data);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+  } catch (e) {
+    console.error('getCustomRecipes error', e);
+    return [];
+  }
+}
+
+export async function deleteCustomRecipe(id: string): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+    const filtered = list.filter(r => r.id !== id);
+    setWebData(WEB_STORAGE_KEYS.CUSTOM_RECIPES, filtered);
+    return;
+  }
+
+  try {
+    await dbInstance.runAsync('DELETE FROM custom_recipes WHERE id = ?', [id]);
+  } catch (e) {
+    console.error('deleteCustomRecipe error', e);
+  }
+}
+

@@ -1,0 +1,76 @@
+{
+  "$schema_description": "Schema di riferimento con placeholder per Green Whisker",
+  "id": "id-univoco-ricetta-kebab-case",
+  "titolo": "Titolo della Ricetta",
+  "fonte": "Nome Fonte, Blog o Autore",
+  "url": "https://example.com/ricetta-originale",
+  "immagine": "https://example.com/immagini/foto-piatto.jpg",
+  "categoria": "Secondi piatti",
+  "difficolta": "Facile",
+  "porzioni": 4,
+  "porzioni_testo": "4 porzioni",
+  "tempi": {
+    "tempo_totale_minuti": 30,
+    "tempo_preparazione": "15 minuti",
+    "tempo_cottura": "15 minuti",
+    "tempi_display": "Prep: 15 min, Cottura: 15 min"
+  },
+  "slot_consigliato": "pranzo_cena",
+  "gruppi_alimentari": [
+    "cibi_proteici",
+    "verdura",
+    "grassi"
+  ],
+  "tags": [
+    "100% Vegetale",
+    "Senza Glutine",
+    "Veloce"
+  ],
+  "ingredienti": [
+    "200 g di ingrediente principale",
+    "2 cucchiai di olio o condimento",
+    "1 pizzico di sale e spezie"
+  ],
+  "ingredienti_per_sezione": [
+    {
+      "sezione": "Principale",
+      "ingredienti": [
+        "200 g di ingrediente principale",
+        "2 cucchiai di olio o condimento",
+        "1 pizzico di sale e spezie"
+      ]
+    }
+  ],
+  "ingredienti_dettagliati": [
+    {
+      "sezione": "Principale",
+      "testo": "200 g di ingrediente principale",
+      "quantita": 200,
+      "unita": "g",
+      "ingrediente": "ingrediente principale"
+    },
+    {
+      "sezione": "Principale",
+      "testo": "2 cucchiai di olio o condimento",
+      "quantita": 2,
+      "unita": "cucchiai",
+      "ingrediente": "olio o condimento"
+    },
+    {
+      "sezione": "Principale",
+      "testo": "1 pizzico di sale e spezie",
+      "quantita": 1,
+      "unita": "pizzico",
+      "ingrediente": "sale e spezie"
+    }
+  ],
+  "istruzioni": [
+    "Primo passaggio: lavare e preparare gli ingredienti.",
+    "Secondo passaggio: cuocere o lavorare il composto seguendo i tempi indicati.",
+    "Terzo passaggio: impiattare e servire caldo o a temperatura ambiente."
+  ],
+  "suggerimenti": [
+    "Suggerimento dello chef su varianti o sostituzioni di ingredienti.",
+    "Consiglio pratico per la conservazione (es. in frigorifero per 2-3 giorni)."
+  ]
+}

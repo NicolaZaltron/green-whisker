@@ -40,3 +40,7 @@ yarn-error.*
 /ios
 /android
 assets/ricette.json
+assets/ricette.backup.json
+.env
+.env.*
+!.env.example
