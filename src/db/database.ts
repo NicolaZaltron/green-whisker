@@ -1,6 +1,15 @@
 import { Platform } from 'react-native';
 import { Recipe, ShoppingItem, MealPlanEntry } from '../types/recipe';
 import { cleanShoppingIngredientText } from '../utils/servingsScaler';
+import { classifyShoppingDepartment } from '../utils/shoppingClassifier';
+import {
+  normalizeIngredientKey,
+  cleanSupermarketIngredientName,
+  formatSupermarketIngredientText,
+  accumulateSupermarketItem,
+  mergeRecipeTitles,
+  ConsolidatedSupermarketItem,
+} from '../utils/ingredientAggregator';
 
 let dbInstance: any = null;
 let isWebFallback = false;
@@ -173,7 +182,11 @@ export async function toggleFavorite(recipeId: string): Promise<boolean> {
 // --- SHOPPING LIST ---
 export async function getShoppingItems(): Promise<ShoppingItem[]> {
   if (isWebFallback || !dbInstance) {
-    return getWebData<ShoppingItem[]>(WEB_STORAGE_KEYS.SHOPPING, []);
+    const items = getWebData<ShoppingItem[]>(WEB_STORAGE_KEYS.SHOPPING, []);
+    return items.map(item => ({
+      ...item,
+      category: classifyShoppingDepartment(item.name || item.ingredient_text, item.category)
+    }));
   }
 
   try {
@@ -184,7 +197,8 @@ export async function getShoppingItems(): Promise<ShoppingItem[]> {
     `);
     return rows.map((r: any) => ({
       ...r,
-      checked: Boolean(r.checked)
+      checked: Boolean(r.checked),
+      category: classifyShoppingDepartment(r.name || r.ingredient_text, r.category)
     }));
   } catch (e) {
     console.error('getShoppingItems error', e);
@@ -201,34 +215,184 @@ export async function addShoppingItems(items: Array<{
   unit?: string;
   category?: string;
 }>): Promise<void> {
-  const newItems: ShoppingItem[] = items.map(item => {
-    const isQbUnit = item.unit ? (item.unit.toLowerCase().includes('q.b') || item.unit.toLowerCase().includes('quanto basta')) : false;
-    const cleanedText = cleanShoppingIngredientText(item.ingredientText, item.name);
-    const cleanedName = cleanShoppingIngredientText(item.name, cleanedText);
+  if (!items || items.length === 0) return;
 
-    return {
-      id: `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      recipe_id: item.recipeId,
-      recipe_title: item.recipeTitle,
-      ingredient_text: cleanedText,
-      name: cleanedName,
-      amount: isQbUnit ? null : (item.amount ?? null),
-      unit: isQbUnit ? '' : (item.unit || ''),
-      checked: false,
-      category: item.category || 'Generale',
-      created_at: Date.now()
-    };
-  });
+  const rawNewItems: ShoppingItem[] = items
+    .filter(item => {
+      const clean = cleanSupermarketIngredientName(item.name || item.ingredientText);
+      const key = normalizeIngredientKey(clean);
+      return Boolean(clean) && key !== 'ghiaccio' && key !== 'cubetti di ghiaccio' && key !== 'cubetto di ghiaccio';
+    })
+    .map(item => {
+      const cleanName = cleanSupermarketIngredientName(item.name || item.ingredientText);
+      const category = classifyShoppingDepartment(cleanName, item.category);
+
+      return {
+        id: `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        recipe_id: item.recipeId,
+        recipe_title: item.recipeTitle,
+        ingredient_text: item.ingredientText || cleanName,
+        name: cleanName,
+        amount: item.amount ?? null,
+        unit: item.unit || '',
+        checked: false,
+        category,
+        created_at: Date.now()
+      };
+    });
 
   if (isWebFallback || !dbInstance) {
     const existing = getWebData<ShoppingItem[]>(WEB_STORAGE_KEYS.SHOPPING, []);
-    setWebData(WEB_STORAGE_KEYS.SHOPPING, [...newItems, ...existing]);
+    setWebData(WEB_STORAGE_KEYS.SHOPPING, [...rawNewItems, ...existing]);
+    await consolidateShoppingList();
     return;
   }
 
   try {
-    // Single atomic transaction: O(1) round-trips instead of O(N)
-    const statements = newItems.map(item =>
+    const insertStatements = rawNewItems.map(item =>
+      `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+       VALUES (
+         '${item.id}',
+         ${item.recipe_id ? `'${item.recipe_id.replace(/'/g, "''")}'` : 'NULL'},
+         ${item.recipe_title ? `'${item.recipe_title.replace(/'/g, "''")}'` : 'NULL'},
+         '${item.ingredient_text.replace(/'/g, "''")}',
+         '${item.name.replace(/'/g, "''")}',
+         ${item.amount ?? 'NULL'},
+         '${(item.unit || '').replace(/'/g, "''")}',
+         0,
+         '${item.category.replace(/'/g, "''")}',
+         ${item.created_at}
+       );`
+    ).join('\n');
+
+    if (insertStatements.trim()) {
+      await dbInstance.execAsync(`BEGIN;\n${insertStatements}\nCOMMIT;`);
+    }
+    // Consolida e somma immediatamente per evitare duplicati e unità da cucina
+    await consolidateShoppingList();
+  } catch (e) {
+    console.error('addShoppingItems error', e);
+  }
+}
+
+/**
+ * Consolida l'intera lista della spesa:
+ * - Unisce gli stessi alimenti (es. "Yogurt di soia", "Pasta sfoglia", "Tofu")
+ * - Elimina cucchiai, cucchiaini, pizzichi e milligrammi confusi
+ * - Arrotonda per eccesso rotoli, panetti e confezioni (1.3 rotoli -> 2 rotoli)
+ * - Somma pesi e volumi in grandezze reali da supermercato
+ */
+export async function consolidateShoppingList(): Promise<number> {
+  const all = await getShoppingItems();
+  if (all.length === 0) return 0;
+
+  const unchecked = all.filter(i => !i.checked);
+  const checked = all.filter(i => i.checked);
+
+  const groupMap = new Map<string, {
+    id?: string;
+    cleanName: string;
+    category: string;
+    recipeTitles: string[];
+    weightGrams: number | null;
+    volumeMl: number | null;
+    discreteCount: number | null;
+    discreteUnit: string | null;
+    hasKitchenUnitOnly: boolean;
+  }>();
+
+  for (const item of unchecked) {
+    const cleanName = cleanSupermarketIngredientName(item.name || item.ingredient_text);
+    const key = normalizeIngredientKey(cleanName);
+    if (!cleanName || key === 'ghiaccio' || key === 'cubetti di ghiaccio' || key === 'cubetto di ghiaccio') {
+      continue;
+    }
+    const category = classifyShoppingDepartment(cleanName, item.category);
+
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        id: item.id,
+        cleanName,
+        category,
+        recipeTitles: item.recipe_title ? [item.recipe_title] : [],
+        weightGrams: null,
+        volumeMl: null,
+        discreteCount: null,
+        discreteUnit: null,
+        hasKitchenUnitOnly: false,
+      });
+    }
+
+    const group = groupMap.get(key)!;
+    if (item.recipe_title && !group.recipeTitles.includes(item.recipe_title)) {
+      group.recipeTitles.push(item.recipe_title);
+    }
+
+    accumulateSupermarketItem(
+      group as any,
+      item.amount,
+      item.unit,
+      item.recipe_title,
+      item.ingredient_text || item.name
+    );
+  }
+
+  const consolidatedNewItems: ShoppingItem[] = [];
+  for (const group of groupMap.values()) {
+    const text = formatSupermarketIngredientText(
+      group.cleanName,
+      group.discreteCount,
+      group.discreteUnit,
+      group.weightGrams,
+      group.volumeMl,
+      group.hasKitchenUnitOnly
+    );
+
+    consolidatedNewItems.push({
+      id: group.id || `shop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: group.cleanName,
+      ingredient_text: text,
+      amount: group.discreteCount !== null
+        ? Math.max(1, Math.ceil(group.discreteCount))
+        : group.weightGrams !== null
+        ? (group.weightGrams < 50 ? 50 : Math.round(group.weightGrams / 25) * 25)
+        : group.volumeMl !== null
+        ? Math.round(group.volumeMl / 25) * 25
+        : null,
+      unit: group.discreteCount !== null
+        ? (group.discreteUnit || '')
+        : group.weightGrams !== null
+        ? (group.weightGrams >= 1000 ? 'kg' : 'g')
+        : group.volumeMl !== null
+        ? (group.volumeMl >= 1000 ? 'L' : 'ml')
+        : '',
+      checked: false,
+      category: group.category,
+      created_at: Date.now(),
+      recipe_title: group.recipeTitles.length > 0 ? group.recipeTitles.join(', ') : undefined,
+    });
+  }
+
+  const hasChanges = unchecked.length !== consolidatedNewItems.length ||
+    unchecked.some((u, idx) => {
+      const c = consolidatedNewItems[idx];
+      return !c || c.id !== u.id || c.ingredient_text !== u.ingredient_text || c.category !== u.category;
+    });
+
+  if (!hasChanges) {
+    return consolidatedNewItems.length;
+  }
+
+  const fullConsolidated = [...consolidatedNewItems, ...checked];
+
+  if (isWebFallback || !dbInstance) {
+    setWebData(WEB_STORAGE_KEYS.SHOPPING, fullConsolidated);
+    return consolidatedNewItems.length;
+  }
+
+  try {
+    await dbInstance.runAsync('DELETE FROM shopping_items');
+    const statements = fullConsolidated.map(item =>
       `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
        VALUES (
          '${item.id}',
@@ -244,11 +408,14 @@ export async function addShoppingItems(items: Array<{
        );`
     ).join('\n');
 
-    await dbInstance.execAsync(`BEGIN;\n${statements}\nCOMMIT;`);
+    if (statements.trim()) {
+      await dbInstance.execAsync(`BEGIN;\n${statements}\nCOMMIT;`);
+    }
   } catch (e) {
-    console.error('addShoppingItems error', e);
-    try { await dbInstance.execAsync('ROLLBACK;'); } catch { /* ignore */ }
+    console.error('consolidateShoppingList error', e);
   }
+
+  return consolidatedNewItems.length;
 }
 
 export async function toggleShoppingItem(id: string): Promise<void> {

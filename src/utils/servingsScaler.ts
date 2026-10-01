@@ -123,14 +123,32 @@ export function scaleIngredient(
 export function cleanShoppingIngredientText(text: string, fallbackName?: string): string {
   if (!text) return fallbackName || '';
 
-  // Rimuove 'q.b.' / 'quanto basta' iniziale con eventuale 'di' o "d'"
-  let cleaned = text.replace(/^(?:q\.?\s*b\.?|quanto basta)\s*(?:di\s+|d')?/i, '').trim();
+  let cleaned = text;
 
-  // Rimuove 'q.b.' / 'quanto basta' finale o tra parentesi
+  // Rimuovi parentesi e commenti
+  cleaned = cleaned.replace(/\s*\([^)]*\)/g, ' ');
+
+  // Separa parole attaccate da scraping
+  cleaned = cleaned.replace(/([a-z]{3,})([A-Z][a-z]+)/g, '$1 $2');
+  cleaned = cleaned.replace(/([a-zA-Z]{3,})a\s+(pezzetti|cubetti|fette|fettine|spicchi)\b/gi, '$1 a $2');
+
+  // Rimuove 'q.b.' / 'quanto basta'
+  cleaned = cleaned.replace(/^(?:q\.?\s*b\.?|quanto basta)\s*(?:di\s+|d')?/i, '').trim();
   cleaned = cleaned.replace(/[,;\s]*\(?(?:q\.?\s*b\.?|quanto basta)\)?\s*$/i, '').trim();
-
-  // Rimuove ', q.b.' nel mezzo
   cleaned = cleaned.replace(/,\s*\(?(?:q\.?\s*b\.?|quanto basta)\)?/i, '').trim();
+
+  // Rimuove prefissi rotti derivanti da vecchie regex ('no raso', 'no di', 'no ', 'o di', 'o ')
+  cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
+
+  // Rimuove unità da cucina residue
+  const KITCHEN_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|bicchieri|bicchiere|cubetti|cubetto)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
+  cleaned = cleaned.replace(KITCHEN_REGEX, '');
+  cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
+
+  // Pulisci aggettivi di taglio
+  cleaned = cleaned.replace(/\b(a cubetti|a fette|a pezzetti|a fettine|a spicchi|tritat[oaei]|sminuzzat[oaei]|grattugiat[oaei]|raso|colmo)\b/gi, ' ');
+  cleaned = cleaned.replace(/[,;:\-\.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  cleaned = cleaned.replace(/^(?:di|d'|del|della|dei|degli|delle)\s+/i, '');
 
   if (cleaned.length > 0) {
     cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);

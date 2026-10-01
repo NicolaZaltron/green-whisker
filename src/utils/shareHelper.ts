@@ -1,6 +1,9 @@
 import { Linking, Platform, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Recipe, IngredientItem } from '../types/recipe';
+import { Recipe, IngredientItem, ShoppingItem } from '../types/recipe';
+import { SHOPPING_DEPARTMENTS, ShoppingDepartment } from '../constants/shoppingDepartments';
+import { classifyShoppingDepartment } from './shoppingClassifier';
+import { cleanShoppingIngredientText } from './servingsScaler';
 
 /**
  * Formats a recipe into a clean, aesthetic plain-text message suitable for
@@ -156,3 +159,41 @@ export async function copyRecipeToClipboard(text: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Formatta la lista della spesa raggruppata per reparti
+ */
+export function formatShoppingListShareText(items: ShoppingItem[]): string {
+  if (!items || items.length === 0) return '🛒 La lista della spesa è vuota.';
+
+  const lines: string[] = ['🛒 *LISTA DELLA SPESA GREEN-WHISKER*', ''];
+  const map = new Map<ShoppingDepartment, ShoppingItem[]>();
+
+  for (const dept of SHOPPING_DEPARTMENTS) {
+    map.set(dept, []);
+  }
+
+  for (const item of items) {
+    const dept = (SHOPPING_DEPARTMENTS.includes(item.category as any)
+      ? item.category
+      : classifyShoppingDepartment(item.name || item.ingredient_text)) as ShoppingDepartment;
+    map.get(dept)?.push(item);
+  }
+
+  for (const dept of SHOPPING_DEPARTMENTS) {
+    const list = map.get(dept) || [];
+    if (list.length > 0) {
+      lines.push(`📦 *${dept.toUpperCase()}*`);
+      list.forEach(i => {
+        const checkMark = i.checked ? '✔️ ' : '▫️ ';
+        const text = cleanShoppingIngredientText(i.ingredient_text, i.name);
+        lines.push(`${checkMark}${text}`);
+      });
+      lines.push('');
+    }
+  }
+
+  lines.push('✨ Generata con Green-Whisker 🌿🐾');
+  return lines.join('\n');
+}
+

@@ -809,18 +809,14 @@ export async function aggregateAndAddToShopping(
   entries: MealPlanEntry[],
   recipesMap: Record<string, Recipe>,
 ): Promise<number> {
-
-  // Mappa di aggregazione: chiave = "nome_ingrediente||unità"
-  const aggregated = new Map<string, {
+  const itemsToAdd: Array<{
     recipeId: string;
     recipeTitle: string;
     name: string;
     unit: string;
-    totalAmount: number | null;
-    category: string;
+    amount: number | null;
     ingredientText: string;
-    countQb: number; // quante volte era q.b.
-  }>();
+  }> = [];
 
   for (const entry of entries) {
     const targetRecipeIds = [entry.recipe_id, entry.side_recipe_id].filter(Boolean) as string[];
@@ -832,64 +828,31 @@ export async function aggregateAndAddToShopping(
       const factor = entry.servings / baseServings;
       const titleWithServings = `${recipe.titolo} (${entry.servings} porz.)`;
 
-      const ingredients: IngredientItem[] = recipe.ingredienti_dettagliati.length > 0
+      const ingredients: IngredientItem[] = recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0
         ? recipe.ingredienti_dettagliati
-      : recipe.ingredienti.map(s => ({
-          sezione: 'Generale',
-          testo: s,
-          quantita: null,
-          unita: '',
-          ingrediente: s,
-        }));
+        : recipe.ingredienti.map(s => ({
+            sezione: 'Generale',
+            testo: s,
+            quantita: null,
+            unita: '',
+            ingrediente: s,
+          }));
 
-    for (const ing of ingredients) {
-      const scaled = scaleIngredient(ing.quantita, ing.unita, ing.ingrediente, ing.testo, factor);
-      const isQb = !scaled.scaledAmount || scaled.unit?.toLowerCase().includes('q.b');
-
-      // Normalizza la chiave: nome + unità (minuscolo, senza spazi ridondanti)
-      const normName = scaled.name.toLowerCase().trim();
-      const normUnit = isQb ? '__qb__' : (scaled.unit?.toLowerCase().trim() || '__no_unit__');
-      const aggKey = `${normName}||${normUnit}`;
-
-      // Categoria: usa la sezione dell'ingrediente, fallback 'Generale'
-      const category = ing.sezione && ing.sezione !== '' ? ing.sezione : 'Generale';
-
-      if (aggregated.has(aggKey)) {
-        const existing = aggregated.get(aggKey)!;
-        if (isQb) {
-          existing.countQb++;
-        } else if (scaled.scaledAmount != null && existing.totalAmount != null) {
-          existing.totalAmount += scaled.scaledAmount;
-        }
-      } else {
-        aggregated.set(aggKey, {
+      for (const ing of ingredients) {
+        const scaled = scaleIngredient(ing.quantita, ing.unita, ing.ingrediente, ing.testo, factor);
+        itemsToAdd.push({
           recipeId: recipe.id,
           recipeTitle: titleWithServings,
           name: scaled.name,
-          unit: isQb ? '' : (scaled.unit || ''),
-          totalAmount: isQb ? null : (scaled.scaledAmount ?? null),
-          category,
+          unit: scaled.unit || '',
+          amount: scaled.scaledAmount,
           ingredientText: scaled.formattedText,
-          countQb: isQb ? 1 : 0,
         });
       }
     }
   }
-}
 
-  if (aggregated.size === 0) return 0;
-
-  const itemsToAdd = [...aggregated.values()].map(item => ({
-    recipeId: item.recipeId,
-    recipeTitle: item.recipeTitle,
-    ingredientText: item.totalAmount != null
-      ? `${item.totalAmount % 1 === 0 ? item.totalAmount : item.totalAmount.toFixed(1)} ${item.unit} ${item.name}`.trim()
-      : item.name,
-    name: item.name,
-    amount: item.totalAmount,
-    unit: item.unit,
-    category: item.category,
-  }));
+  if (itemsToAdd.length === 0) return 0;
 
   await addShoppingItems(itemsToAdd);
   return itemsToAdd.length;

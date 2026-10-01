@@ -1,0 +1,55 @@
+export const SHOPPING_DEPARTMENTS = [
+  'Banco frigo',
+  'Bevande vegetali',
+  'Cereali da colazione',
+  'Condimenti',
+  'Conserve',
+  'Dolcificanti',
+  'Farine',
+  'Frutta secca e semi oleosi',
+  'Legumi',
+  'Pane e prodotti da forno',
+  'Pasta',
+  'Riso e altri cereali',
+  'Spezie ed erbe aromatiche',
+  'Verdura',
+  'Varie',
+] as const;
+
+export type ShoppingDepartment = typeof SHOPPING_DEPARTMENTS[number];
+
+export const DEPARTMENT_ICONS: Record<ShoppingDepartment, string> = {
+  'Banco frigo': 'snow-outline',
+  'Bevande vegetali': 'water-outline',
+  'Cereali da colazione': 'sunny-outline',
+  'Condimenti': 'color-fill-outline',
+  'Conserve': 'archive-outline',
+  'Dolcificanti': 'sparkles-outline',
+  'Farine': 'apps-outline',
+  'Frutta secca e semi oleosi': 'ellipse-outline',
+  'Legumi': 'leaf-outline',
+  'Pane e prodotti da forno': 'restaurant-outline',
+  'Pasta': 'reorder-four-outline',
+  'Riso e altri cereali': 'flower-outline',
+  'Spezie ed erbe aromatiche': 'flame-outline',
+  'Verdura': 'nutrition-outline',
+  'Varie': 'basket-outline',
+};
+
+export const DEPARTMENT_COLORS: Record<ShoppingDepartment, { bg: string; text: string; border: string }> = {
+  'Banco frigo': { bg: '#EBF4F6', text: '#2A6F7E', border: '#D0E6EA' },
+  'Bevande vegetali': { bg: '#F2F5EC', text: '#556E41', border: '#DFE7D3' },
+  'Cereali da colazione': { bg: '#FFF8E8', text: '#946B18', border: '#FCE7B8' },
+  'Condimenti': { bg: '#FFF4E8', text: '#9B5B20', border: '#FCDCC0' },
+  'Conserve': { bg: '#FBF0ED', text: '#A24B35', border: '#F5D3CA' },
+  'Dolcificanti': { bg: '#FDF2F7', text: '#973A68', border: '#F8D8E7' },
+  'Farine': { bg: '#F9F5EC', text: '#7E6842', border: '#EDE2CC' },
+  'Frutta secca e semi oleosi': { bg: '#F7F2EB', text: '#755437', border: '#E7D8C6' },
+  'Legumi': { bg: '#EBF5EE', text: '#316B45', border: '#CCE7D4' },
+  'Pane e prodotti da forno': { bg: '#FBF3E8', text: '#8D6228', border: '#F5DEBE' },
+  'Pasta': { bg: '#FFF9ED', text: '#926F1E', border: '#FDE9BE' },
+  'Riso e altri cereali': { bg: '#F4F7EA', text: '#5D7438', border: '#DEE8C8' },
+  'Spezie ed erbe aromatiche': { bg: '#FDF1EC', text: '#A64F2D', border: '#F9D8CB' },
+  'Verdura': { bg: '#EAF3EB', text: '#2E663B', border: '#CDE5CF' },
+  'Varie': { bg: '#F2F3F2', text: '#5B665D', border: '#E0E3DF' },
+};

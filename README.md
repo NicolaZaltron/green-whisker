@@ -38,8 +38,8 @@ It combines a private recipe catalog with an intelligent pantry matcher, a visua
 - 🛒 **Direct Shopping Sync**: Send missing ingredients from your planned meals straight to your shopping list with a single confirmation.
 
 ### 🛒 5. Smart Grocery List
-- 🏷️ **Department Categorization**: Items are automatically organized into Produce, Pantry, Refrigerated, Legumes, Spices, and Bakery.
-- ➕ **Custom Items & Quantities**: Add manual items with custom quantities and units.
+- 🏷️ **15 Department Categories**: Items are automatically classified into exact supermarket aisles: *Banco frigo, Bevande vegetali, Cereali da colazione, Condimenti, Conserve, Dolcificanti, Farine, Frutta secca e semi oleosi, Legumi, Pane e prodotti da forno, Pasta, Riso e altri cereali, Spezie ed erbe aromatiche, Verdura, Varie*.
+- ➕ **Custom Items & Quantities**: Add manual items with real-time smart department auto-detection.
 - ✔️ **Interactive Checklist**: Check off items in the supermarket and clear completed items with one tap.
 
 ### 📱 6. Offline-First & Cross-Platform

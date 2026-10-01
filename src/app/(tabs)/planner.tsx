@@ -16,7 +16,8 @@ import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
-import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans, updateMealPlanSideRecipe } from '../../db/database';
+import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans, updateMealPlanSideRecipe, addShoppingItems } from '../../db/database';
+import { scaleIngredient } from '../../utils/servingsScaler';
 import {
   getWeekDays,
   aggregateAndAddToShopping,
@@ -148,15 +149,60 @@ export default function PlannerScreen() {
       loadPlans();
       showToast('Contorno aggiornato!');
     } else {
+      const currentServings = prefs?.servings ?? 2;
+      const baseServings = recipe.porzioni || 4;
+      const scale = currentServings / baseServings;
+      const titleWithServings = `${recipe.titolo} (${currentServings} porz.)`;
+
+      const itemsToAdd: Array<{
+        recipeId: string;
+        recipeTitle: string;
+        ingredientText: string;
+        name: string;
+        amount?: number | null;
+        unit?: string;
+        category?: string;
+      }> = [];
+
+      if (recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0) {
+        for (const item of recipe.ingredienti_dettagliati) {
+          const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+          itemsToAdd.push({
+            recipeId: recipe.id,
+            recipeTitle: titleWithServings,
+            ingredientText: scaled.formattedText,
+            name: scaled.name,
+            amount: scaled.scaledAmount,
+            unit: scaled.unit,
+            category: item.sezione || 'Generale'
+          });
+        }
+      } else {
+        for (const ing of recipe.ingredienti) {
+          itemsToAdd.push({
+            recipeId: recipe.id,
+            recipeTitle: titleWithServings,
+            ingredientText: ing,
+            name: ing,
+            category: 'Generale'
+          });
+        }
+      }
+
       await saveMealPlanEntry({
         date: selectedDate,
         slot: targetSlot,
         recipeId: recipe.id,
-        servings: prefs?.servings ?? 2,
+        servings: currentServings,
       });
+
+      if (itemsToAdd.length > 0) {
+        await addShoppingItems(itemsToAdd);
+      }
+
       setPickerVisible(false);
       loadPlans();
-      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]}!`);
+      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]} e ingredienti sommati alla Spesa!`);
     }
   };
 
@@ -180,7 +226,7 @@ export default function PlannerScreen() {
       return;
     }
     const count = await aggregateAndAddToShopping(weekPlans, recipeMap);
-    showToast(`${count} ingredienti aggiunti alla Spesa!`);
+    showToast(`Sommati ${count} ingredienti per la settimana nella Spesa!`);
   };
 
   const handleManualGenerate = async (overwrite: boolean = false) => {
