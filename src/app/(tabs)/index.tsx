@@ -341,13 +341,7 @@ export default function ExploreScreen() {
             />
           </>
         ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: 60 }}
-          >
-            <PantryView onSelectRecipe={setSelectedRecipe} />
-          </ScrollView>
+          <PantryView onSelectRecipe={setSelectedRecipe} />
         )}
 
         {/* Modal Dettaglio Ricetta */}

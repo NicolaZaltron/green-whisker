@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -110,24 +110,53 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
     );
 
     const msg = `${missing.length} ${missing.length === 1 ? 'ingrediente aggiunto' : 'ingredienti aggiunti'} alla Spesa!`;
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
     setFeedbackToast(msg);
     if (onToastMessage) onToastMessage(msg);
 
-    setTimeout(() => {
+    toastTimeoutRef.current = setTimeout(() => {
       setFeedbackToast(null);
     }, 3200);
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Feedback Toast Notification */}
-      {feedbackToast && (
-        <View style={styles.toastBanner}>
-          <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-          <Text style={styles.toastText}>{feedbackToast}</Text>
-        </View>
-      )}
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoized card renderer for virtualized FlatList
+  const renderPantryItem = useCallback(
+    ({ item }: { item: PantryMatchResult }) => {
+      const pantryMatch: PantryMatchInfo = {
+        percentage: item.percentage,
+        missingCount: item.missingCount,
+        missing: item.missing,
+      };
+
+      return (
+        <View style={numColumns > 1 ? { flex: 1 / numColumns } : { width: '100%' }}>
+          <RecipeCard
+            recipe={item.recipe}
+            onPress={() => onSelectRecipe(item.recipe)}
+            pantryMatch={pantryMatch}
+            onAddMissingToShopping={(missing, title) => handleAddMissingToShopping(missing, title)}
+          />
+        </View>
+      );
+    },
+    [numColumns, onSelectRecipe]
+  );
+
+  // Header component containing search inputs, autocomplete, chips, and filter tabs
+  const renderListHeader = useCallback(() => (
+    <View style={styles.headerContainer}>
       {/* Header Info */}
       <View style={styles.headerBox}>
         <View style={styles.headerTitleRow}>
@@ -249,7 +278,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       </View>
 
       {/* Results Header & Tabs */}
-      {selectedIngredients.length > 0 ? (
+      {selectedIngredients.length > 0 && (
         <View style={styles.resultsHeader}>
           <View style={styles.resultsTitleRow}>
             <Text style={styles.resultsCount}>
@@ -293,10 +322,24 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             </TouchableOpacity>
           </View>
         </View>
-      ) : null}
+      )}
+    </View>
+  ), [
+    inputText,
+    suggestions,
+    selectedIngredients,
+    quickChips,
+    assumeStaples,
+    allResults.length,
+    readyCount,
+    almostCount,
+    activeFilter,
+  ]);
 
-      {/* Results or Empty State */}
-      {selectedIngredients.length === 0 ? (
+  // Empty state renderer
+  const renderListEmpty = useCallback(() => {
+    if (selectedIngredients.length === 0) {
+      return (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconCircle}>
             <Ionicons name="basket-outline" size={42} color="#8E9C91" />
@@ -306,7 +349,11 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             Aggiungi 2 o più ingredienti che hai in cucina per visualizzare subito cosa puoi preparare.
           </Text>
         </View>
-      ) : filteredResults.length === 0 ? (
+      );
+    }
+
+    if (filteredResults.length === 0) {
+      return (
         <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={38} color="#8E9C91" />
           <Text style={styles.emptyTitle}>Nessuna ricetta per questo filtro</Text>
@@ -314,44 +361,53 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             Prova a selezionare il filtro "Tutte" o aggiungi qualche altro ingrediente.
           </Text>
         </View>
-      ) : (
-        <FlatList
-          key={`pantry-grid-${numColumns}`}
-          data={filteredResults}
-          keyExtractor={item => item.recipe.id}
-          numColumns={numColumns}
-          columnWrapperStyle={numColumns > 1 ? { gap: 16 } : undefined}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
-          renderItem={({ item }) => {
-            const pantryMatch: PantryMatchInfo = {
-              percentage: item.percentage,
-              missingCount: item.missingCount,
-              missing: item.missing
-            };
+      );
+    }
 
-            return (
-              <View style={numColumns > 1 ? { flex: 1 / numColumns } : { width: '100%' }}>
-                <RecipeCard
-                  recipe={item.recipe}
-                  onPress={() => onSelectRecipe(item.recipe)}
-                  pantryMatch={pantryMatch}
-                  onAddMissingToShopping={(missing, title) => handleAddMissingToShopping(missing, title)}
-                />
-              </View>
-            );
-          }}
-        />
+    return null;
+  }, [selectedIngredients.length, filteredResults.length]);
+
+  return (
+    <View style={styles.root}>
+      {/* Feedback Toast Notification */}
+      {feedbackToast && (
+        <View style={styles.toastBanner}>
+          <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.toastText}>{feedbackToast}</Text>
+        </View>
       )}
+
+      <FlatList
+        key={`pantry-grid-${numColumns}`}
+        data={filteredResults}
+        keyExtractor={item => item.recipe.id}
+        numColumns={numColumns}
+        columnWrapperStyle={numColumns > 1 ? { gap: 16 } : undefined}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        ListHeaderComponent={renderListHeader}
+        ListEmptyComponent={renderListEmpty}
+        renderItem={renderPantryItem}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
+    flex: 1,
+  },
+  listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 40,
+  },
+  headerContainer: {
+    paddingBottom: 4,
   },
   toastBanner: {
     position: 'absolute',
@@ -642,8 +698,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 320,
-  },
-  listContent: {
-    paddingBottom: 20,
   },
 });
