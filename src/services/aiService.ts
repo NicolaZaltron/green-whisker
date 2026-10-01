@@ -10,31 +10,31 @@ export interface AIConfig {
 }
 
 export function getAIConfig(): AIConfig {
-  const env = process.env as Record<string, string | undefined>;
-  const provider = (env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
+  // Expo requires direct static member access on process.env.EXPO_PUBLIC_* for Metro AST inlining
+  const provider = ((process.env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase()) as AIProvider;
   
   if (provider === 'openai') {
     return {
       provider: 'openai',
-      apiKey: env.EXPO_PUBLIC_OPENAI_API_KEY || '',
-      model: env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
-      baseUrl: env.EXPO_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1'
+      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
+      model: process.env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
+      baseUrl: process.env.EXPO_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1'
     };
   }
 
   if (provider === 'claude') {
     return {
       provider: 'claude',
-      apiKey: env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
-      model: env.EXPO_PUBLIC_AI_MODEL || 'claude-3-5-sonnet-20241022'
+      apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
+      model: process.env.EXPO_PUBLIC_AI_MODEL || 'claude-3-5-sonnet-20241022'
     };
   }
 
   if (provider === 'openrouter') {
     return {
       provider: 'openrouter',
-      apiKey: env.EXPO_PUBLIC_OPENROUTER_API_KEY || '',
-      model: env.EXPO_PUBLIC_AI_MODEL || 'deepseek/deepseek-chat',
+      apiKey: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '',
+      model: process.env.EXPO_PUBLIC_AI_MODEL || 'deepseek/deepseek-chat',
       baseUrl: 'https://openrouter.ai/api/v1'
     };
   }
@@ -42,17 +42,17 @@ export function getAIConfig(): AIConfig {
   if (provider === 'custom') {
     return {
       provider: 'custom',
-      apiKey: env.EXPO_PUBLIC_AI_API_KEY || '',
-      model: env.EXPO_PUBLIC_AI_MODEL || 'llama3.2',
-      baseUrl: env.EXPO_PUBLIC_AI_BASE_URL || 'http://localhost:11434/v1'
+      apiKey: process.env.EXPO_PUBLIC_AI_API_KEY || '',
+      model: process.env.EXPO_PUBLIC_AI_MODEL || 'llama3.2',
+      baseUrl: process.env.EXPO_PUBLIC_AI_BASE_URL || 'http://localhost:11434/v1'
     };
   }
 
   // Default: Gemini
   return {
     provider: 'gemini',
-    apiKey: env.EXPO_PUBLIC_GEMINI_API_KEY || '',
-    model: env.EXPO_PUBLIC_AI_MODEL || 'gemini-3.5-flash'
+    apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+    model: process.env.EXPO_PUBLIC_AI_MODEL || 'gemini-3.5-flash'
   };
 }
 
