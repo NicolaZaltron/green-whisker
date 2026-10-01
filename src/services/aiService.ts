@@ -10,30 +10,31 @@ export interface AIConfig {
 }
 
 export function getAIConfig(): AIConfig {
-  const provider = ((process.env as any).EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
+  const env = process.env as Record<string, string | undefined>;
+  const provider = (env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
   
   if (provider === 'openai') {
     return {
       provider: 'openai',
-      apiKey: (process.env as any).EXPO_PUBLIC_OPENAI_API_KEY || '',
-      model: (process.env as any).EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
-      baseUrl: (process.env as any).EXPO_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1'
+      apiKey: env.EXPO_PUBLIC_OPENAI_API_KEY || '',
+      model: env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
+      baseUrl: env.EXPO_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1'
     };
   }
 
   if (provider === 'claude') {
     return {
       provider: 'claude',
-      apiKey: (process.env as any).EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
-      model: (process.env as any).EXPO_PUBLIC_AI_MODEL || 'claude-3-5-sonnet-20241022'
+      apiKey: env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
+      model: env.EXPO_PUBLIC_AI_MODEL || 'claude-3-5-sonnet-20241022'
     };
   }
 
   if (provider === 'openrouter') {
     return {
       provider: 'openrouter',
-      apiKey: (process.env as any).EXPO_PUBLIC_OPENROUTER_API_KEY || '',
-      model: (process.env as any).EXPO_PUBLIC_AI_MODEL || 'deepseek/deepseek-chat',
+      apiKey: env.EXPO_PUBLIC_OPENROUTER_API_KEY || '',
+      model: env.EXPO_PUBLIC_AI_MODEL || 'deepseek/deepseek-chat',
       baseUrl: 'https://openrouter.ai/api/v1'
     };
   }
@@ -41,18 +42,45 @@ export function getAIConfig(): AIConfig {
   if (provider === 'custom') {
     return {
       provider: 'custom',
-      apiKey: (process.env as any).EXPO_PUBLIC_AI_API_KEY || '',
-      model: (process.env as any).EXPO_PUBLIC_AI_MODEL || 'llama3.2',
-      baseUrl: (process.env as any).EXPO_PUBLIC_AI_BASE_URL || 'http://localhost:11434/v1'
+      apiKey: env.EXPO_PUBLIC_AI_API_KEY || '',
+      model: env.EXPO_PUBLIC_AI_MODEL || 'llama3.2',
+      baseUrl: env.EXPO_PUBLIC_AI_BASE_URL || 'http://localhost:11434/v1'
     };
   }
 
   // Default: Gemini
   return {
     provider: 'gemini',
-    apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
-    model: (process.env as any).EXPO_PUBLIC_AI_MODEL || 'gemini-3.5-flash'
+    apiKey: env.EXPO_PUBLIC_GEMINI_API_KEY || '',
+    model: env.EXPO_PUBLIC_AI_MODEL || 'gemini-3.5-flash'
   };
+}
+
+/**
+ * Resilient fetch wrapper with AbortController timeout to prevent hanging UI
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 35000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Richiesta scaduta (${Math.round(timeoutMs / 1000)}s). Verifica la connessione internet.`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 const VALID_CATEGORIES = [
@@ -137,9 +165,9 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
 
   if (targetUrl) {
     try {
-      const jinaRes = await fetch(`https://r.jina.ai/${targetUrl}`, {
+      const jinaRes = await fetchWithTimeout(`https://r.jina.ai/${targetUrl}`, {
         headers: { 'Accept': 'text/plain' }
-      });
+      }, 12000);
       if (jinaRes.ok) {
         const markdown = await jinaRes.text();
         if (markdown && markdown.length > 50) {
@@ -147,7 +175,7 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
         }
       }
     } catch {
-      // If Jina Reader is unavailable, fallback gracefully to raw URL
+      // Gracefully fall back to passing the raw URL if reader times out or fails
     }
   }
 
@@ -231,11 +259,11 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
   for (const model of candidateModels) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      });
+      }, 45000);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -328,11 +356,11 @@ async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConf
     response_format: { type: 'json_object' }
   };
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: defaultHeaders,
     body: JSON.stringify(payload)
-  });
+  }, 45000);
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -401,11 +429,11 @@ async function parseWithClaude(input: ParseRecipeInput, config: AIConfig): Promi
     ]
   };
 
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload)
-  });
+  }, 45000);
 
   if (!response.ok) {
     const errorText = await response.text();

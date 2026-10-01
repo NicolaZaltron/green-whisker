@@ -90,7 +90,7 @@ export function MagicRecipeImporterModal({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
         selectionLimit: 5,
-        quality: 0.8,
+        quality: 0.6,
         base64: true,
       });
 
@@ -125,7 +125,7 @@ export function MagicRecipeImporterModal({
 
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: false,
-        quality: 0.8,
+        quality: 0.6,
         base64: true,
       });
 
