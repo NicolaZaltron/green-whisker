@@ -1,0 +1,33 @@
+# EAS Build ignore file (overrides .gitignore for cloud build packaging)
+
+# dependencies
+node_modules/
+
+# Expo & build outputs
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native temporary folders
+/ios
+/android
+.kotlin/
+*.tsbuildinfo
+
+# Debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# Backups
+assets/ricette.backup.json
+# Note: assets/ricette.json MUST be bundled in the APK!

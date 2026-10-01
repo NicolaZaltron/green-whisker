@@ -5,13 +5,13 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Modal,
   TextInput,
   FlatList,
   ActivityIndicator,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -230,7 +230,7 @@ export default function PlannerScreen() {
   const maxMeals = weekDays.length * SLOT_ORDER.length; // 4 slot per giorno
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
 
         {/* ─── Auto-Generated Banner ─── */}
@@ -482,7 +482,7 @@ export default function PlannerScreen() {
 
         {/* ─── Preferences Modal ─── */}
         <Modal visible={showPrefsModal} transparent animationType="slide" presentationStyle="pageSheet">
-          <SafeAreaView style={styles.prefsSafeArea}>
+          <SafeAreaView style={styles.prefsSafeArea} edges={['top', 'bottom', 'left', 'right']}>
             <View style={styles.prefsHeader}>
               <Text style={styles.prefsTitle}>Preferenze Planner</Text>
               <TouchableOpacity onPress={() => setShowPrefsModal(false)} style={styles.prefsCloseBtn}>
@@ -600,7 +600,7 @@ export default function PlannerScreen() {
           presentationStyle="pageSheet"
           onRequestClose={() => setPickerVisible(false)}
         >
-          <SafeAreaView style={styles.pickerSafeArea}>
+          <SafeAreaView style={styles.pickerSafeArea} edges={['top', 'bottom', 'left', 'right']}>
             <View style={styles.pickerHeader}>
               <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => setPickerVisible(false)}>
                 <Ionicons name="close" size={24} color="#2B332B" />

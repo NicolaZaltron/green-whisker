@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Linking,
-  SafeAreaView,
   StatusBar,
   TextInput,
   Platform
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe, IngredientItem } from '../types/recipe';
@@ -257,7 +257,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <StatusBar barStyle="dark-content" />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
           {/* Dynamic Sticky Top Navigation Bar */}

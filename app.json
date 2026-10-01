@@ -7,13 +7,20 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EAF0EB"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.veronicapuddu.greenwhisker",
       "adaptiveIcon": {
         "backgroundColor": "#EAF0EB",
-        "foregroundImage": "./assets/android-icon-foreground.png"
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -24,6 +31,12 @@
       "expo-router",
       "expo-sqlite",
       "expo-image"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "388ead9c-dc04-480d-9a90-225b5274431a"
+      }
+    }
   }
 }

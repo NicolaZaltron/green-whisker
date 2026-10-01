@@ -5,9 +5,9 @@ import {
   View,
   FlatList,
   TextInput,
-  TouchableOpacity,
-  SafeAreaView
+  TouchableOpacity
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
 import { Recipe } from '../../types/recipe';
@@ -64,7 +64,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
         <View style={styles.header}>
           <View style={styles.titleRow}>

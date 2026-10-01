@@ -6,11 +6,11 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
   Keyboard,
   Modal
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Recipe } from '../../types/recipe';
@@ -113,12 +113,12 @@ export default function ExploreScreen() {
   }, [width]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
-        {/* Header Green-Whisker */}
+        {/* Header Green-Whisker: Pure, clean branding */}
         <View style={styles.header}>
           <View style={styles.brandRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={styles.brandInfo}>
               <View style={styles.logoBadge}>
                 <Image
                   source={require('../../../assets/logo.png')}
@@ -130,15 +130,6 @@ export default function ExploreScreen() {
                 <Text style={styles.brandTitle}>Green-Whisker</Text>
               </View>
             </View>
-
-            <TouchableOpacity
-              style={styles.magicImportBtn}
-              onPress={() => setShowMagicImporter(true)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="sparkles" size={15} color="#ffffff" style={{ marginRight: 6 }} />
-              <Text style={styles.magicImportBtnText}>Importa AI</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
@@ -468,6 +459,18 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </Modal>
 
+        {/* Floating Action Button: Importa AI */}
+        {viewMode === 'catalog' && (
+          <TouchableOpacity
+            style={styles.fabImportBtn}
+            onPress={() => setShowMagicImporter(true)}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="sparkles" size={17} color="#FFFFFF" style={{ marginRight: 7 }} />
+            <Text style={styles.fabImportText}>Importa AI</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Magic Recipe Importer AI Modal */}
         <MagicRecipeImporterModal
           visible={showMagicImporter}
@@ -491,33 +494,42 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  magicImportBtn: {
+  brandInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10b981',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 12,
   },
-  magicImportBtnText: {
+  fabImportBtn: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#34523C',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 28,
+    shadowColor: '#1A2E1F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 10,
+  },
+  fabImportText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   logoBadge: {
     width: 40,

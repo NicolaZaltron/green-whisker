@@ -5,9 +5,9 @@ import {
   View,
   FlatList,
   TouchableOpacity,
-  TextInput,
-  SafeAreaView
+  TextInput
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
 import { ShoppingItem } from '../../types/recipe';
@@ -73,7 +73,7 @@ export default function ShoppingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
         {/* Header */}
         <View style={styles.header}>

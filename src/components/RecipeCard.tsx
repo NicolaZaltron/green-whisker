@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   imageWrapper: {
     width: '100%',
-    height: 180,
+    height: 160,
     backgroundColor: '#EAE5DC',
     position: 'relative',
   },
