@@ -36,6 +36,12 @@ const SLOTS: { label: string; value: SlotConsigliato }[] = [
   { label: 'Spuntino', value: 'spuntino' },
 ];
 
+interface CapturedPage {
+  uri: string;
+  base64: string;
+  mimeType: string;
+}
+
 export function MagicRecipeImporterModal({
   visible,
   onClose,
@@ -45,9 +51,7 @@ export function MagicRecipeImporterModal({
   
   // Input states
   const [inputText, setInputText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [imageMimeType, setImageMimeType] = useState<string>('image/jpeg');
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [capturedPages, setCapturedPages] = useState<CapturedPage[]>([]);
 
   // Parsing & Loading state
   const [loading, setLoading] = useState(false);
@@ -84,17 +88,27 @@ export function MagicRecipeImporterModal({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
         quality: 0.8,
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        setSelectedImage(asset.uri);
-        setImageMimeType(asset.mimeType || 'image/jpeg');
-        setImageBase64(asset.base64 || null);
-        setErrorMsg(null);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const newPages: CapturedPage[] = [];
+        for (const asset of result.assets) {
+          if (asset.base64) {
+            newPages.push({
+              uri: asset.uri,
+              base64: asset.base64,
+              mimeType: asset.mimeType || 'image/jpeg',
+            });
+          }
+        }
+        if (newPages.length > 0) {
+          setCapturedPages(prev => [...prev, ...newPages].slice(0, 5));
+          setErrorMsg(null);
+        }
       }
     } catch (e: any) {
       Alert.alert('Errore', 'Impossibile accedere alla galleria: ' + e.message);
@@ -110,21 +124,28 @@ export function MagicRecipeImporterModal({
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets[0]?.base64) {
         const asset = result.assets[0];
-        setSelectedImage(asset.uri);
-        setImageMimeType(asset.mimeType || 'image/jpeg');
-        setImageBase64(asset.base64 || null);
+        const newPage: CapturedPage = {
+          uri: asset.uri,
+          base64: asset.base64!,
+          mimeType: asset.mimeType || 'image/jpeg',
+        };
+        setCapturedPages(prev => [...prev, newPage].slice(0, 5));
         setErrorMsg(null);
       }
     } catch (e: any) {
       Alert.alert('Errore', 'Impossibile aprire la fotocamera: ' + e.message);
     }
+  }
+
+  function handleRemovePage(index: number) {
+    setCapturedPages(prev => prev.filter((_, i) => i !== index));
   }
 
   async function handleStartParsing() {
@@ -133,14 +154,18 @@ export function MagicRecipeImporterModal({
       return;
     }
 
-    if (activeTab === 'photo' && !imageBase64) {
-      setErrorMsg('Seleziona o scatta una foto di una ricetta.');
+    if (activeTab === 'photo' && capturedPages.length === 0) {
+      setErrorMsg('Scatta o seleziona almeno una pagina o foto della ricetta.');
       return;
     }
 
     setLoading(true);
     setErrorMsg(null);
-    setLoadingMessage('Analisi della ricetta in corso...');
+    setLoadingMessage(
+      activeTab === 'photo' && capturedPages.length > 1
+        ? `Analisi di ${capturedPages.length} pagine del libro con AI...`
+        : 'Analisi della ricetta in corso...'
+    );
 
     try {
       let isUrl = false;
@@ -151,11 +176,16 @@ export function MagicRecipeImporterModal({
       const recipe = await parseRecipeWithAI({
         text: activeTab === 'text' && !isUrl ? inputText : undefined,
         url: activeTab === 'text' && isUrl ? inputText.trim() : undefined,
-        imageBase64: activeTab === 'photo' ? imageBase64! : undefined,
-        imageMimeType: imageMimeType
+        images: activeTab === 'photo' && capturedPages.length > 0
+          ? capturedPages.map(p => ({
+              base64: p.base64,
+              mimeType: p.mimeType,
+              uri: p.uri
+            }))
+          : undefined,
       });
 
-      const initialImg = recipe.immagine || (activeTab === 'photo' && selectedImage ? selectedImage : '');
+      const initialImg = recipe.immagine || (activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
 
       setParsedRecipe(recipe);
       setEditTitle(recipe.titolo);
@@ -255,8 +285,7 @@ export function MagicRecipeImporterModal({
   function handleReset() {
     setParsedRecipe(null);
     setInputText('');
-    setSelectedImage(null);
-    setImageBase64(null);
+    setCapturedPages([]);
     setEditImageUrl('');
     setImageLoadError(false);
     setErrorMsg(null);
@@ -358,41 +387,97 @@ export function MagicRecipeImporterModal({
               {/* TAB 2: PHOTO / CAMERA */}
               {activeTab === 'photo' && (
                 <View style={styles.inputSection}>
-                  <Text style={styles.sectionTitle}>Scansiona da un Libro o Schermata</Text>
+                  <View style={styles.inputHeaderRow}>
+                    <Text style={styles.sectionTitle}>Pagine del Libro o Ricettario</Text>
+                    {capturedPages.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.clearPagesBtn}
+                        onPress={() => setCapturedPages([])}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={13} color="#C0392B" />
+                        <Text style={styles.clearPagesText}>Rimuovi tutte</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   <Text style={styles.sectionSubtitle}>
-                    Scatta una foto a una pagina di ricette o carica uno screenshot. Il modello leggerà il testo e riconoscerà tutti gli ingredienti.
+                    Scatta o carica le pagine del libro. Se la ricetta occupa più di una facciata (es. ingredienti su una e procedimento sull'altra), puoi aggiungere fino a 5 pagine consecutive!
                   </Text>
 
-                  {selectedImage ? (
-                    <View style={styles.imagePreviewContainer}>
-                      <ExpoImage
-                        source={{ uri: selectedImage }}
-                        style={styles.imagePreview}
-                        contentFit="cover"
-                        transition={200}
-                      />
-                      <TouchableOpacity
-                        style={styles.removeImageBtn}
-                        onPress={() => {
-                          setSelectedImage(null);
-                          setImageBase64(null);
-                        }}
-                        activeOpacity={0.8}
+                  {capturedPages.length > 0 ? (
+                    <View style={styles.pagesContainer}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.pagesScrollList}
                       >
-                        <Ionicons name="trash-outline" size={16} color="#ffffff" />
-                        <Text style={styles.removeImageText}>Rimuovi Foto</Text>
-                      </TouchableOpacity>
+                        {capturedPages.map((page, index) => (
+                          <View key={page.uri + index} style={styles.pageCard}>
+                            <ExpoImage
+                              source={{ uri: page.uri }}
+                              style={styles.pageThumbnail}
+                              contentFit="cover"
+                              transition={200}
+                            />
+                            <View style={styles.pageBadge}>
+                              <Text style={styles.pageBadgeText}>Pagina {index + 1}</Text>
+                            </View>
+                            <TouchableOpacity
+                              style={styles.pageDeleteBtn}
+                              onPress={() => handleRemovePage(index)}
+                              activeOpacity={0.8}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons name="close" size={14} color="#FFF" />
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </ScrollView>
+
+                      {/* Add more pages actions */}
+                      {capturedPages.length < 5 && (
+                        <View style={styles.appendPageRow}>
+                          <TouchableOpacity
+                            style={styles.appendPageBtn}
+                            onPress={handleTakePhoto}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="camera-outline" size={18} color="#34523C" />
+                            <Text style={styles.appendPageBtnText}>+ Scatta Pag. {capturedPages.length + 1}</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.appendPageBtn, styles.appendPageBtnSecondary]}
+                            onPress={handlePickImage}
+                            activeOpacity={0.75}
+                          >
+                            <Ionicons name="images-outline" size={18} color="#34523C" />
+                            <Text style={styles.appendPageBtnText}>+ Dalla Galleria</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+
+                      <View style={styles.pagesHintBox}>
+                        <Ionicons name="information-circle-outline" size={16} color="#4A6B53" />
+                        <Text style={styles.pagesHintText}>
+                          {capturedPages.length === 1
+                            ? '1 pagina acquisita. Se la ricetta continua, tocca "+ Scatta Pag. 2" per aggiungere la continuazione!'
+                            : `${capturedPages.length} pagine acquisite. L'AI leggerà tutte le pagine insieme unificando ingredienti e procedimento.`}
+                        </Text>
+                      </View>
                     </View>
                   ) : (
                     <View style={styles.photoActionsRow}>
                       <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto} activeOpacity={0.75}>
                         <Ionicons name="camera-outline" size={30} color="#34523C" />
-                        <Text style={styles.photoActionLabel}>Scatta Foto</Text>
+                        <Text style={styles.photoActionLabel}>Scatta 1ª Pagina</Text>
+                        <Text style={styles.photoActionSub}>con fotocamera</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage} activeOpacity={0.75}>
                         <Ionicons name="images-outline" size={30} color="#34523C" />
                         <Text style={styles.photoActionLabel}>Scegli da Galleria</Text>
+                        <Text style={styles.photoActionSub}>anche pagine multiple</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -414,7 +499,11 @@ export function MagicRecipeImporterModal({
                 ) : (
                   <View style={styles.loadingRow}>
                     <Ionicons name="sparkles" size={18} color="#FFFFFF" />
-                    <Text style={styles.parseButtonText}>Estrai Ricetta con AI</Text>
+                    <Text style={styles.parseButtonText}>
+                      {activeTab === 'photo' && capturedPages.length > 1
+                        ? `Estrai Ricetta da ${capturedPages.length} Pagine con AI`
+                        : 'Estrai Ricetta con AI'}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -829,33 +918,117 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2B332B',
   },
-  imagePreviewContainer: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ECE7DF',
+  photoActionSub: {
+    fontSize: 11,
+    color: '#7A8A7E',
+    marginTop: -2,
   },
-  imagePreview: {
-    width: '100%',
-    height: 240,
-    backgroundColor: '#000',
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
+  clearPagesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(192, 57, 43, 0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 4,
+    backgroundColor: '#FDF2EE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
   },
-  removeImageText: {
-    color: '#ffffff',
-    fontSize: 12,
+  clearPagesText: {
+    fontSize: 11,
     fontWeight: '600',
+    color: '#C0392B',
+  },
+  pagesContainer: {
+    gap: 12,
+  },
+  pagesScrollList: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    gap: 12,
+  },
+  pageCard: {
+    width: 140,
+    height: 180,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#FAF8F5',
+    borderWidth: 1,
+    borderColor: '#ECE7DF',
+    position: 'relative',
+    shadowColor: '#2B332B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  pageThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  pageBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(52, 82, 60, 0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  pageBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  pageDeleteBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appendPageRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  appendPageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4E2D8',
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  appendPageBtnSecondary: {
+    backgroundColor: '#FAF8F5',
+    borderColor: '#ECE7DF',
+  },
+  appendPageBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34523C',
+  },
+  pagesHintBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EAF0EB',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  pagesHintText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#26422E',
+    lineHeight: 16,
+    fontWeight: '500',
   },
   parseButton: {
     backgroundColor: '#34523C',

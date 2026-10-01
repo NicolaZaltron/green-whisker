@@ -111,11 +111,18 @@ STRICT SCHEMA & PARSING RULES:
 Respond ONLY with the JSON object, without any additional markdown explanation or surrounding commentary.
 `;
 
+export interface RecipeImageInput {
+  base64: string;
+  mimeType?: string;
+  uri?: string;
+}
+
 export interface ParseRecipeInput {
   text?: string;
   url?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  images?: RecipeImageInput[];
 }
 
 export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe> {
@@ -172,16 +179,31 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
     { text: RECIPE_PROMPT_SYSTEM }
   ];
 
-  if (input.imageBase64) {
-    contentsParts.push({
-      inlineData: {
-        mimeType: input.imageMimeType || 'image/jpeg',
-        data: input.imageBase64
-      }
+  const allImages: RecipeImageInput[] = input.images && input.images.length > 0
+    ? input.images
+    : input.imageBase64
+      ? [{ base64: input.imageBase64, mimeType: input.imageMimeType || 'image/jpeg' }]
+      : [];
+
+  if (allImages.length > 0) {
+    allImages.forEach(img => {
+      contentsParts.push({
+        inlineData: {
+          mimeType: img.mimeType || 'image/jpeg',
+          data: img.base64
+        }
+      });
     });
-    contentsParts.push({
-      text: 'Extract and structure the complete recipe from the attached image (cookbook page, screenshot, handwritten note).'
-    });
+
+    if (allImages.length === 1) {
+      contentsParts.push({
+        text: 'Extract and structure the complete plant-based recipe from the attached image (cookbook page, screenshot, handwritten note).'
+      });
+    } else {
+      contentsParts.push({
+        text: `These ${allImages.length} images are consecutive pages/photos of the SAME recipe from a cookbook or notebook (for example, page 1 might contain the title and ingredients, while page 2 contains directions, notes, or variations). Analyze, merge, and unite all information from all ${allImages.length} images into a single cohesive, high-quality, complete plant-based recipe.`
+      });
+    }
   }
 
   if (input.url) {
@@ -267,18 +289,33 @@ async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConf
     });
   }
 
-  if (input.imageBase64) {
-    const mime = input.imageMimeType || 'image/jpeg';
-    userContentParts.push({
-      type: 'image_url',
-      image_url: {
-        url: `data:${mime};base64,${input.imageBase64}`
-      }
+  const allImages: RecipeImageInput[] = input.images && input.images.length > 0
+    ? input.images
+    : input.imageBase64
+      ? [{ base64: input.imageBase64, mimeType: input.imageMimeType || 'image/jpeg' }]
+      : [];
+
+  if (allImages.length > 0) {
+    allImages.forEach(img => {
+      const mime = img.mimeType || 'image/jpeg';
+      userContentParts.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${mime};base64,${img.base64}`
+        }
+      });
     });
-    userContentParts.push({
-      type: 'text',
-      text: 'Extract the recipe from this image.'
-    });
+    if (allImages.length === 1) {
+      userContentParts.push({
+        type: 'text',
+        text: 'Extract the recipe from this image.'
+      });
+    } else {
+      userContentParts.push({
+        type: 'text',
+        text: `These ${allImages.length} images are consecutive pages of the SAME recipe from a cookbook. Combine all ingredients, quantities, and steps from all pages into a single complete recipe.`
+      });
+    }
   }
 
   const payload = {
@@ -329,14 +366,22 @@ async function parseWithClaude(input: ParseRecipeInput, config: AIConfig): Promi
 
   const userContent: any[] = [];
 
-  if (input.imageBase64) {
-    userContent.push({
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: input.imageMimeType || 'image/jpeg',
-        data: input.imageBase64
-      }
+  const allImages: RecipeImageInput[] = input.images && input.images.length > 0
+    ? input.images
+    : input.imageBase64
+      ? [{ base64: input.imageBase64, mimeType: input.imageMimeType || 'image/jpeg' }]
+      : [];
+
+  if (allImages.length > 0) {
+    allImages.forEach(img => {
+      userContent.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: img.mimeType || 'image/jpeg',
+          data: img.base64
+        }
+      });
     });
   }
 
