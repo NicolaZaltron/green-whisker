@@ -96,6 +96,9 @@ export async function initDatabase(): Promise<void> {
       );
 
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
+      CREATE INDEX IF NOT EXISTS idx_meal_plan_date_slot ON meal_plan(date, slot);
+      CREATE INDEX IF NOT EXISTS idx_shopping_items_checked ON shopping_items(checked, category);
+      CREATE INDEX IF NOT EXISTS idx_custom_recipes_created ON custom_recipes(created_at DESC);
 
       CREATE TABLE IF NOT EXISTS kv_store (
         key TEXT PRIMARY KEY,
@@ -803,18 +806,29 @@ export async function saveCustomRecipe(recipe: Recipe): Promise<void> {
 
 export async function getCustomRecipes(): Promise<Recipe[]> {
   if (isWebFallback || !dbInstance) {
-    return getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+    const seen = new Set<string>();
+    return list.filter(r => {
+      if (!r || !r.id || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
   }
 
   try {
     const rows = await dbInstance.getAllAsync('SELECT json_data FROM custom_recipes ORDER BY created_at DESC');
+    const seen = new Set<string>();
     return rows.map((r: any) => {
       try {
         return JSON.parse(r.json_data);
       } catch {
         return null;
       }
-    }).filter(Boolean);
+    }).filter((r: Recipe | null): r is Recipe => {
+      if (!r || !r.id || seen.has(r.id)) return false;
+      seen.add(r.id);
+      return true;
+    });
   } catch (e) {
     console.error('getCustomRecipes error', e);
     return [];

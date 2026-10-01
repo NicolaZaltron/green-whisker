@@ -16,7 +16,15 @@ import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
-import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans, updateMealPlanSideRecipe, addShoppingItems } from '../../db/database';
+import {
+  getMealPlans,
+  saveMealPlanEntry,
+  deleteMealPlanEntry,
+  clearMealPlans,
+  updateMealPlanSideRecipe,
+  addShoppingItems,
+  getCustomRecipes,
+} from '../../db/database';
 import { scaleIngredient } from '../../utils/servingsScaler';
 import {
   getWeekDays,
@@ -34,10 +42,11 @@ import {
   getRecipesForSlot,
 } from '../../services/plannerService';
 import { RecipeModal } from '../../components/RecipeModal';
+import { PlannerRegenModal } from '../../components/planner/PlannerRegenModal';
+import { PlannerPreferencesModal } from '../../components/planner/PlannerPreferencesModal';
+import { RecipePickerModal } from '../../components/planner/RecipePickerModal';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
-const recipeMap: Record<string, Recipe> = {};
-rawRecipes.forEach(r => { recipeMap[r.id] = r; });
 
 // ─── Week offset navigation ───────────────────────────────────────────────────
 const WEEK_OFFSETS = [-1, 0, 1];
@@ -47,6 +56,16 @@ export default function PlannerScreen() {
   const weekResult = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
   const weekDays = weekResult.days;
   const weekLabel = weekResult.weekLabel;
+
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>(rawRecipes);
+
+  const recipeMap = useMemo(() => {
+    const map: Record<string, Recipe> = {};
+    allRecipes.forEach(r => {
+      map[r.id] = r;
+    });
+    return map;
+  }, [allRecipes]);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -63,8 +82,6 @@ export default function PlannerScreen() {
   const [pickerTargetType, setPickerTargetType] = useState<'main' | 'side'>('main');
   const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
-  const [pickerQuery, setPickerQuery] = useState('');
-  const [pickerFilterMode, setPickerFilterMode] = useState<'recommended' | 'all'>('recommended');
   const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<Recipe | null>(null);
 
   // Banner animation
@@ -89,10 +106,21 @@ export default function PlannerScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const list = await loadPlans();
-        const p = await getPlannerPreferences();
+        const [list, p, customs] = await Promise.all([
+          loadPlans(),
+          getPlannerPreferences(),
+          getCustomRecipes(),
+        ]);
         if (!active) return;
         setPrefs(p);
+        if (customs && customs.length > 0) {
+          const map = new Map<string, Recipe>();
+          rawRecipes.forEach(r => map.set(r.id, r));
+          customs.forEach(r => map.set(r.id, r));
+          setAllRecipes(Array.from(map.values()));
+        } else {
+          setAllRecipes(rawRecipes);
+        }
 
         // Auto-generate on Monday
         const result = await checkAndAutoGeneratePlan(list);
@@ -128,8 +156,6 @@ export default function PlannerScreen() {
     setPickerTargetType('main');
     setTargetEntryId(null);
     setTargetSlot(slot);
-    setPickerQuery('');
-    setPickerFilterMode('recommended');
     setPickerVisible(true);
   };
 
@@ -137,8 +163,6 @@ export default function PlannerScreen() {
     setPickerTargetType('side');
     setTargetEntryId(entryId);
     setTargetSlot(slot);
-    setPickerQuery('');
-    setPickerFilterMode('recommended');
     setPickerVisible(true);
   };
 
@@ -251,25 +275,6 @@ export default function PlannerScreen() {
     loadPlans();
     showToast('Piano settimana cancellato.');
   };
-
-  const pickerFiltered = useMemo(() => {
-    let pool: Recipe[];
-    if (pickerTargetType === 'side') {
-      pool = pickerFilterMode === 'recommended'
-        ? rawRecipes.filter(r => r.categoria === 'Verdure e Contorni' || r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni')))
-        : rawRecipes;
-    } else {
-      pool = pickerFilterMode === 'recommended'
-        ? getRecipesForSlot(targetSlot)
-        : rawRecipes;
-    }
-
-    if (!pickerQuery.trim()) return pool.slice(0, 40);
-    const q = pickerQuery.toLowerCase().trim();
-    return pool
-      .filter(r => r.titolo.toLowerCase().includes(q) || r.categoria.toLowerCase().includes(q))
-      .slice(0, 40);
-  }, [pickerQuery, pickerFilterMode, targetSlot, pickerTargetType]);
 
   const selectedDayInfo = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const weekPlansCount = plans.filter(p => weekDays.some(d => d.dateString === p.date)).length;
@@ -469,6 +474,7 @@ export default function PlannerScreen() {
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
             const colors = SLOT_COLORS[slot];
+            const currentEntry = dayPlans[slot];
             return (
               <MealSlotCard
                 key={slot}
@@ -477,12 +483,14 @@ export default function PlannerScreen() {
                 icon={SLOT_ICONS[slot]}
                 color={colors.color}
                 bgColor={colors.bgColor}
-                entry={dayPlans[slot]}
+                entry={currentEntry}
+                recipe={currentEntry ? recipeMap[currentEntry.recipe_id] : null}
+                sideRecipe={currentEntry?.side_recipe_id ? recipeMap[currentEntry.side_recipe_id] : null}
                 onAdd={() => handleOpenPicker(slot)}
                 onDelete={(id) => handleDeleteSlot(id)}
                 onView={(r) => setSelectedDetailRecipe(r)}
-                onSwapSide={dayPlans[slot] ? () => handleOpenSidePicker(slot, dayPlans[slot]!.id) : undefined}
-                onDeleteSide={dayPlans[slot] ? () => handleDeleteSide(dayPlans[slot]!.id) : undefined}
+                onSwapSide={currentEntry ? () => handleOpenSidePicker(slot, currentEntry.id) : undefined}
+                onDeleteSide={currentEntry ? () => handleDeleteSide(currentEntry.id) : undefined}
               />
             );
           })}
@@ -491,266 +499,30 @@ export default function PlannerScreen() {
         </ScrollView>
 
         {/* ─── Confirm Regen Modal ─── */}
-        <Modal visible={showConfirmRegen} transparent animationType="fade">
-          <View style={styles.confirmOverlay}>
-            <View style={styles.confirmBox}>
-              <View style={styles.confirmIconWrap}>
-                <Ionicons name="refresh-circle" size={36} color="#4A6B53" />
-              </View>
-              <Text style={styles.confirmTitle}>Rigenera il piano?</Text>
-              <Text style={styles.confirmSub}>
-                Scegli se completare solo gli slot vuoti, o ricominciare da zero sovrascrivendo tutto.
-              </Text>
-              <TouchableOpacity
-                style={styles.confirmBtnPrimary}
-                onPress={() => handleManualGenerate(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmBtnPrimaryText}>Completa gli slot vuoti</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmBtnSecondary}
-                onPress={() => handleManualGenerate(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.confirmBtnSecondaryText}>Ricomincia da zero</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmBtnCancel}
-                onPress={() => setShowConfirmRegen(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.confirmBtnCancelText}>Annulla</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <PlannerRegenModal
+          visible={showConfirmRegen}
+          onConfirm={(overwriteAll) => handleManualGenerate(overwriteAll)}
+          onCancel={() => setShowConfirmRegen(false)}
+        />
 
         {/* ─── Preferences Modal ─── */}
-        <Modal visible={showPrefsModal} transparent animationType="slide" presentationStyle="pageSheet">
-          <SafeAreaView style={styles.prefsSafeArea} edges={['top', 'bottom', 'left', 'right']}>
-            <View style={styles.prefsHeader}>
-              <Text style={styles.prefsTitle}>Preferenze Planner</Text>
-              <TouchableOpacity onPress={() => setShowPrefsModal(false)} style={styles.prefsCloseBtn}>
-                <Ionicons name="close" size={22} color="#2B332B" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.prefsBody}>
-              {prefs && (
-                <>
-                  <View style={styles.prefRow}>
-                    <View>
-                      <Text style={styles.prefLabel}>Porzioni di default</Text>
-                      <Text style={styles.prefSub}>Usate nella generazione automatica</Text>
-                    </View>
-                    <View style={styles.prefStepper}>
-                      <TouchableOpacity
-                        style={styles.stepperBtn}
-                        onPress={async () => {
-                          const v = Math.max(1, prefs.servings - 1);
-                          const updated = { ...prefs, servings: v };
-                          setPrefs(updated);
-                          await savePlannerPreferences({ servings: v });
-                        }}
-                      >
-                        <Ionicons name="remove" size={16} color="#4A6B53" />
-                      </TouchableOpacity>
-                      <Text style={styles.stepperVal}>{prefs.servings}</Text>
-                      <TouchableOpacity
-                        style={styles.stepperBtn}
-                        onPress={async () => {
-                          const v = Math.min(12, prefs.servings + 1);
-                          const updated = { ...prefs, servings: v };
-                          setPrefs(updated);
-                          await savePlannerPreferences({ servings: v });
-                        }}
-                      >
-                        <Ionicons name="add" size={16} color="#4A6B53" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <View style={styles.prefRow}>
-                    <View>
-                      <Text style={styles.prefLabel}>Include weekend</Text>
-                      <Text style={styles.prefSub}>Pianifica Sabato e Domenica</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.toggle, prefs.includeWeekend && styles.toggleOn]}
-                      onPress={async () => {
-                        const updated = { ...prefs, includeWeekend: !prefs.includeWeekend };
-                        setPrefs(updated);
-                        await savePlannerPreferences({ includeWeekend: !prefs.includeWeekend });
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.toggleThumb, prefs.includeWeekend && styles.toggleThumbOn]} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.prefRow}>
-                    <View>
-                      <Text style={styles.prefLabel}>Pranzo veloce nei feriali</Text>
-                      <Text style={styles.prefSub}>Max 30 min nei giorni feriali</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.toggle, prefs.maxWeekdayLunchMinutes !== null && styles.toggleOn]}
-                      onPress={async () => {
-                        const v = prefs.maxWeekdayLunchMinutes !== null ? null : 30;
-                        const updated = { ...prefs, maxWeekdayLunchMinutes: v };
-                        setPrefs(updated);
-                        await savePlannerPreferences({ maxWeekdayLunchMinutes: v });
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.toggleThumb, prefs.maxWeekdayLunchMinutes !== null && styles.toggleThumbOn]} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.prefRow}>
-                    <View>
-                      <Text style={styles.prefLabel}>Auto-genera ogni lunedì</Text>
-                      <Text style={styles.prefSub}>Pianifica automaticamente all'apertura</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.toggle, prefs.autoGenerateOnMonday && styles.toggleOn]}
-                      onPress={async () => {
-                        const updated = { ...prefs, autoGenerateOnMonday: !prefs.autoGenerateOnMonday };
-                        setPrefs(updated);
-                        await savePlannerPreferences({ autoGenerateOnMonday: !prefs.autoGenerateOnMonday });
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={[styles.toggleThumb, prefs.autoGenerateOnMonday && styles.toggleThumbOn]} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.clearWeekBtn}
-                    onPress={() => { setShowPrefsModal(false); handleClearWeek(); }}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#D9534F" />
-                    <Text style={styles.clearWeekBtnText}>Cancella piano settimana corrente</Text>
-                  </TouchableOpacity>
-                </>
-              )}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
+        <PlannerPreferencesModal
+          visible={showPrefsModal}
+          prefs={prefs}
+          onClose={() => setShowPrefsModal(false)}
+          onUpdatePrefs={(updated) => setPrefs(updated)}
+          onClearWeek={handleClearWeek}
+        />
 
         {/* ─── Recipe Picker Modal ─── */}
-        <Modal
+        <RecipePickerModal
           visible={pickerVisible}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setPickerVisible(false)}
-        >
-          <SafeAreaView style={styles.pickerSafeArea} edges={['top', 'bottom', 'left', 'right']}>
-            <View style={styles.pickerHeader}>
-              <TouchableOpacity style={styles.pickerCloseBtn} onPress={() => setPickerVisible(false)}>
-                <Ionicons name="close" size={24} color="#2B332B" />
-              </TouchableOpacity>
-              <Text style={styles.pickerHeaderTitle}>
-                {pickerTargetType === 'side' ? 'Scegli Contorno' : `Pianifica per ${SLOT_LABELS[targetSlot]}`}
-              </Text>
-              <View style={{ width: 36 }} />
-            </View>
-
-            {/* Filter pills: Consigliate vs Tutte */}
-            <View style={styles.pickerFilterBar}>
-              <TouchableOpacity
-                style={[
-                  styles.pickerFilterChip,
-                  pickerFilterMode === 'recommended' && styles.pickerFilterChipActive,
-                ]}
-                onPress={() => setPickerFilterMode('recommended')}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={pickerTargetType === 'side' ? 'leaf-outline' : (SLOT_ICONS[targetSlot] as any)}
-                  size={14}
-                  color={pickerFilterMode === 'recommended' ? '#FFF' : '#4A6B53'}
-                  style={{ marginRight: 5 }}
-                />
-                <Text
-                  style={[
-                    styles.pickerFilterChipText,
-                    pickerFilterMode === 'recommended' && styles.pickerFilterChipTextActive,
-                  ]}
-                >
-                  Consigliate ({
-                    pickerTargetType === 'side'
-                      ? rawRecipes.filter(r => r.categoria === 'Verdure e Contorni' || r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni'))).length
-                      : getRecipesForSlot(targetSlot).length
-                  })
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.pickerFilterChip,
-                  pickerFilterMode === 'all' && styles.pickerFilterChipActive,
-                ]}
-                onPress={() => setPickerFilterMode('all')}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="restaurant-outline"
-                  size={14}
-                  color={pickerFilterMode === 'all' ? '#FFF' : '#7E8B80'}
-                  style={{ marginRight: 5 }}
-                />
-                <Text
-                  style={[
-                    styles.pickerFilterChipText,
-                    pickerFilterMode === 'all' && styles.pickerFilterChipTextActive,
-                  ]}
-                >
-                  Tutte ({rawRecipes.length})
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.pickerSearch}>
-              <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.pickerInput}
-                placeholder={pickerTargetType === 'side' ? 'Cerca contorno o insalata...' : `Cerca per ${SLOT_LABELS[targetSlot].toLowerCase()}...`}
-                placeholderTextColor="#8C988F"
-                value={pickerQuery}
-                onChangeText={setPickerQuery}
-                autoFocus
-              />
-            </View>
-
-            <FlatList
-              data={pickerFiltered}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{ padding: 16 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.pickerItem}
-                  onPress={() => handleSelectRecipeForSlot(item)}
-                  activeOpacity={0.7}
-                >
-                  {item.immagine ? (
-                    <Image source={{ uri: item.immagine }} style={styles.pickerThumb} contentFit="cover" cachePolicy="disk" />
-                  ) : (
-                    <View style={[styles.pickerThumb, { backgroundColor: '#EAE5DC' }]} />
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.pickerItemCat}>{item.categoria}</Text>
-                    <Text style={styles.pickerItemTitle}>{item.titolo}</Text>
-                    <Text style={styles.pickerItemMeta}>
-                      {item.tempi.tempo_totale_minuti} min • {item.porzioni} porzioni
-                    </Text>
-                  </View>
-                  <Ionicons name="add-circle" size={24} color="#4A6B53" />
-                </TouchableOpacity>
-              )}
-            />
-          </SafeAreaView>
-        </Modal>
+          targetSlot={targetSlot}
+          targetType={pickerTargetType}
+          allRecipes={allRecipes}
+          onSelect={handleSelectRecipeForSlot}
+          onClose={() => setPickerVisible(false)}
+        />
 
         {/* Recipe Detail Modal */}
         <RecipeModal
@@ -771,6 +543,8 @@ interface MealSlotCardProps {
   color: string;
   bgColor: string;
   entry: MealPlanEntry | undefined;
+  recipe?: Recipe | null;
+  sideRecipe?: Recipe | null;
   onAdd: () => void;
   onDelete: (id: string) => void;
   onView: (r: Recipe) => void;
@@ -786,9 +560,21 @@ const EMPTY_SLOT_TEXTS: Record<MealSlot, string> = {
   cena: 'Scegli cosa preparare per cena',
 };
 
-function MealSlotCard({ slot, label, icon, color, bgColor, entry, onAdd, onDelete, onView, onSwapSide, onDeleteSide }: MealSlotCardProps) {
-  const recipe = entry ? recipeMap[entry.recipe_id] : null;
-  const sideRecipe = entry?.side_recipe_id ? recipeMap[entry.side_recipe_id] : null;
+const MealSlotCard = React.memo(function MealSlotCard({
+  slot,
+  label,
+  icon,
+  color,
+  bgColor,
+  entry,
+  recipe,
+  sideRecipe,
+  onAdd,
+  onDelete,
+  onView,
+  onSwapSide,
+  onDeleteSide,
+}: MealSlotCardProps) {
 
   return (
     <View style={styles.slotContainer}>
@@ -888,7 +674,7 @@ function MealSlotCard({ slot, label, icon, color, bgColor, entry, onAdd, onDelet
       )}
     </View>
   );
-}
+});
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
@@ -1036,88 +822,4 @@ const styles = StyleSheet.create({
   },
   addSlotCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   emptySlotText: { fontSize: 14, fontWeight: '600', color: '#7E8B80' },
-
-  // Confirm regen
-  confirmOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  confirmBox: { backgroundColor: '#FBF9F5', borderRadius: 20, padding: 24, width: '100%', maxWidth: 360, alignItems: 'center' },
-  confirmIconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  confirmTitle: { fontSize: 18, fontWeight: '800', color: '#243328', marginBottom: 8 },
-  confirmSub: { fontSize: 13, color: '#718073', textAlign: 'center', lineHeight: 19, marginBottom: 20 },
-  confirmBtnPrimary: { width: '100%', backgroundColor: '#4A6B53', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
-  confirmBtnPrimaryText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
-  confirmBtnSecondary: { width: '100%', backgroundColor: '#EAF0EB', borderRadius: 12, paddingVertical: 14, alignItems: 'center', marginBottom: 10 },
-  confirmBtnSecondaryText: { color: '#4A6B53', fontWeight: '700', fontSize: 14 },
-  confirmBtnCancel: { paddingVertical: 8 },
-  confirmBtnCancelText: { color: '#7E8B80', fontSize: 13 },
-
-  // Prefs modal
-  prefsSafeArea: { flex: 1, backgroundColor: '#FBF9F5' },
-  prefsHeader: {
-    height: 54, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingHorizontal: 20,
-    borderBottomWidth: 1, borderBottomColor: '#ECE7DF',
-  },
-  prefsTitle: { fontSize: 17, fontWeight: '800', color: '#243328' },
-  prefsCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EAE5DC', alignItems: 'center', justifyContent: 'center' },
-  prefsBody: { padding: 20, gap: 4 },
-  prefRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F0EDE8',
-  },
-  prefLabel: { fontSize: 15, fontWeight: '600', color: '#2B332B' },
-  prefSub: { fontSize: 12, color: '#7E8B80', marginTop: 2 },
-  prefStepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepperBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center' },
-  stepperVal: { fontSize: 16, fontWeight: '700', color: '#2B332B', minWidth: 24, textAlign: 'center' },
-  toggle: { width: 46, height: 26, borderRadius: 13, backgroundColor: '#DDD8CE', justifyContent: 'center', paddingHorizontal: 3 },
-  toggleOn: { backgroundColor: '#4A6B53' },
-  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', alignSelf: 'flex-start' },
-  toggleThumbOn: { alignSelf: 'flex-end' },
-  clearWeekBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginTop: 24, padding: 14, backgroundColor: '#FDF0EE',
-    borderRadius: 12, justifyContent: 'center',
-  },
-  clearWeekBtnText: { color: '#D9534F', fontSize: 14, fontWeight: '700' },
-
-  // Picker
-  pickerSafeArea: { flex: 1, backgroundColor: '#FBF9F5' },
-  pickerHeader: {
-    height: 54, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingHorizontal: 16,
-    borderBottomWidth: 1, borderBottomColor: '#ECE7DF',
-  },
-  pickerCloseBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#EAE5DC', alignItems: 'center', justifyContent: 'center' },
-  pickerHeaderTitle: { fontSize: 16, fontWeight: '700', color: '#2B332B' },
-  pickerFilterBar: {
-    flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 2, gap: 8,
-  },
-  pickerFilterChip: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 12,
-    borderRadius: 20, backgroundColor: '#EFECE6', borderWidth: 1, borderColor: '#ECE7DF',
-  },
-  pickerFilterChipActive: {
-    backgroundColor: '#4A6B53', borderColor: '#4A6B53',
-  },
-  pickerFilterChipText: {
-    fontSize: 12, fontWeight: '600', color: '#657367',
-  },
-  pickerFilterChipTextActive: {
-    color: '#FFF', fontWeight: '700',
-  },
-  pickerSearch: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
-    marginHorizontal: 16, marginVertical: 12, borderRadius: 12,
-    paddingHorizontal: 12, height: 44, borderWidth: 1, borderColor: '#ECE7DF',
-  },
-  pickerInput: { flex: 1, fontSize: 14, color: '#2B332B' },
-  pickerItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF',
-    borderRadius: 14, padding: 10, marginBottom: 8,
-    borderWidth: 1, borderColor: '#ECE7DF', gap: 12,
-  },
-  pickerThumb: { width: 50, height: 50, borderRadius: 10 },
-  pickerItemCat: { fontSize: 10, fontWeight: '700', color: '#4A6B53', textTransform: 'uppercase' },
-  pickerItemTitle: { fontSize: 14, fontWeight: '700', color: '#2B332B', marginTop: 1 },
-  pickerItemMeta: { fontSize: 11, color: '#7E8B80', marginTop: 2 },
 });
