@@ -18,13 +18,12 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
-  isFavorite,
-  toggleFavorite,
   addShoppingItems,
   saveMealPlanEntry,
   getRecipeNote,
   saveRecipeNote
 } from '../db/database';
+import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getWeekDays, MealSlot } from '../services/plannerService';
 import { scaleIngredient } from '../utils/servingsScaler';
 import {
@@ -47,7 +46,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [currentServings, setCurrentServings] = useState<number>(recipe?.porzioni || 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
-  const [favorite, setFavorite] = useState(false);
+  // Synchronous favorite state from global context
+  const favContext = useFavoritesSafe();
+  const favorite = recipe ? (favContext?.isFavorite(recipe.id) ?? false) : false;
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
@@ -96,7 +97,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
         setSelectedSlot('pranzo');
       }
 
-      isFavorite(recipe.id).then(setFavorite);
       getRecipeNote(recipe.id).then(note => setUserNote(note || ''));
     }
   }, [recipe?.id]);
@@ -125,8 +125,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const handleToggleFavorite = async () => {
-    const newFav = await toggleFavorite(recipe.id);
-    setFavorite(newFav);
+    if (!recipe || !favContext) return;
+    const newFav = await favContext.toggleFavorite(recipe.id);
     if (onFavoriteChange) onFavoriteChange(newFav);
     showToast(newFav ? 'Aggiunta ai Preferiti' : 'Rimossa dai Preferiti');
   };

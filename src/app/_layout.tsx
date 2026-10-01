@@ -8,7 +8,8 @@ import { initDatabase } from '../db/database';
 import { initializeSearchIndex } from '../services/searchService';
 import { Recipe } from '../types/recipe';
 
-// Impedisce che la splash screen si nasconda prima che il database sia pronto
+import { FavoritesProvider } from '../context/FavoritesContext';
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const rawRecipes = require('../../assets/ricette.json') as Recipe[];
@@ -62,9 +63,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+      <FavoritesProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </FavoritesProvider>
     </SafeAreaProvider>
   );
 }

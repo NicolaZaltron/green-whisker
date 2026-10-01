@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -14,35 +14,41 @@ import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
-import { getFavoriteIds } from '../../db/database';
+import { getCustomRecipes } from '../../db/database';
+import { useFavorites } from '../../context/FavoritesContext';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
-const recipeMap = new Map<string, Recipe>(rawRecipes.map(r => [r.id, r]));
 
 export default function FavoritesScreen() {
   const { width } = useResponsiveDimensions();
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const { favoriteIds, toggleFavorite, refreshFavorites } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
 
-  // Reload favorites whenever screen gains focus
+  // Synchronize favorites and custom recipes on screen focus
   useFocusEffect(
     useCallback(() => {
-      let isMounted = true;
-      getFavoriteIds().then(ids => {
-        if (isMounted) setFavoriteIds(ids);
-      });
-      return () => {
-        isMounted = false;
-      };
-    }, [])
+      refreshFavorites();
+      getCustomRecipes().then(setCustomRecipes).catch(() => {});
+    }, [refreshFavorites])
   );
 
+  // Combined recipe map containing both static raw recipes and user-created custom recipes
+  const fullRecipeMap = useMemo(() => {
+    const map = new Map<string, Recipe>(rawRecipes.map(r => [r.id, r]));
+    customRecipes.forEach(r => map.set(r.id, r));
+    return map;
+  }, [customRecipes]);
+
   const favoriteRecipes = useMemo(() => {
-    return favoriteIds
-      .map(id => recipeMap.get(id))
-      .filter((r): r is Recipe => Boolean(r));
-  }, [favoriteIds]);
+    const list: Recipe[] = [];
+    favoriteIds.forEach(id => {
+      const r = fullRecipeMap.get(id);
+      if (r) list.push(r);
+    });
+    return list;
+  }, [favoriteIds, fullRecipeMap]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return favoriteRecipes;
@@ -58,10 +64,20 @@ export default function FavoritesScreen() {
     return 1;
   }, [width]);
 
-  const handleFavoriteChange = async () => {
-    const updatedIds = await getFavoriteIds();
-    setFavoriteIds(updatedIds);
-  };
+  // Memoized renderItem to prevent item re-rendering during parent state changes
+  const renderFavoriteItem = useCallback(
+    ({ item }: { item: Recipe }) => (
+      <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
+        <RecipeCard
+          recipe={item}
+          isFavorite={true}
+          onToggleFavorite={toggleFavorite}
+          onPress={() => setSelectedRecipe(item)}
+        />
+      </View>
+    ),
+    [numColumns, toggleFavorite]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -103,15 +119,7 @@ export default function FavoritesScreen() {
           numColumns={numColumns}
           columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
-              <RecipeCard
-                recipe={item}
-                onPress={() => setSelectedRecipe(item)}
-                onFavoriteChange={handleFavoriteChange}
-              />
-            </View>
-          )}
+          renderItem={renderFavoriteItem}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
@@ -143,7 +151,6 @@ export default function FavoritesScreen() {
           recipe={selectedRecipe}
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
-          onFavoriteChange={handleFavoriteChange}
         />
       </View>
     </SafeAreaView>

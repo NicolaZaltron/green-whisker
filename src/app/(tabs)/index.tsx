@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -23,6 +23,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { searchRecipes, initializeSearchIndex, AdvancedFilterOptions } from '../../services/searchService';
 import { getCustomRecipes } from '../../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
+import { useFavorites } from '../../context/FavoritesContext';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
@@ -30,6 +31,7 @@ const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
 export default function ExploreScreen() {
   const { width } = useResponsiveDimensions();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
@@ -121,6 +123,21 @@ export default function ExploreScreen() {
     if (width >= 600) return 2;
     return 1;
   }, [width]);
+
+  // Memoized renderItem to prevent full list re-renders when parent state updates
+  const renderRecipeItem = useCallback(
+    ({ item }: { item: Recipe }) => (
+      <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
+        <RecipeCard
+          recipe={item}
+          isFavorite={isFavorite(item.id)}
+          onToggleFavorite={toggleFavorite}
+          onPress={() => setSelectedRecipe(item)}
+        />
+      </View>
+    ),
+    [numColumns, isFavorite, toggleFavorite]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -311,14 +328,7 @@ export default function ExploreScreen() {
               maxToRenderPerBatch={10}
               windowSize={7}
               removeClippedSubviews={true}
-              renderItem={({ item }) => (
-                <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
-                  <RecipeCard
-                    recipe={item}
-                    onPress={() => setSelectedRecipe(item)}
-                  />
-                </View>
-              )}
+              renderItem={renderRecipeItem}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="search-outline" size={48} color="#A3B2A6" />

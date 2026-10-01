@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
-import { isFavorite, toggleFavorite } from '../db/database';
+import { useFavoritesSafe } from '../context/FavoritesContext';
 
 export interface PantryMatchInfo {
   percentage: number;
@@ -14,36 +14,36 @@ export interface PantryMatchInfo {
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (recipeId: string) => void;
   onFavoriteChange?: (isFav: boolean) => void;
   pantryMatch?: PantryMatchInfo;
   onAddMissingToShopping?: (missing: string[], recipeTitle: string) => void;
 }
 
-export const RecipeCard: React.FC<RecipeCardProps> = ({
+// Pure memoized component to prevent unnecessary list re-renders
+export const RecipeCard = React.memo<RecipeCardProps>(({
   recipe,
   onPress,
+  isFavorite: isFavProp,
+  onToggleFavorite,
   onFavoriteChange,
   pantryMatch,
-  onAddMissingToShopping
+  onAddMissingToShopping,
 }) => {
-  const [favorite, setFavorite] = useState(false);
+  // Synchronous O(1) favorite status lookup without mount query cascades
+  const favContext = useFavoritesSafe();
+  const favorite = isFavProp !== undefined ? isFavProp : favContext?.isFavorite(recipe.id) ?? false;
 
-  useEffect(() => {
-    let isMounted = true;
-    isFavorite(recipe.id).then(fav => {
-      if (isMounted) setFavorite(fav);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [recipe.id]);
-
-  const handleToggleFavorite = async (e: any) => {
+  const handleToggleFavorite = async (e: GestureResponderEvent) => {
     e?.stopPropagation?.();
-    const newFav = await toggleFavorite(recipe.id);
-    setFavorite(newFav);
+    if (onToggleFavorite) {
+      onToggleFavorite(recipe.id);
+    } else if (favContext) {
+      await favContext.toggleFavorite(recipe.id);
+    }
     if (onFavoriteChange) {
-      onFavoriteChange(newFav);
+      onFavoriteChange(!favorite);
     }
   };
 
@@ -153,7 +153,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
       </View>
     </TouchableOpacity>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {
