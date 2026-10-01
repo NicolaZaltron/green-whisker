@@ -265,7 +265,7 @@ export function MagicRecipeImporterModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -274,12 +274,15 @@ export function MagicRecipeImporterModal({
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <View style={styles.sparkleIcon}>
-                <Ionicons name="sparkles" size={20} color="#10b981" />
+                <Ionicons name="sparkles" size={18} color="#34523C" />
               </View>
-              <Text style={styles.headerTitle}>Magic Importer AI</Text>
+              <View>
+                <Text style={styles.headerTitle}>Magic Importer AI</Text>
+                <Text style={styles.headerSubtitle}>Importa da link web, testo o foto</Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="close" size={24} color="#64748b" />
+            <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.7}>
+              <Ionicons name="close" size={20} color="#4A584D" />
             </TouchableOpacity>
           </View>
 
@@ -291,11 +294,12 @@ export function MagicRecipeImporterModal({
                 <TouchableOpacity
                   style={[styles.tabItem, activeTab === 'text' && styles.tabItemActive]}
                   onPress={() => { setActiveTab('text'); setErrorMsg(null); }}
+                  activeOpacity={0.8}
                 >
                   <Ionicons
-                    name="document-text-outline"
-                    size={18}
-                    color={activeTab === 'text' ? '#10b981' : '#64748b'}
+                    name="document-text"
+                    size={17}
+                    color={activeTab === 'text' ? '#34523C' : '#7A8A7E'}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'text' && styles.tabLabelActive]}>
                     Testo o Link
@@ -305,11 +309,12 @@ export function MagicRecipeImporterModal({
                 <TouchableOpacity
                   style={[styles.tabItem, activeTab === 'photo' && styles.tabItemActive]}
                   onPress={() => { setActiveTab('photo'); setErrorMsg(null); }}
+                  activeOpacity={0.8}
                 >
                   <Ionicons
-                    name="camera-outline"
-                    size={18}
-                    color={activeTab === 'photo' ? '#10b981' : '#64748b'}
+                    name="camera"
+                    size={17}
+                    color={activeTab === 'photo' ? '#34523C' : '#7A8A7E'}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'photo' && styles.tabLabelActive]}>
                     Foto Libro
@@ -320,7 +325,7 @@ export function MagicRecipeImporterModal({
               {/* Error Box */}
               {errorMsg && (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle" size={20} color="#ef4444" />
+                  <Ionicons name="alert-circle" size={18} color="#C0392B" />
                   <Text style={styles.errorText}>{errorMsg}</Text>
                 </View>
               )}
@@ -330,8 +335,8 @@ export function MagicRecipeImporterModal({
                 <View style={styles.inputSection}>
                   <View style={styles.inputHeaderRow}>
                     <Text style={styles.sectionTitle}>Incolla Testo o Link della Ricetta</Text>
-                    <TouchableOpacity style={styles.pasteButton} onPress={handlePasteFromClipboard}>
-                      <Ionicons name="clipboard-outline" size={16} color="#10b981" />
+                    <TouchableOpacity style={styles.pasteButton} onPress={handlePasteFromClipboard} activeOpacity={0.75}>
+                      <Ionicons name="clipboard-outline" size={13} color="#34523C" />
                       <Text style={styles.pasteButtonText}>Incolla</Text>
                     </TouchableOpacity>
                   </View>
@@ -343,7 +348,7 @@ export function MagicRecipeImporterModal({
                     multiline
                     numberOfLines={8}
                     placeholder="Es. https://blogcucina.it/ricetta-tofu o incollami ingredienti e procedimento..."
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor="#9CA89E"
                     value={inputText}
                     onChangeText={setInputText}
                     textAlignVertical="top"
@@ -373,20 +378,21 @@ export function MagicRecipeImporterModal({
                           setSelectedImage(null);
                           setImageBase64(null);
                         }}
+                        activeOpacity={0.8}
                       >
-                        <Ionicons name="trash-outline" size={18} color="#ffffff" />
+                        <Ionicons name="trash-outline" size={16} color="#ffffff" />
                         <Text style={styles.removeImageText}>Rimuovi Foto</Text>
                       </TouchableOpacity>
                     </View>
                   ) : (
                     <View style={styles.photoActionsRow}>
-                      <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto}>
-                        <Ionicons name="camera" size={28} color="#10b981" />
+                      <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto} activeOpacity={0.75}>
+                        <Ionicons name="camera-outline" size={30} color="#34523C" />
                         <Text style={styles.photoActionLabel}>Scatta Foto</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage}>
-                        <Ionicons name="images" size={28} color="#10b981" />
+                      <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage} activeOpacity={0.75}>
+                        <Ionicons name="images-outline" size={30} color="#34523C" />
                         <Text style={styles.photoActionLabel}>Scegli da Galleria</Text>
                       </TouchableOpacity>
                     </View>
@@ -399,16 +405,17 @@ export function MagicRecipeImporterModal({
                 style={[styles.parseButton, loading && styles.parseButtonDisabled]}
                 onPress={handleStartParsing}
                 disabled={loading}
+                activeOpacity={0.88}
               >
                 {loading ? (
                   <View style={styles.loadingRow}>
-                    <ActivityIndicator size="small" color="#ffffff" />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                     <Text style={styles.parseButtonText}>{loadingMessage}</Text>
                   </View>
                 ) : (
                   <View style={styles.loadingRow}>
-                    <Ionicons name="sparkles" size={20} color="#ffffff" />
-                    <Text style={styles.parseButtonText}>Estrai Ricetta con AI ✨</Text>
+                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    <Text style={styles.parseButtonText}>Estrai Ricetta con AI</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -417,7 +424,7 @@ export function MagicRecipeImporterModal({
             // REVIEW & EDIT PARSED RECIPE SCREEN
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.successBanner}>
-                <Ionicons name="checkmark-circle" size={22} color="#10b981" />
+                <Ionicons name="checkmark-circle" size={20} color="#34523C" />
                 <Text style={styles.successBannerText}>Ricetta estratta con successo! Rivedi o modifica prima di salvare.</Text>
               </View>
 
@@ -615,12 +622,12 @@ export function MagicRecipeImporterModal({
 
               {/* Actions Footer */}
               <View style={styles.actionsFooter}>
-                <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-                  <Ionicons name="arrow-back" size={18} color="#64748b" />
+                <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
+                  <Ionicons name="arrow-back" size={18} color="#556459" />
                   <Text style={styles.resetButtonText}>Ricomincia</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe}>
+                <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
                   <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
                   <Text style={styles.saveRecipeBtnText}>Salva nel Ricettario</Text>
                 </TouchableOpacity>
@@ -636,7 +643,7 @@ export function MagicRecipeImporterModal({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FBF9F5',
   },
   header: {
     flexDirection: 'row',
@@ -644,39 +651,51 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FAF8F5',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#ECE7DF',
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   sparkleIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#ecfdf5',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4E2D8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#2B332B',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#7A8A7E',
+    marginTop: 1,
   },
   closeButton: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EFEAE2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    padding: 20,
+    padding: 18,
     paddingBottom: 40,
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
+    backgroundColor: '#EFEAE2',
+    borderRadius: 14,
     padding: 4,
     marginBottom: 16,
   },
@@ -687,31 +706,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     gap: 6,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   tabItemActive: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#2B332B',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
   },
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#7A8A7E',
   },
   tabLabelActive: {
-    color: '#10b981',
+    color: '#34523C',
+    fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+    backgroundColor: '#FDF2EE',
+    borderColor: '#F6D3C7',
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     gap: 8,
@@ -719,16 +739,21 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    color: '#b91c1c',
-    fontWeight: '500',
+    color: '#C0392B',
+    fontWeight: '600',
   },
   inputSection: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#ECE7DF',
     marginBottom: 20,
+    shadowColor: '#2B332B',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   inputHeaderRow: {
     flexDirection: 'row',
@@ -739,48 +764,50 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#2B332B',
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#64748b',
+    color: '#6E7E72',
     lineHeight: 18,
     marginBottom: 14,
   },
   pasteButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ecfdf5',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    gap: 5,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4E2D8',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
   },
   pasteButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#10b981',
+    fontWeight: '700',
+    color: '#34523C',
   },
   textAreaInput: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F5',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    padding: 12,
+    borderColor: '#E3DCD2',
+    borderRadius: 14,
+    padding: 14,
     fontSize: 14,
-    color: '#0f172a',
-    minHeight: 160,
-    lineHeight: 20,
+    color: '#2B332B',
+    minHeight: 170,
+    lineHeight: 21,
   },
   singleLineInput: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#FAF8F5',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: '#E3DCD2',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     fontSize: 14,
-    color: '#0f172a',
+    color: '#2B332B',
   },
   photoActionsRow: {
     flexDirection: 'row',
@@ -790,24 +817,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8fafc',
-    borderWidth: 2,
+    backgroundColor: '#FAF8F5',
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#cbd5e1',
-    borderRadius: 14,
-    paddingVertical: 28,
+    borderColor: '#C8DACD',
+    borderRadius: 16,
+    paddingVertical: 26,
     gap: 8,
   },
   photoActionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#334155',
+    color: '#2B332B',
   },
   imagePreviewContainer: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#ECE7DF',
   },
   imagePreview: {
     width: '100%',
@@ -821,7 +848,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    backgroundColor: 'rgba(192, 57, 43, 0.92)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -832,14 +859,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   parseButton: {
-    backgroundColor: '#10b981',
-    borderRadius: 14,
+    backgroundColor: '#34523C',
+    borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#10b981',
+    shadowColor: '#34523C',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -855,53 +882,55 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
+    backgroundColor: '#EAF0EB',
+    borderColor: '#C8DACD',
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   successBannerText: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#065f46',
+    color: '#26422E',
+    lineHeight: 18,
   },
   fieldGroup: {
-    marginBottom: 14,
+    marginBottom: 15,
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
+    fontWeight: '700',
+    color: '#3B483E',
     marginBottom: 6,
   },
   chipsScroll: {
     flexDirection: 'row',
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    backgroundColor: '#EFEAE2',
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E3DCD2',
   },
   chipActive: {
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
   },
   chipText: {
     fontSize: 12,
-    color: '#475569',
-    fontWeight: '500',
+    color: '#556459',
+    fontWeight: '600',
   },
   chipTextActive: {
     color: '#ffffff',
@@ -913,24 +942,24 @@ const styles = StyleSheet.create({
   },
   slotButton: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
-    paddingVertical: 10,
+    backgroundColor: '#FAF8F5',
+    paddingVertical: 11,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E3DCD2',
   },
   slotButtonActive: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#10b981',
+    backgroundColor: '#EAF0EB',
+    borderColor: '#34523C',
   },
   slotButtonText: {
     fontSize: 12,
-    fontWeight: '500',
-    color: '#64748b',
+    fontWeight: '600',
+    color: '#6E7E72',
   },
   slotButtonTextActive: {
-    color: '#10b981',
+    color: '#34523C',
     fontWeight: '700',
   },
   rowThree: {
@@ -938,10 +967,10 @@ const styles = StyleSheet.create({
   },
   diffSelector: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#EFEAE2',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#E3DCD2',
     height: 42,
   },
   diffItem: {
@@ -951,12 +980,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   diffItemActive: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#34523C',
   },
   diffItemText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#6E7E72',
   },
   diffItemTextActive: {
     color: '#ffffff',
@@ -972,28 +1001,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#EFEAE2',
+    borderWidth: 1,
+    borderColor: '#E3DCD2',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 6,
   },
   resetButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#556459',
   },
   saveRecipeBtn: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10b981',
+    backgroundColor: '#34523C',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     gap: 6,
-    shadowColor: '#10b981',
+    shadowColor: '#34523C',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },

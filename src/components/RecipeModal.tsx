@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
@@ -24,7 +24,7 @@ import {
   getRecipeNote,
   saveRecipeNote
 } from '../db/database';
-import { getWeekDays } from '../services/plannerService';
+import { getWeekDays, MealSlot } from '../services/plannerService';
 import { scaleIngredient } from '../utils/servingsScaler';
 import {
   formatRecipeShareText,
@@ -49,7 +49,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [favorite, setFavorite] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<'pranzo' | 'cena'>('pranzo');
+  const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
   const [scrollY, setScrollY] = useState(0);
 
   // Sharing & Personal Notes State
@@ -60,6 +60,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [isEditingNote, setIsEditingNote] = useState(false);
 
   const { days: weekDays } = getWeekDays();
+  const [selectedDate, setSelectedDate] = useState<string>(
+    () => weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || ''
+  );
 
   // Reset & load favorite status and personal notes
   useEffect(() => {
@@ -74,6 +77,17 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       setSavedNoteStatus(null);
       setScrollY(0);
 
+      const todayStr = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || '';
+      setSelectedDate(todayStr);
+
+      if (recipe.slot_consigliato === 'colazione') {
+        setSelectedSlot('colazione');
+      } else if (recipe.slot_consigliato === 'spuntino') {
+        setSelectedSlot('spuntino_pomeriggio');
+      } else {
+        setSelectedSlot('pranzo');
+      }
+
       isFavorite(recipe.id).then(setFavorite);
       getRecipeNote(recipe.id).then(note => setUserNote(note || ''));
     }
@@ -83,6 +97,17 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
   const baseServings = recipe.porzioni || 4;
   const scale = currentServings / baseServings;
+
+  const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
+  const selectedDayLabel = selectedDayObj ? `${selectedDayObj.dayName.slice(0, 3)} ${selectedDayObj.dayNumber}` : '';
+  const slotNames: Record<MealSlot, string> = {
+    colazione: 'Colazione',
+    spuntino_mattina: 'Spuntino',
+    pranzo: 'Pranzo',
+    spuntino_pomeriggio: 'Spuntino',
+    cena: 'Cena'
+  };
+  const selectedSlotLabel = slotNames[selectedSlot] || 'Pasto';
 
   const showToast = (msg: string) => {
     setFeedbackMessage(msg);
@@ -117,21 +142,16 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
     return scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale).formattedText;
   };
 
-  const handleAddSingleToShopping = async (item: IngredientItem) => {
-    const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
-    await addShoppingItems([{
+  const handleScheduleMeal = async (dateStr: string) => {
+    // 1. Salva la ricetta nel Meal Planner
+    await saveMealPlanEntry({
+      date: dateStr,
+      slot: selectedSlot,
       recipeId: recipe.id,
-      recipeTitle: `${recipe.titolo} (${currentServings} porz.)`,
-      ingredientText: scaled.formattedText,
-      name: scaled.name,
-      amount: scaled.scaledAmount,
-      unit: scaled.unit,
-      category: item.sezione || 'Generale'
-    }]);
-    showToast(`"${scaled.name}" aggiunto per ${currentServings} porzioni!`);
-  };
+      servings: currentServings
+    });
 
-  const handleAddAllToShopping = async () => {
+    // 2. Aggiunge contestualmente gli ingredienti scalati alla lista della spesa
     const itemsToAdd: Array<{
       recipeId: string;
       recipeTitle: string;
@@ -169,19 +189,20 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       }
     }
 
-    await addShoppingItems(itemsToAdd);
-    showToast(`${itemsToAdd.length} ingredienti aggiunti per ${currentServings} porzioni!`);
-  };
+    if (itemsToAdd.length > 0) {
+      await addShoppingItems(itemsToAdd);
+    }
 
-  const handleScheduleMeal = async (dateStr: string) => {
-    await saveMealPlanEntry({
-      date: dateStr,
-      slot: selectedSlot,
-      recipeId: recipe.id,
-      servings: currentServings
-    });
     setShowPlanPicker(false);
-    showToast(`Pianificato per ${selectedSlot === 'pranzo' ? 'Pranzo' : 'Cena'}!`);
+    const slotNames: Record<MealSlot, string> = {
+      colazione: 'Colazione',
+      spuntino_mattina: 'Spuntino',
+      pranzo: 'Pranzo',
+      spuntino_pomeriggio: 'Spuntino',
+      cena: 'Cena'
+    };
+    const slotLabel = slotNames[selectedSlot] || 'Pasto';
+    showToast(`Pianificato per ${slotLabel} e ingredienti aggiunti alla Spesa!`);
   };
 
   const handleSaveNote = async () => {
@@ -462,15 +483,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                               {text}
                             </Text>
                           </TouchableOpacity>
-
-                          <TouchableOpacity
-                            style={styles.singleAddBtn}
-                            onPress={() => handleAddSingleToShopping(ing)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="cart-outline" size={16} color="#7E8B80" />
-                          </TouchableOpacity>
                         </View>
                       );
                     })}
@@ -595,19 +607,37 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
               <View style={styles.slotToggleRow}>
                 <TouchableOpacity
+                  style={[styles.slotToggle, selectedSlot === 'colazione' && styles.slotToggleActive]}
+                  onPress={() => setSelectedSlot('colazione')}
+                >
+                  <Ionicons name="cafe-outline" size={13} color={selectedSlot === 'colazione' ? '#FFF' : '#4A6B53'} />
+                  <Text style={[styles.slotToggleText, selectedSlot === 'colazione' && styles.slotToggleTextActive]}>
+                    Colazione
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[styles.slotToggle, selectedSlot === 'pranzo' && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('pranzo')}
                 >
-                  <Ionicons name="sunny-outline" size={14} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="sunny-outline" size={13} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
                     Pranzo
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.slotToggle, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleActive]}
+                  onPress={() => setSelectedSlot('spuntino_pomeriggio')}
+                >
+                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') ? '#FFF' : '#4A6B53'} />
+                  <Text style={[styles.slotToggleText, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleTextActive]}>
+                    Spuntino
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.slotToggle, selectedSlot === 'cena' && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('cena')}
                 >
-                  <Ionicons name="moon-outline" size={14} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="moon-outline" size={13} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
                     Cena
                   </Text>
@@ -615,20 +645,40 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
               </View>
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
-                {weekDays.map(d => (
-                  <TouchableOpacity
-                    key={d.dateString}
-                    style={[styles.dayCard, d.isToday && styles.dayCardToday]}
-                    onPress={() => handleScheduleMeal(d.dateString)}
-                  >
-                    <Text style={[styles.dayCardName, d.isToday && styles.dayCardNameToday]}>
-                      {d.dayName.slice(0, 3)}
-                    </Text>
-                    <Text style={[styles.dayCardNum, d.isToday && styles.dayCardNumToday]}>
-                      {d.dayNumber}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {weekDays.map(d => {
+                  const isSelected = selectedDate === d.dateString;
+                  return (
+                    <TouchableOpacity
+                      key={d.dateString}
+                      style={[
+                        styles.dayCard,
+                        d.isToday && styles.dayCardToday,
+                        isSelected && styles.dayCardSelected
+                      ]}
+                      onPress={() => setSelectedDate(d.dateString)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.dayCardName,
+                          d.isToday && styles.dayCardNameToday,
+                          isSelected && styles.dayCardNameSelected
+                        ]}
+                      >
+                        {d.dayName.slice(0, 3)}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.dayCardNum,
+                          d.isToday && styles.dayCardNumToday,
+                          isSelected && styles.dayCardNumSelected
+                        ]}
+                      >
+                        {d.dayNumber}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
           )}
@@ -636,27 +686,35 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
           {/* Sticky Persistent Action Bar */}
           <View style={styles.stickyActionBar}>
             <TouchableOpacity
-              style={styles.stickyAddBtn}
-              onPress={handleAddAllToShopping}
-              activeOpacity={0.85}
+              style={styles.stickyPlanBtnPrimary}
+              onPress={() => {
+                if (showPlanPicker) {
+                  handleScheduleMeal(selectedDate || (weekDays.find(d => d.isToday)?.dateString || weekDays[0].dateString));
+                } else {
+                  setShowPlanPicker(true);
+                }
+              }}
+              activeOpacity={0.88}
             >
-              <Ionicons name="cart-outline" size={19} color="#FFF" style={{ marginRight: 8 }} />
-              <Text style={styles.stickyAddBtnText}>
-                Aggiungi alla Spesa ({currentServings} porz.)
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.stickyPlanBtn, showPlanPicker && styles.stickyPlanBtnActive]}
-              onPress={() => setShowPlanPicker(!showPlanPicker)}
-              activeOpacity={0.85}
-              accessibilityLabel="Pianifica pasto"
-            >
-              <Ionicons
-                name={showPlanPicker ? 'calendar' : 'calendar-outline'}
-                size={19}
-                color={showPlanPicker ? '#FFF' : '#D97757'}
+              <MaterialCommunityIcons
+                name="chef-hat"
+                size={20}
+                color="#FFF"
+                style={{ marginRight: 8 }}
               />
+              <Text style={styles.stickyPlanBtnText}>
+                {showPlanPicker
+                  ? `Conferma nel Piano (${selectedDayLabel} • ${selectedSlotLabel})`
+                  : `Aggiungi al Piano (${currentServings} porz.)`}
+              </Text>
+              {!showPlanPicker && (
+                <Ionicons
+                  name="chevron-up"
+                  size={18}
+                  color="#FFF"
+                  style={{ marginLeft: 6 }}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -987,37 +1045,23 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
   },
-  stickyAddBtn: {
+  stickyPlanBtnPrimary: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#34523C',
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: 14,
     shadowColor: '#1A2E1F',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.18,
+    shadowRadius: 5,
+    elevation: 3,
   },
-  stickyAddBtnText: {
+  stickyPlanBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-  },
-  stickyPlanBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#FDF3EE',
-    borderWidth: 1,
-    borderColor: '#F6DDD2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stickyPlanBtnActive: {
-    backgroundColor: '#D97757',
-    borderColor: '#D97757',
   },
   stickyPlanDrawer: {
     backgroundColor: '#FFFFFF',
@@ -1094,6 +1138,10 @@ const styles = StyleSheet.create({
     borderColor: '#4A6B53',
     backgroundColor: '#EAF0EB',
   },
+  dayCardSelected: {
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
+  },
   dayCardName: {
     fontSize: 11,
     color: '#7E8B80',
@@ -1101,6 +1149,10 @@ const styles = StyleSheet.create({
   },
   dayCardNameToday: {
     color: '#4A6B53',
+  },
+  dayCardNameSelected: {
+    color: '#D4E8DA',
+    fontWeight: '700',
   },
   dayCardNum: {
     fontSize: 16,
@@ -1110,6 +1162,10 @@ const styles = StyleSheet.create({
   },
   dayCardNumToday: {
     color: '#4A6B53',
+  },
+  dayCardNumSelected: {
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   scalerCard: {
     flexDirection: 'row',

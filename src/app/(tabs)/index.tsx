@@ -11,7 +11,7 @@ import {
   Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
@@ -165,9 +165,9 @@ export default function ExploreScreen() {
               onPress={() => setViewMode('pantry')}
               activeOpacity={0.85}
             >
-              <Ionicons
-                name="restaurant-outline"
-                size={14}
+              <MaterialCommunityIcons
+                name="fridge-outline"
+                size={15}
                 color={viewMode === 'pantry' ? '#FFFFFF' : '#5E6D60'}
                 style={{ marginRight: 6 }}
               />

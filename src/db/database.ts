@@ -80,12 +80,6 @@ export async function initDatabase(): Promise<void> {
         created_at INTEGER NOT NULL
       );
 
-      try {
-        await dbInstance.execAsync('ALTER TABLE meal_plan ADD COLUMN side_recipe_id TEXT;');
-      } catch {
-        // column already exists
-      }
-
       CREATE TABLE IF NOT EXISTS recipe_notes (
         recipe_id TEXT PRIMARY KEY,
         notes TEXT NOT NULL,
@@ -105,6 +99,13 @@ export async function initDatabase(): Promise<void> {
         created_at INTEGER NOT NULL
       );
     `);
+
+    // Migrazione safe per database esistenti dove la colonna non era ancora presente
+    try {
+      await dbInstance.execAsync('ALTER TABLE meal_plan ADD COLUMN side_recipe_id TEXT;');
+    } catch {
+      // Ignora: colonna già esistente
+    }
   } catch (error) {
     console.warn('SQLite init failed, falling back to local storage:', error);
     isWebFallback = true;

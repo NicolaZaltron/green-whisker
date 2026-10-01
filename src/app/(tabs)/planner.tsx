@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
 import { getMealPlans, saveMealPlanEntry, deleteMealPlanEntry, clearMealPlans, updateMealPlanSideRecipe } from '../../db/database';
@@ -236,7 +236,7 @@ export default function PlannerScreen() {
         {/* ─── Auto-Generated Banner ─── */}
         {autoBanner && (
           <Animated.View style={[styles.autoBanner, { opacity: bannerAnim }]}>
-            <Ionicons name="sparkles" size={16} color="#FFF" style={{ marginRight: 8 }} />
+            <Ionicons name="checkmark-circle" size={17} color="#FFF" style={{ marginRight: 8 }} />
             <Text style={styles.autoBannerText}>{autoBanner}</Text>
           </Animated.View>
         )}
@@ -375,7 +375,7 @@ export default function PlannerScreen() {
                       <ActivityIndicator size="small" color="#FFF" />
                     ) : (
                       <>
-                        <Ionicons name="sparkles" size={14} color="#FFF" />
+                        <MaterialCommunityIcons name="chef-hat" size={16} color="#FFF" style={{ marginRight: 5 }} />
                         <Text style={styles.generateBtnText}>Genera Piano</Text>
                       </>
                     )}
@@ -393,7 +393,7 @@ export default function PlannerScreen() {
                           <ActivityIndicator size="small" color="#FFF" />
                         ) : (
                           <>
-                            <Ionicons name="sparkles" size={13} color="#FFF" />
+                            <MaterialCommunityIcons name="chef-hat" size={15} color="#FFF" style={{ marginRight: 4 }} />
                             <Text style={styles.completeBtnText}>Completa ({maxMeals - weekPlansCount})</Text>
                           </>
                         )}

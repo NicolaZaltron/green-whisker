@@ -10,7 +10,7 @@ import {
   Keyboard,
   Platform
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { RecipeCard, PantryMatchInfo } from './RecipeCard';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
@@ -131,7 +131,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Header Info */}
       <View style={styles.headerBox}>
         <View style={styles.headerTitleRow}>
-          <Ionicons name="sparkles" size={18} color="#4A6B53" style={{ marginRight: 6 }} />
+          <MaterialCommunityIcons name="fridge-outline" size={20} color="#4A6B53" style={{ marginRight: 6 }} />
           <Text style={styles.headerTitle}>Svuotafrigo Intelligente</Text>
         </View>
         <Text style={styles.headerSubtitle}>
