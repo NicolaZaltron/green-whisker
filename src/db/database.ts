@@ -413,31 +413,13 @@ export async function consolidateShoppingList(): Promise<number> {
   }
 
   try {
-    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
-      await (dbInstance as any).withTransactionAsync(async () => {
-        await dbInstance.runAsync('DELETE FROM shopping_items');
-        for (const item of fullConsolidated) {
-          await dbInstance.runAsync(
-            `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              item.id,
-              item.recipe_id || null,
-              item.recipe_title || null,
-              item.ingredient_text,
-              item.name,
-              item.amount ?? null,
-              item.unit || '',
-              item.checked ? 1 : 0,
-              item.category,
-              item.created_at
-            ]
-          );
-        }
-      });
-    } else {
-      await dbInstance.runAsync('DELETE FROM shopping_items');
-      for (const item of fullConsolidated) {
+    const executeConsolidation = async () => {
+      // 1. Elimina SOLO gli ingredienti non spuntati oggetto di consolidamento
+      // Gli articoli già spuntati nel carrello rimangono intatti e protetti al 100%
+      await dbInstance.runAsync('DELETE FROM shopping_items WHERE checked = 0');
+
+      // 2. Inserisce i nuovi articoli consolidati
+      for (const item of consolidatedNewItems) {
         await dbInstance.runAsync(
           `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -449,12 +431,18 @@ export async function consolidateShoppingList(): Promise<number> {
             item.name,
             item.amount ?? null,
             item.unit || '',
-            item.checked ? 1 : 0,
+            0,
             item.category,
             item.created_at
           ]
         );
       }
+    };
+
+    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
+      await (dbInstance as any).withTransactionAsync(executeConsolidation);
+    } else {
+      await executeConsolidation();
     }
   } catch (e) {
     console.error('consolidateShoppingList error', e);

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -61,29 +61,43 @@ export default function ShoppingScreen() {
   const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const loadItems = async () => {
-    await consolidateShoppingList();
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const loadItems = async (shouldConsolidate = false) => {
+    if (shouldConsolidate) {
+      await consolidateShoppingList();
+    }
     const list = await getShoppingItems();
     setItems(list);
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadItems();
+    await loadItems(true);
     setRefreshing(false);
     showToast('Spesa aggiornata e unificata');
   };
 
   useFocusEffect(
     useCallback(() => {
-      loadItems();
+      loadItems(false);
     }, [])
   );
 
   const showToast = (msg: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
     setFeedbackToast(msg);
-    setTimeout(() => {
+    toastTimeoutRef.current = setTimeout(() => {
       setFeedbackToast(null);
     }, 2800);
   };
@@ -143,19 +157,21 @@ export default function ShoppingScreen() {
   const activeDepartmentsCount = groupedSections.length;
 
   const handleToggle = async (id: string) => {
+    // Aggiornamento ottimistico immediato a 60fps
+    setItems(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
     await toggleShoppingItem(id);
-    loadItems();
   };
 
   const handleDelete = async (id: string) => {
+    // Aggiornamento ottimistico immediato
+    setItems(prev => prev.filter(item => item.id !== id));
     await deleteShoppingItem(id);
-    loadItems();
   };
 
   const handleClearCompleted = async () => {
     if (completedCount === 0) return;
+    setItems(prev => prev.filter(item => !item.checked));
     await clearCheckedShoppingItems();
-    loadItems();
     showToast('Articoli spuntati rimossi');
   };
 
@@ -170,8 +186,8 @@ export default function ShoppingScreen() {
           text: 'Svuota tutto',
           style: 'destructive',
           onPress: async () => {
+            setItems([]);
             await clearAllShoppingItems();
-            loadItems();
             setSelectedDeptFilter('ALL');
             showToast('Lista della spesa svuotata');
           },
