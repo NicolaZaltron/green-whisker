@@ -131,9 +131,15 @@ export function cleanSupermarketIngredientName(raw: string): string {
 
   // 10. Rimuovi aggettivi di forma, lavorazione, tagli e formati di ricetta
   name = name.replace(
-    /\b(rotonda|rettangolare|al naturale|da montare|da cucina|sgocciolat[oaei]|scolat[oaei]|lessat[oaei]|cott[oaei]|in barattolo|in scatola|in polvere|a cubetti|a fette|a pezzetti|a fettine|a spicchi|tritat[oaei]|sminuzzat[oaei]|grattugiat[oaei]|lavat[oaei]|pelat[oaei]|a piacere|facoltativo|opzionale|fresc[oaei]|secch[oaei]|ammollat[oaei]|buonissim[oaei]|raso|colmo)\b/gi,
+    /\b(rotonda|rettangolare|al naturale|da montare|da cucina|sgocciolat[oaei]|scolat[oaei]|lessat[oaei]|cott[oaei]|in barattolo|in scatola|in polvere|a cubetti|a fette|a pezzetti|a fettine|a spicchi|tritat[oaei]|sminuzzat[oaei]|grattugiat[oaei]|lavat[oaei]|pelat[oaei]|a piacere|facoltativo|opzionale|fresc[oaei]|secch[oaei]|ammollat[oaei]|buonissim[oaei]|raso|colmo|ben matur[oaei]|matur[oaei]|tagliat[oaei]|affettat[oaei]|sbucciat[oaei])\b/gi,
     ' '
   );
+
+  // 10b. Rimuovi usi e scopi da ricetta (es. "per sfumare", "per la teglia", "per spennellare")
+  name = name.replace(/\b(?:per\s+sfumare|per\s+spennellare|per\s+la\s+teglia|per\s+dorare|per\s+friggere|per\s+guarnire|per\s+decorare)\b/gi, ' ');
+
+  // 10c. Rimuovi espressioni generiche (es. "qualche cucchiaio", "un po' di")
+  name = name.replace(/\b(?:qualche\s+cucchiaio|qualche\s+cucchiaino|qualche\s+cucchiaiata|un\s+po'\s*di|un\s+pizzico\s*di)\b/gi, ' ');
 
   // 11. Rimuovi 'q.b.', 'quanto basta'
   name = name.replace(/\b(?:q\.?b\.?|quanto basta)\b/gi, ' ');
@@ -148,7 +154,7 @@ export function cleanSupermarketIngredientName(raw: string): string {
 
   // 14. Pulisci spazi multipli e punteggiatura
   name = name.replace(/[,;:\-\.]+/g, ' ').replace(/\s+/g, ' ').trim();
-  name = name.replace(/^(?:di|d'|del|della|dei|degli|delle)\s+/i, '');
+  name = name.replace(/^(?:di|d'|del|della|dei|degli|delle|mezzo|mezza|metà)\s+/i, '');
 
   if (name.length === 0) return raw;
   return name.charAt(0).toUpperCase() + name.slice(1);
@@ -235,12 +241,18 @@ export function normalizeIngredientKey(name: string): string {
   // Basi e prodotti freschi
   if (/\bpasta\s+sfoglia\b/.test(norm)) return 'pasta sfoglia';
   if (/\bpasta\s+bris[ee]\b/.test(norm)) return 'pasta brisee';
-  if (/\byogurt\s+(?:di\s+)?soia\b/.test(norm)) return 'yogurt di soia';
+  if (/\b(yogurt\s+(?:di\s+)?soia|yogurt\s+vegetale|yogurt)\b/.test(norm)) return 'yogurt di soia';
   if (/\bpanna\s+(?:vegetale|di\s+soia)\b/.test(norm)) return 'panna vegetale';
+  if (/\b(burro\s+vegetale|burro\s+di\s+soia|margarina)\b/.test(norm)) return 'burro vegetale';
+  if (/\b(maionese\s+vegetale|maionese)\b/.test(norm)) return 'maionese vegetale';
+  if (/\b(cioccolato\s+fondente|cioccolato)\b/.test(norm)) return 'cioccolato fondente';
   if (/\btofu\s+affumicato\b/.test(norm)) return 'tofu affumicato';
   if (/\btofu\s+vellutato\b/.test(norm)) return 'tofu vellutato';
   if (/\btofu\b/.test(norm)) return 'tofu';
   if (/\b(latte\s+di\s+soia|latte\s+d\s*avena|latte\s+di\s+mandorla|latte\s+vegetale)\b/.test(norm)) return 'latte vegetale';
+  if (/\b(vino\s+bianco|vino\s+rosso|vino)\b/.test(norm)) return 'vino';
+  if (/\b(pangrattato|pane\s+grattugiato)\b/.test(norm)) return 'pangrattato';
+  if (/\b(tahina|tahine|tahini|tahin)\b/.test(norm)) return 'tahina';
 
   // Conserve e legumi
   if (/\b(pomodori\s+pelati|pelati|polpa\s+di\s+pomodoro|passata\s+di\s+pomodoro)\b/.test(norm)) return 'passata di pomodoro';
@@ -258,10 +270,26 @@ export function normalizeIngredientKey(name: string): string {
   if (/\b(zucchine|zucchina)\b/.test(norm)) return 'zucchina';
   if (/\b(patate|patata)\b/.test(norm)) return 'patata';
   if (/\b(melanzane|melanzana)\b/.test(norm)) return 'melanzana';
+  if (/\b(peperoni\s+rossi|peperone\s+rosso|peperoni\s+gialli|peperone\s+giallo|peperoni|peperone)\b/.test(norm)) return 'peperoni';
+  if (/\b(funghi\s+champignon|champignon|funghi\s+pleurotus|funghi\s+porcini|funghi|fungo)\b/.test(norm)) return 'funghi';
+  if (/\b(zucca\s+delica|zucca\s+butternut|zucca\s+mantovana|zucca)\b/.test(norm)) return 'zucca';
+  if (/\b(banane|banana)\b/.test(norm)) return 'banana';
   if (/\b(mele|mela)\b/.test(norm)) return 'mela';
   if (/\b(limoni|limone|succo\s+di\s+limone|scorza\s+di\s+limone)\b/.test(norm)) return 'limone';
 
-  return norm;
+  // Fallback: stemming singolare/plurale italiano
+  const words = norm.split(' ');
+  const stemmedWords = words.map(w => {
+    if (w.length <= 3) return w;
+    let s = w;
+    s = s.replace(/cchi[oaei]$/, 'cch').replace(/gghi[oaei]$/, 'ggh');
+    if (s.endsWith('che') || s.endsWith('chi')) return s.slice(0, -3) + 'c';
+    if (s.endsWith('ghe') || s.endsWith('ghi')) return s.slice(0, -3) + 'g';
+    if (s.endsWith('ie') || s.endsWith('ii')) return s.slice(0, -2) + 'i';
+    if (/[aeiou]$/.test(s)) return s.slice(0, -1);
+    return s;
+  });
+  return stemmedWords.join(' ');
 }
 
 /**

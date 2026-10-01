@@ -249,24 +249,46 @@ export async function addShoppingItems(items: Array<{
   }
 
   try {
-    const insertStatements = rawNewItems.map(item =>
-      `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
-       VALUES (
-         '${item.id}',
-         ${item.recipe_id ? `'${item.recipe_id.replace(/'/g, "''")}'` : 'NULL'},
-         ${item.recipe_title ? `'${item.recipe_title.replace(/'/g, "''")}'` : 'NULL'},
-         '${item.ingredient_text.replace(/'/g, "''")}',
-         '${item.name.replace(/'/g, "''")}',
-         ${item.amount ?? 'NULL'},
-         '${(item.unit || '').replace(/'/g, "''")}',
-         0,
-         '${item.category.replace(/'/g, "''")}',
-         ${item.created_at}
-       );`
-    ).join('\n');
-
-    if (insertStatements.trim()) {
-      await dbInstance.execAsync(`BEGIN;\n${insertStatements}\nCOMMIT;`);
+    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
+      await (dbInstance as any).withTransactionAsync(async () => {
+        for (const item of rawNewItems) {
+          await dbInstance.runAsync(
+            `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              item.id,
+              item.recipe_id || null,
+              item.recipe_title || null,
+              item.ingredient_text,
+              item.name,
+              item.amount ?? null,
+              item.unit || '',
+              0,
+              item.category,
+              item.created_at
+            ]
+          );
+        }
+      });
+    } else {
+      for (const item of rawNewItems) {
+        await dbInstance.runAsync(
+          `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            item.id,
+            item.recipe_id || null,
+            item.recipe_title || null,
+            item.ingredient_text,
+            item.name,
+            item.amount ?? null,
+            item.unit || '',
+            0,
+            item.category,
+            item.created_at
+          ]
+        );
+      }
     }
     // Consolida e somma immediatamente per evitare duplicati e unità da cucina
     await consolidateShoppingList();
@@ -391,25 +413,48 @@ export async function consolidateShoppingList(): Promise<number> {
   }
 
   try {
-    await dbInstance.runAsync('DELETE FROM shopping_items');
-    const statements = fullConsolidated.map(item =>
-      `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
-       VALUES (
-         '${item.id}',
-         ${item.recipe_id ? `'${item.recipe_id.replace(/'/g, "''")}'` : 'NULL'},
-         ${item.recipe_title ? `'${item.recipe_title.replace(/'/g, "''")}'` : 'NULL'},
-         '${item.ingredient_text.replace(/'/g, "''")}',
-         '${item.name.replace(/'/g, "''")}',
-         ${item.amount ?? 'NULL'},
-         '${(item.unit || '').replace(/'/g, "''")}',
-         ${item.checked ? 1 : 0},
-         '${item.category.replace(/'/g, "''")}',
-         ${item.created_at}
-       );`
-    ).join('\n');
-
-    if (statements.trim()) {
-      await dbInstance.execAsync(`BEGIN;\n${statements}\nCOMMIT;`);
+    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
+      await (dbInstance as any).withTransactionAsync(async () => {
+        await dbInstance.runAsync('DELETE FROM shopping_items');
+        for (const item of fullConsolidated) {
+          await dbInstance.runAsync(
+            `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              item.id,
+              item.recipe_id || null,
+              item.recipe_title || null,
+              item.ingredient_text,
+              item.name,
+              item.amount ?? null,
+              item.unit || '',
+              item.checked ? 1 : 0,
+              item.category,
+              item.created_at
+            ]
+          );
+        }
+      });
+    } else {
+      await dbInstance.runAsync('DELETE FROM shopping_items');
+      for (const item of fullConsolidated) {
+        await dbInstance.runAsync(
+          `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            item.id,
+            item.recipe_id || null,
+            item.recipe_title || null,
+            item.ingredient_text,
+            item.name,
+            item.amount ?? null,
+            item.unit || '',
+            item.checked ? 1 : 0,
+            item.category,
+            item.created_at
+          ]
+        );
+      }
     }
   } catch (e) {
     console.error('consolidateShoppingList error', e);

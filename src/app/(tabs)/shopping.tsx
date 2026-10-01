@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import {
   clearAllShoppingItems,
   addShoppingItems,
   getMealPlans,
+  getCustomRecipes,
   consolidateShoppingList,
 } from '../../db/database';
 import { getWeekDays, aggregateAndAddToShopping } from '../../services/plannerService';
@@ -58,11 +60,19 @@ export default function ShoppingScreen() {
   const [showDeptPickerModal, setShowDeptPickerModal] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadItems = async () => {
     await consolidateShoppingList();
     const list = await getShoppingItems();
     setItems(list);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadItems();
+    setRefreshing(false);
+    showToast('Spesa aggiornata e unificata');
   };
 
   useFocusEffect(
@@ -225,6 +235,8 @@ export default function ShoppingScreen() {
 
       const map: Record<string, Recipe> = {};
       rawRecipes.forEach(r => { map[r.id] = r; });
+      const custom = await getCustomRecipes();
+      custom.forEach(r => { map[r.id] = r; });
 
       const count = await aggregateAndAddToShopping(weekPlans, map);
       await loadItems();
@@ -434,6 +446,14 @@ export default function ShoppingScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#34523C"
+              colors={['#34523C']}
+            />
+          }
           renderSectionHeader={({ section }) => {
             const colors = DEPARTMENT_COLORS[section.department] || {
               bg: '#EAF0EB',
