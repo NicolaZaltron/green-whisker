@@ -3,8 +3,10 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 export default function TabsLayout() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
   const isWeb = Platform.OS === 'web';
@@ -54,7 +56,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Esplora',
+          title: t('tabs.explore'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="leaf" color={color} size={size - 2} />
           ),
@@ -63,7 +65,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="favorites"
         options={{
-          title: 'Preferiti',
+          title: t('tabs.favorites'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color} size={size - 2} />
           ),
@@ -72,7 +74,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="shopping"
         options={{
-          title: 'Spesa',
+          title: t('tabs.shopping'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'cart' : 'cart-outline'} color={color} size={size - 2} />
           ),
@@ -81,7 +83,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="planner"
         options={{
-          title: 'Planner',
+          title: t('tabs.planner'),
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={size - 2} />
           ),

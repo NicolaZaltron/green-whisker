@@ -16,10 +16,12 @@ import { RecipeModal } from '../../components/RecipeModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { getCustomRecipes } from '../../db/database';
 import { useFavorites } from '../../context/FavoritesContext';
+import { useTranslation } from 'react-i18next';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 export default function FavoritesScreen() {
+  const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const { favoriteIds, toggleFavorite, refreshFavorites } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,8 +90,12 @@ export default function FavoritesScreen() {
               <Ionicons name="heart" size={20} color="#D9534F" />
             </View>
             <View>
-              <Text style={styles.title}>Le Tue Ricette Preferite</Text>
-              <Text style={styles.subtitle}>{favoriteRecipes.length} salvate nel tuo ricettario</Text>
+              <Text style={styles.title}>{t('favorites.title')}</Text>
+              <Text style={styles.subtitle}>
+                {favoriteRecipes.length === 1
+                  ? t('favorites.subtitle', { count: 1 })
+                  : t('favorites.subtitle_plural', { count: favoriteRecipes.length })}
+              </Text>
             </View>
           </View>
 
@@ -98,7 +104,7 @@ export default function FavoritesScreen() {
               <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Filtra tra i tuoi preferiti..."
+                placeholder={t('favorites.searchPlaceholder')}
                 placeholderTextColor="#8C988F"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -126,12 +132,12 @@ export default function FavoritesScreen() {
                 <Ionicons name="heart-dislike-outline" size={42} color="#D97757" />
               </View>
               <Text style={styles.emptyTitle}>
-                {searchQuery ? 'Nessun risultato' : 'Nessun preferito salvato'}
+                {searchQuery ? t('explore.noRecipesTitle') : t('favorites.emptyTitle')}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery
-                  ? 'Nessuna ricetta tra i tuoi preferiti corrisponde alla ricerca.'
-                  : 'Tocca il cuore sulle ricette per averle sempre a portata di mano anche offline.'}
+                  ? t('explore.noRecipesSub')
+                  : t('favorites.emptySub')}
               </Text>
               {!searchQuery && (
                 <TouchableOpacity

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
 import {
   getMealPlans,
@@ -52,6 +53,7 @@ const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 const WEEK_OFFSETS = [-1, 0, 1];
 
 export default function PlannerScreen() {
+  const { t } = useTranslation();
   const [weekOffset, setWeekOffset] = useState(0);
   const weekResult = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
   const weekDays = weekResult.days;
@@ -126,7 +128,7 @@ export default function PlannerScreen() {
         const result = await checkAndAutoGeneratePlan(list);
         if (result.generated && active) {
           await loadPlans();
-          showAutoBanner(`Piano settimana generato automaticamente con ${result.entriesCount} pasti!`);
+          showAutoBanner(t('planner.autoBanner', { count: result.entriesCount }));
         }
       })();
       return () => { active = false; };
@@ -233,24 +235,24 @@ export default function PlannerScreen() {
   const handleDeleteSlot = async (id: string) => {
     await deleteMealPlanEntry(id);
     loadPlans();
-    showToast('Pasto rimosso dal piano.');
+    showToast(t('planner.slotRemovedToast'));
   };
 
   const handleDeleteSide = async (entryId: string) => {
     await updateMealPlanSideRecipe(entryId, null);
     loadPlans();
-    showToast('Contorno rimosso.');
+    showToast(t('planner.sideRemovedToast'));
   };
 
   const handleGenerateShopping = async () => {
     const weekDates = new Set(weekDays.map(d => d.dateString));
     const weekPlans = plans.filter(p => weekDates.has(p.date));
     if (weekPlans.length === 0) {
-      showToast('Nessun pasto pianificato questa settimana.');
+      showToast(t('planner.shoppingToastEmpty'));
       return;
     }
     const count = await aggregateAndAddToShopping(weekPlans, recipeMap);
-    showToast(`Sommati ${count} ingredienti per la settimana nella Spesa!`);
+    showToast(t('planner.shoppingToast', { count }));
   };
 
   const handleManualGenerate = async (overwrite: boolean = false) => {
@@ -260,9 +262,7 @@ export default function PlannerScreen() {
     await loadPlans();
     setIsGenerating(false);
     if (count > 0) {
-      showToast(`Piano generato con ${count} nuovi pasti!`);
-    } else {
-      showToast('La settimana è già completa. Premi "Rigenera" per sovrascrivere.');
+      showToast(t('planner.autoBanner', { count }));
     }
   };
 
@@ -273,7 +273,7 @@ export default function PlannerScreen() {
       await deleteMealPlanEntry(id);
     }
     loadPlans();
-    showToast('Piano settimana cancellato.');
+    showToast(t('planner.weekClearedToast'));
   };
 
   const selectedDayInfo = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
@@ -299,7 +299,7 @@ export default function PlannerScreen() {
               <Ionicons name="calendar" size={20} color="#4A6B53" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Meal Planner</Text>
+              <Text style={styles.title}>{t('planner.title')}</Text>
               <Text style={styles.subtitle}>{weekLabel}</Text>
             </View>
 
@@ -312,7 +312,7 @@ export default function PlannerScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="cart" size={15} color="#FFF" />
-                  <Text style={styles.genShoppingBtnText}>Spesa</Text>
+                  <Text style={styles.genShoppingBtnText}>{t('planner.shoppingBtn')}</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -330,7 +330,7 @@ export default function PlannerScreen() {
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${Math.round((weekPlansCount / maxMeals) * 100)}%` as any }]} />
             </View>
-            <Text style={styles.progressLabel}>{weekPlansCount}/{maxMeals} pasti</Text>
+            <Text style={styles.progressLabel}>{t('planner.mealsCount', { count: weekPlansCount, max: maxMeals })}</Text>
           </View>
         </View>
 
@@ -427,7 +427,7 @@ export default function PlannerScreen() {
                     ) : (
                       <>
                         <MaterialCommunityIcons name="chef-hat" size={16} color="#FFF" style={{ marginRight: 5 }} />
-                        <Text style={styles.generateBtnText}>Genera Piano</Text>
+                        <Text style={styles.generateBtnText}>{t('planner.generateBtn')}</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -445,7 +445,7 @@ export default function PlannerScreen() {
                         ) : (
                           <>
                             <MaterialCommunityIcons name="chef-hat" size={15} color="#FFF" style={{ marginRight: 4 }} />
-                            <Text style={styles.completeBtnText}>Completa ({maxMeals - weekPlansCount})</Text>
+                            <Text style={styles.completeBtnText}>{t('planner.completeBtn')} ({maxMeals - weekPlansCount})</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -461,7 +461,7 @@ export default function PlannerScreen() {
                       ) : (
                         <>
                           <Ionicons name="refresh" size={14} color="#4A6B53" />
-                          <Text style={styles.regenBtnText}>Rigenera</Text>
+                          <Text style={styles.regenBtnText}>{t('planner.regenBtn')}</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -479,7 +479,7 @@ export default function PlannerScreen() {
               <MealSlotCard
                 key={slot}
                 slot={slot}
-                label={SLOT_LABELS[slot].toUpperCase()}
+                label={t(`planner.slots.${slot}`).toUpperCase()}
                 icon={SLOT_ICONS[slot]}
                 color={colors.color}
                 bgColor={colors.bgColor}
@@ -575,6 +575,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
   onSwapSide,
   onDeleteSide,
 }: MealSlotCardProps) {
+  const { t } = useTranslation();
 
   return (
     <View style={styles.slotContainer}>
@@ -603,7 +604,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
                 <Text style={styles.mealMetaText}>{recipe.tempi.tempo_totale_minuti} min</Text>
                 <Text style={styles.mealMetaDivider}>·</Text>
                 <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                <Text style={styles.mealMetaText}>{entry.servings} porz.</Text>
+                <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>
               </View>
             </View>
 
@@ -632,7 +633,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
               <View style={styles.mealInfo}>
                 <View style={styles.sideBadgeRow}>
                   <Ionicons name="leaf" size={11} color="#3A8C7E" />
-                  <Text style={styles.sideMealCategory}>CONTORNO</Text>
+                  <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
                 </View>
                 <Text style={styles.mealTitle} numberOfLines={2}>{sideRecipe.titolo}</Text>
                 <View style={styles.mealMeta}>
@@ -640,7 +641,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
                   <Text style={styles.mealMetaText}>{sideRecipe.tempi.tempo_totale_minuti} min</Text>
                   <Text style={styles.mealMetaDivider}>·</Text>
                   <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                  <Text style={styles.mealMetaText}>{entry.servings} porz.</Text>
+                  <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>
                 </View>
               </View>
 
@@ -668,7 +669,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
             <Ionicons name="add" size={20} color={color} />
           </View>
           <Text style={styles.emptySlotText}>
-            {EMPTY_SLOT_TEXTS[slot]}
+            {t('planner.emptySlot')}
           </Text>
         </TouchableOpacity>
       )}

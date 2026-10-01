@@ -9,6 +9,7 @@ import { initializeSearchIndex } from '../services/searchService';
 import { Recipe } from '../types/recipe';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
+import '../i18n';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 

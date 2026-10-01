@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Recipe, ShoppingItem } from '../../types/recipe';
 import {
   getShoppingItems,
@@ -53,6 +54,7 @@ interface DepartmentSection {
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 export default function ShoppingScreen() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemText, setNewItemText] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<ShoppingDepartment | 'ALL'>('ALL');
@@ -83,7 +85,7 @@ export default function ShoppingScreen() {
     setRefreshing(true);
     await loadItems(true);
     setRefreshing(false);
-    showToast('Spesa aggiornata e unificata');
+    showToast(t('shopping.updatedToast'));
   };
 
   useFocusEffect(
@@ -172,24 +174,24 @@ export default function ShoppingScreen() {
     if (completedCount === 0) return;
     setItems(prev => prev.filter(item => !item.checked));
     await clearCheckedShoppingItems();
-    showToast('Articoli spuntati rimossi');
+    showToast(t('shopping.removeCompleted'));
   };
 
   const handleClearAll = () => {
     if (items.length === 0) return;
     Alert.alert(
-      'Svuota lista della spesa',
-      'Vuoi davvero eliminare tutti gli articoli dalla lista?',
+      t('shopping.clearConfirmTitle'),
+      t('shopping.clearConfirmSub'),
       [
-        { text: 'Annulla', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Svuota tutto',
+          text: t('shopping.clearAll'),
           style: 'destructive',
           onPress: async () => {
             setItems([]);
             await clearAllShoppingItems();
             setSelectedDeptFilter('ALL');
-            showToast('Lista della spesa svuotata');
+            showToast(t('shopping.clearedToast'));
           },
         },
       ]
@@ -225,7 +227,7 @@ export default function ShoppingScreen() {
 
   const handleShare = async () => {
     if (items.length === 0) {
-      Alert.alert('Lista vuota', 'Aggiungi prima degli articoli da condividere.');
+      Alert.alert(t('shopping.emptyTitle'), t('shopping.emptySub'));
       return;
     }
 
@@ -245,7 +247,7 @@ export default function ShoppingScreen() {
       const weekPlans = plans.filter(p => weekDates.has(p.date));
 
       if (weekPlans.length === 0) {
-        showToast('Nessun pasto pianificato per questa settimana');
+        showToast(t('shopping.syncNone'));
         return;
       }
 
@@ -256,10 +258,10 @@ export default function ShoppingScreen() {
 
       const count = await aggregateAndAddToShopping(weekPlans, map);
       await loadItems();
-      showToast(`Sommati ${count} ingredienti della settimana!`);
+      showToast(t('shopping.syncSuccess'));
     } catch (e) {
       console.error('Error syncing week plan to shopping list:', e);
-      showToast('Errore durante la sincronizzazione');
+      showToast(t('common.error'));
     }
   };
 
@@ -273,13 +275,16 @@ export default function ShoppingScreen() {
               <Ionicons name="cart" size={22} color="#34523C" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Lista della Spesa</Text>
+              <Text style={styles.title}>{t('shopping.title')}</Text>
               <Text style={styles.subtitle}>
                 {items.length === 0
-                  ? 'Nessun ingrediente in lista'
-                  : `${completedCount} di ${items.length} completati • ${activeDepartmentsCount} ${
-                      activeDepartmentsCount === 1 ? 'reparto' : 'reparti'
-                    }`}
+                  ? t('shopping.emptySubtitle')
+                  : t('shopping.subtitleDetails', {
+                      completed: completedCount,
+                      total: items.length,
+                      departments: activeDepartmentsCount,
+                      deptWord: activeDepartmentsCount === 1 ? t('shopping.department') : t('shopping.departments'),
+                    })}
               </Text>
             </View>
 
@@ -288,7 +293,7 @@ export default function ShoppingScreen() {
                 style={styles.headerActionBtn}
                 onPress={handleSyncWeekPlan}
                 activeOpacity={0.7}
-                accessibilityLabel="Sincronizza e somma piano settimanale"
+                accessibilityLabel={t('shopping.syncWeekPlan')}
               >
                 <Ionicons name="calendar-outline" size={17} color="#34523C" />
               </TouchableOpacity>
@@ -299,7 +304,7 @@ export default function ShoppingScreen() {
                     style={styles.headerActionBtn}
                     onPress={handleShare}
                     activeOpacity={0.7}
-                    accessibilityLabel="Condividi lista"
+                    accessibilityLabel={t('recipeDetail.share')}
                   >
                     <Ionicons name="share-outline" size={17} color="#34523C" />
                   </TouchableOpacity>
@@ -311,7 +316,7 @@ export default function ShoppingScreen() {
                       activeOpacity={0.7}
                     >
                       <Ionicons name="checkbox-outline" size={16} color="#34523C" />
-                      <Text style={styles.headerActionText}>Rimuovi spuntati</Text>
+                      <Text style={styles.headerActionText}>{t('shopping.removeCompleted')}</Text>
                     </TouchableOpacity>
                   )}
 
@@ -319,7 +324,7 @@ export default function ShoppingScreen() {
                     style={[styles.headerActionBtn, { borderColor: '#EBDAD5' }]}
                     onPress={handleClearAll}
                     activeOpacity={0.7}
-                    accessibilityLabel="Svuota lista"
+                    accessibilityLabel={t('shopping.clearAll')}
                   >
                     <Ionicons name="trash-outline" size={16} color="#D9534F" />
                   </TouchableOpacity>
@@ -333,7 +338,7 @@ export default function ShoppingScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Aggiungi ingrediente (es. Olio EVO, Zucchine, Tofu)..."
+                placeholder={t('shopping.addCustomPlaceholder')}
                 placeholderTextColor="#8C988F"
                 value={newItemText}
                 onChangeText={text => {
@@ -357,7 +362,7 @@ export default function ShoppingScreen() {
             {/* Smart department badge indicator with change button */}
             {newItemText.trim().length > 0 && (
               <View style={styles.detectedDeptRow}>
-                <Text style={styles.detectedDeptLabel}>Reparto:</Text>
+                <Text style={styles.detectedDeptLabel}>{t('shopping.detectedDept')}</Text>
                 <TouchableOpacity
                   style={[
                     styles.detectedDeptBadge,
@@ -409,7 +414,7 @@ export default function ShoppingScreen() {
                     selectedDeptFilter === 'ALL' && styles.filterPillTextActive,
                   ]}
                 >
-                  Tutti ({items.length})
+                  {t('shopping.all')} ({items.length})
                 </Text>
               </TouchableOpacity>
 
@@ -500,12 +505,12 @@ export default function ShoppingScreen() {
                       {section.isAllChecked && (
                         <View style={styles.completedBadge}>
                           <Ionicons name="checkmark" size={11} color="#FFF" />
-                          <Text style={styles.completedBadgeText}>Completato</Text>
+                          <Text style={styles.completedBadgeText}>{t('shopping.completed')}</Text>
                         </View>
                       )}
                     </View>
                     <Text style={styles.sectionSubtitle}>
-                      {section.checkedCount} di {section.total} presi
+                      {t('shopping.itemsTaken', { checked: section.checkedCount, total: section.total })}
                     </Text>
                   </View>
 
@@ -535,7 +540,7 @@ export default function ShoppingScreen() {
                     {cleanShoppingIngredientText(item.ingredient_text, item.name)}
                   </Text>
                   {item.recipe_title && (
-                    <Text style={styles.itemRecipe}>Da: {item.recipe_title}</Text>
+                    <Text style={styles.itemRecipe}>{t('shopping.fromRecipe', { recipe: item.recipe_title })}</Text>
                   )}
                 </View>
               </TouchableOpacity>
@@ -557,13 +562,13 @@ export default function ShoppingScreen() {
               </View>
               <Text style={styles.emptyTitle}>
                 {selectedDeptFilter !== 'ALL'
-                  ? `Nessun articolo in "${selectedDeptFilter}"`
-                  : 'La tua spesa è vuota'}
+                  ? t('shopping.emptyDeptTitle', { dept: selectedDeptFilter })
+                  : t('shopping.emptyTitle')}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {selectedDeptFilter !== 'ALL'
-                  ? 'Prova a selezionare "Tutti" oppure aggiungi un nuovo ingrediente per questo reparto.'
-                  : 'Aggiungi ingredienti pianificando i pasti nel Meal Planner, esplorando una ricetta o scrivendoli in alto.'}
+                  ? t('shopping.emptyDeptSub')
+                  : t('shopping.emptySub')}
               </Text>
               <TouchableOpacity
                 style={styles.exploreBtn}
@@ -571,7 +576,7 @@ export default function ShoppingScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="restaurant-outline" size={18} color="#FFF" />
-                <Text style={styles.exploreBtnText}>Sfoglia le ricette</Text>
+                <Text style={styles.exploreBtnText}>{t('shopping.browseRecipes')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -581,7 +586,7 @@ export default function ShoppingScreen() {
               >
                 <Ionicons name="calendar-outline" size={18} color="#34523C" />
                 <Text style={[styles.exploreBtnText, { color: '#34523C' }]}>
-                  Somma ingredienti della settimana
+                  {t('shopping.syncWeekPlan')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -602,7 +607,7 @@ export default function ShoppingScreen() {
           >
             <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Scegli il Reparto</Text>
+                <Text style={styles.modalTitle}>{t('shopping.chooseDept')}</Text>
                 <TouchableOpacity
                   onPress={() => setShowDeptPickerModal(false)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

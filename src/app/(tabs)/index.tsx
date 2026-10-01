@@ -24,12 +24,14 @@ import { searchRecipes, initializeSearchIndex, AdvancedFilterOptions } from '../
 import { getCustomRecipes } from '../../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
 import { useFavorites } from '../../context/FavoritesContext';
+import { useTranslation } from 'react-i18next';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
 export default function ExploreScreen() {
+  const { t, i18n } = useTranslation();
   const { width } = useResponsiveDimensions();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
@@ -39,6 +41,11 @@ export default function ExploreScreen() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showMagicImporter, setShowMagicImporter] = useState(false);
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language?.startsWith('en') ? 'it' : 'en';
+    i18n.changeLanguage(nextLang);
+  };
 
   // Load custom user recipes and index them
   useEffect(() => {
@@ -157,6 +164,16 @@ export default function ExploreScreen() {
                 <Text style={styles.brandTitle}>Green-Whisker</Text>
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.langToggleBtn}
+              onPress={toggleLanguage}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.langToggleText}>
+                {i18n.language?.startsWith('en') ? '🇬🇧 EN' : '🇮🇹 IT'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
@@ -173,7 +190,7 @@ export default function ExploreScreen() {
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.modeToggleText, viewMode === 'catalog' && styles.modeToggleTextActive]}>
-                Tutte le Ricette
+                {t('explore.viewModes.recipes')}
               </Text>
             </TouchableOpacity>
 
@@ -189,7 +206,7 @@ export default function ExploreScreen() {
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.modeToggleText, viewMode === 'pantry' && styles.modeToggleTextActive]}>
-                Svuotafrigo
+                {t('explore.viewModes.pantry')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -200,7 +217,7 @@ export default function ExploreScreen() {
                 <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Cerca per ricetta o ingrediente (es. zucca, pasta)..."
+                  placeholder={t('explore.searchPlaceholder')}
                   placeholderTextColor="#8C988F"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -310,7 +327,9 @@ export default function ExploreScreen() {
             {/* Results Counter */}
             <View style={styles.counterRow}>
               <Text style={styles.counterText}>
-                {filteredRecipes.length} {filteredRecipes.length === 1 ? 'ricetta trovata' : 'ricette trovate'}
+                {filteredRecipes.length === 1
+                  ? t('explore.recipesFound', { count: 1 })
+                  : t('explore.recipesFound_plural', { count: filteredRecipes.length })}
               </Text>
             </View>
 
@@ -332,9 +351,9 @@ export default function ExploreScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="search-outline" size={48} color="#A3B2A6" />
-                  <Text style={styles.emptyTitle}>Nessuna ricetta trovata</Text>
+                  <Text style={styles.emptyTitle}>{t('explore.noRecipesTitle')}</Text>
                   <Text style={styles.emptySubtitle}>
-                    Prova a cercare con un altro ingrediente o rimuovi i filtri selezionati.
+                    {t('explore.noRecipesSub')}
                   </Text>
                 </View>
               }
@@ -544,7 +563,21 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
+  },
+  langToggleBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  langToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#34523C',
   },
   brandInfo: {
     flexDirection: 'row',

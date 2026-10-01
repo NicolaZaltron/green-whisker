@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Recipe } from '../../types/recipe';
 import {
   type MealSlot,
@@ -39,6 +40,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   onSelect,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'recommended' | 'all'>('recommended');
 
@@ -129,7 +131,9 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
             <Ionicons name="close" size={24} color="#2B332B" />
           </TouchableOpacity>
           <Text style={styles.pickerHeaderTitle}>
-            {targetType === 'side' ? 'Scegli Contorno' : `Pianifica per ${SLOT_LABELS[targetSlot]}`}
+            {targetType === 'side'
+              ? t('planner.pickerModal.chooseSide')
+              : t('planner.pickerModal.planForSlot', { slot: t(`planner.slots.${targetSlot}`) })}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -156,7 +160,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                 filterMode === 'recommended' && styles.pickerFilterChipTextActive,
               ]}
             >
-              Consigliate ({recommendedCount})
+              {t('planner.pickerModal.recommended', { count: recommendedCount })}
             </Text>
           </TouchableOpacity>
 
@@ -180,7 +184,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                 filterMode === 'all' && styles.pickerFilterChipTextActive,
               ]}
             >
-              Tutte ({allRecipes.length})
+              {t('planner.pickerModal.all', { count: allRecipes.length })}
             </Text>
           </TouchableOpacity>
         </View>
@@ -189,7 +193,11 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
           <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.pickerInput}
-            placeholder={targetType === 'side' ? 'Cerca contorno o insalata...' : `Cerca per ${SLOT_LABELS[targetSlot].toLowerCase()}...`}
+            placeholder={
+              targetType === 'side'
+                ? t('planner.pickerModal.searchSidePlaceholder')
+                : t('planner.pickerModal.searchSlotPlaceholder', { slot: t(`planner.slots.${targetSlot}`).toLowerCase() })
+            }
             placeholderTextColor="#8C988F"
             value={query}
             onChangeText={setQuery}
@@ -223,9 +231,9 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerItemCat}>{item.categoria}</Text>
-                <Text style={styles.pickerItemTitle}>{item.titolo}</Text>
+                <Text style={styles.pickerItemTitle} numberOfLines={2}>{item.titolo}</Text>
                 <Text style={styles.pickerItemMeta}>
-                  {item.tempi?.tempo_totale_minuti || 30} min • {item.porzioni || 4} porzioni
+                  {item.tempi?.tempo_totale_minuti || 30} min • {t('common.servings', { count: item.porzioni || 4 })}
                 </Text>
               </View>
               <Ionicons name="add-circle" size={24} color="#4A6B53" />

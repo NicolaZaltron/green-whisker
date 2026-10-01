@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
 export interface PlannerRegenModalProps {
   visible: boolean;
@@ -16,6 +17,8 @@ export const PlannerRegenModal: React.FC<PlannerRegenModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.confirmOverlay}>
@@ -23,30 +26,30 @@ export const PlannerRegenModal: React.FC<PlannerRegenModalProps> = ({
           <View style={styles.confirmIconWrap}>
             <Ionicons name="refresh-circle" size={36} color="#4A6B53" />
           </View>
-          <Text style={styles.confirmTitle}>Rigenera il piano?</Text>
+          <Text style={styles.confirmTitle}>{t('planner.regenModal.title')}</Text>
           <Text style={styles.confirmSub}>
-            Scegli se completare solo gli slot vuoti, o ricominciare da zero sovrascrivendo tutto.
+            {t('planner.regenModal.sub')}
           </Text>
           <TouchableOpacity
             style={styles.confirmBtnPrimary}
             onPress={() => onConfirm(false)}
             activeOpacity={0.8}
           >
-            <Text style={styles.confirmBtnPrimaryText}>Completa gli slot vuoti</Text>
+            <Text style={styles.confirmBtnPrimaryText}>{t('planner.regenModal.completeEmpty')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.confirmBtnSecondary}
             onPress={() => onConfirm(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.confirmBtnSecondaryText}>Ricomincia da zero</Text>
+            <Text style={styles.confirmBtnSecondaryText}>{t('planner.regenModal.restartFresh')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.confirmBtnCancel}
             onPress={onCancel}
             activeOpacity={0.7}
           >
-            <Text style={styles.confirmBtnCancelText}>Annulla</Text>
+            <Text style={styles.confirmBtnCancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </View>
       </View>

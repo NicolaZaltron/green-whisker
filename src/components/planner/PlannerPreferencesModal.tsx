@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { PlannerPreferences, savePlannerPreferences } from '../../services/plannerService';
 
 export interface PlannerPreferencesModalProps {
@@ -29,6 +30,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   onUpdatePrefs,
   onClearWeek,
 }) => {
+  const { t } = useTranslation();
   if (!prefs) return null;
 
   const handleServingsChange = async (delta: number) => {
@@ -67,7 +69,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
     >
       <SafeAreaView style={styles.prefsSafeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.prefsHeader}>
-          <Text style={styles.prefsTitle}>Preferenze Planner</Text>
+          <Text style={styles.prefsTitle}>{t('planner.preferencesModal.title')}</Text>
           <TouchableOpacity onPress={onClose} style={styles.prefsCloseBtn}>
             <Ionicons name="close" size={22} color="#2B332B" />
           </TouchableOpacity>
@@ -76,8 +78,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
         <ScrollView contentContainerStyle={styles.prefsBody}>
           <View style={styles.prefRow}>
             <View>
-              <Text style={styles.prefLabel}>Porzioni di default</Text>
-              <Text style={styles.prefSub}>Usate nella generazione automatica</Text>
+              <Text style={styles.prefLabel}>{t('planner.preferencesModal.servings')}</Text>
+              <Text style={styles.prefSub}>{t('planner.preferencesModal.servingsSub')}</Text>
             </View>
             <View style={styles.prefStepper}>
               <TouchableOpacity
@@ -98,8 +100,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
 
           <View style={styles.prefRow}>
             <View>
-              <Text style={styles.prefLabel}>Include weekend</Text>
-              <Text style={styles.prefSub}>Pianifica Sabato e Domenica</Text>
+              <Text style={styles.prefLabel}>{t('planner.preferencesModal.weekend')}</Text>
+              <Text style={styles.prefSub}>{t('planner.preferencesModal.weekendSub')}</Text>
             </View>
             <TouchableOpacity
               style={[styles.toggle, prefs.includeWeekend && styles.toggleOn]}
@@ -112,8 +114,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
 
           <View style={styles.prefRow}>
             <View>
-              <Text style={styles.prefLabel}>Pranzo veloce nei feriali</Text>
-              <Text style={styles.prefSub}>Max 30 min nei giorni feriali</Text>
+              <Text style={styles.prefLabel}>{t('planner.preferencesModal.quickLunch')}</Text>
+              <Text style={styles.prefSub}>{t('planner.preferencesModal.quickLunchSub')}</Text>
             </View>
             <TouchableOpacity
               style={[styles.toggle, prefs.maxWeekdayLunchMinutes !== null && styles.toggleOn]}
@@ -126,8 +128,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
 
           <View style={styles.prefRow}>
             <View>
-              <Text style={styles.prefLabel}>Auto-genera ogni lunedì</Text>
-              <Text style={styles.prefSub}>Pianifica automaticamente all'apertura</Text>
+              <Text style={styles.prefLabel}>{t('planner.preferencesModal.autoMonday')}</Text>
+              <Text style={styles.prefSub}>{t('planner.preferencesModal.autoMondaySub')}</Text>
             </View>
             <TouchableOpacity
               style={[styles.toggle, prefs.autoGenerateOnMonday && styles.toggleOn]}
@@ -147,7 +149,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
             activeOpacity={0.8}
           >
             <Ionicons name="trash-outline" size={16} color="#D9534F" />
-            <Text style={styles.clearWeekBtnText}>Cancella piano settimana corrente</Text>
+            <Text style={styles.clearWeekBtnText}>{t('planner.preferencesModal.clearWeek')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

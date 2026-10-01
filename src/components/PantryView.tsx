@@ -11,6 +11,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Recipe } from '../types/recipe';
 import { RecipeCard, PantryMatchInfo } from './RecipeCard';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
@@ -28,6 +29,7 @@ interface PantryViewProps {
 }
 
 export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastMessage }) => {
+  const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [inputText, setInputText] = useState('');
@@ -109,7 +111,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       }))
     );
 
-    const msg = `${missing.length} ${missing.length === 1 ? 'ingrediente aggiunto' : 'ingredienti aggiunti'} alla Spesa!`;
+    const msg = t(missing.length === 1 ? 'pantry.addedToShopping' : 'pantry.addedToShopping_plural', { count: missing.length });
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
@@ -161,10 +163,10 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       <View style={styles.headerBox}>
         <View style={styles.headerTitleRow}>
           <MaterialCommunityIcons name="fridge-outline" size={20} color="#4A6B53" style={{ marginRight: 6 }} />
-          <Text style={styles.headerTitle}>Svuotafrigo Intelligente</Text>
+          <Text style={styles.headerTitle}>{t('pantry.title')}</Text>
         </View>
         <Text style={styles.headerSubtitle}>
-          Cosa hai in casa? Seleziona gli ingredienti disponibili: troveremo le ricette che puoi cucinare subito o con pochissimi ingredienti mancanti.
+          {t('pantry.subtitle')}
         </Text>
       </View>
 
@@ -174,7 +176,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
           <Ionicons name="add-circle-outline" size={20} color="#7E8B80" style={{ marginRight: 8 }} />
           <TextInput
             style={styles.textInput}
-            placeholder="Digita un ingrediente (es. zucca, ceci, pasta)..."
+            placeholder={t('pantry.inputPlaceholder')}
             placeholderTextColor="#8C988F"
             value={inputText}
             onChangeText={setInputText}
@@ -183,7 +185,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
           />
           {inputText.length > 0 && (
             <TouchableOpacity onPress={() => handleAddIngredient(inputText)} style={styles.addBtn}>
-              <Text style={styles.addBtnText}>Aggiungi</Text>
+              <Text style={styles.addBtnText}>{t('pantry.addBtn')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -191,7 +193,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         {/* Dropdown Suggestions */}
         {suggestions.length > 0 && (
           <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Suggerimenti:</Text>
+            <Text style={styles.suggestionsTitle}>{t('pantry.suggestions')}</Text>
             <View style={styles.suggestionsRow}>
               {suggestions.map((item, idx) => (
                 <TouchableOpacity
@@ -213,10 +215,10 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
           <View style={styles.selectedSection}>
             <View style={styles.selectedHeader}>
               <Text style={styles.selectedCountText}>
-                Nel tuo frigo ({selectedIngredients.length}):
+                {t('pantry.inYourPantry', { count: selectedIngredients.length })}
               </Text>
               <TouchableOpacity onPress={handleClearAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.clearAllText}>Svuota tutto</Text>
+                <Text style={styles.clearAllText}>{t('pantry.clearAll')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -239,7 +241,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
 
         {/* Quick Add Staples */}
         <View style={styles.quickSection}>
-          <Text style={styles.quickTitle}>Ingredienti rapidi:</Text>
+          <Text style={styles.quickTitle}>{t('pantry.quickIngredients')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -272,7 +274,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             style={{ marginRight: 8 }}
           />
           <Text style={styles.staplesText}>
-            Considera i condimenti base sempre disponibili (olio evo, sale, pepe, acqua)
+            {t('pantry.staplesText')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -282,12 +284,12 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         <View style={styles.resultsHeader}>
           <View style={styles.resultsTitleRow}>
             <Text style={styles.resultsCount}>
-              {allResults.length} {allResults.length === 1 ? 'ricetta trovata' : 'ricette trovate'}
+              {t(allResults.length === 1 ? 'pantry.recipesFound' : 'pantry.recipesFound_plural', { count: allResults.length })}
             </Text>
             {readyCount > 0 && (
               <View style={styles.readyBadge}>
                 <Ionicons name="checkmark-circle" size={12} color="#1B6334" style={{ marginRight: 3 }} />
-                <Text style={styles.readyBadgeText}>{readyCount} pronte subito</Text>
+                <Text style={styles.readyBadgeText}>{t('pantry.readyBadge', { count: readyCount })}</Text>
               </View>
             )}
           </View>
@@ -299,7 +301,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
               onPress={() => setActiveFilter('all')}
             >
               <Text style={[styles.filterPillText, activeFilter === 'all' && styles.filterPillTextActive]}>
-                Tutte ({allResults.length})
+                {t('pantry.filterAll', { count: allResults.length })}
               </Text>
             </TouchableOpacity>
 
@@ -308,7 +310,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
               onPress={() => setActiveFilter('ready')}
             >
               <Text style={[styles.filterPillText, activeFilter === 'ready' && styles.filterPillTextActive]}>
-                100% Pronte ({readyCount})
+                {t('pantry.filterReady', { count: readyCount })}
               </Text>
             </TouchableOpacity>
 
@@ -317,7 +319,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
               onPress={() => setActiveFilter('almost')}
             >
               <Text style={[styles.filterPillText, activeFilter === 'almost' && styles.filterPillTextActive]}>
-                Manca max 1 ({almostCount + readyCount})
+                {t('pantry.filterAlmost', { count: almostCount + readyCount })}
               </Text>
             </TouchableOpacity>
           </View>
@@ -332,17 +334,17 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       <View style={styles.emptyIconCircle}>
         <Ionicons name="basket-outline" size={42} color="#8E9C91" />
       </View>
-      <Text style={styles.emptyTitle}>Il tuo svuotafrigo è vuoto</Text>
+      <Text style={styles.emptyTitle}>{t('pantry.emptyTitle')}</Text>
       <Text style={styles.emptySubtitle}>
-        Aggiungi 2 o più ingredienti che hai in cucina per visualizzare subito cosa puoi preparare.
+        {t('pantry.emptySub')}
       </Text>
     </View>
   ) : filteredResults.length === 0 ? (
     <View style={styles.emptyContainer}>
       <Ionicons name="search-outline" size={38} color="#8E9C91" />
-      <Text style={styles.emptyTitle}>Nessuna ricetta per questo filtro</Text>
+      <Text style={styles.emptyTitle}>{t('pantry.noResultsFilterTitle')}</Text>
       <Text style={styles.emptySubtitle}>
-        Prova a selezionare il filtro "Tutte" o aggiungi qualche altro ingrediente.
+        {t('pantry.noResultsFilterSub')}
       </Text>
     </View>
   ) : null;
