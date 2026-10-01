@@ -56,17 +56,11 @@ export function getAIConfig(): AIConfig {
 }
 
 const VALID_CATEGORIES = [
-  'Primi piatti',
-  'Secondi piatti',
-  'Dolci',
-  'Contorni e insalate',
-  'Lievitati, pane e pizze',
-  'Salse e condimenti',
-  'Antipasti e snack',
-  'Zuppe e vellutate',
-  'Colazione e merende',
-  'Piatti unici e bowl',
-  'Bevande e frullati',
+  'Primi e Cereali',
+  'Proteine Vegetali & Secondi',
+  'Panificati e Piatti Unici',
+  'Verdure e Contorni',
+  'Dolci, Colazioni e Snack',
 ];
 
 const VALID_SLOTS: SlotConsigliato[] = ['colazione', 'spuntino', 'pranzo_cena'];
@@ -80,11 +74,18 @@ IMPORTANT LANGUAGE INSTRUCTION:
 
 STRICT SCHEMA & PARSING RULES:
 1. "titolo": Clean Italian recipe title (e.g., "Trofie al Pesto con Patate e Fagiolini"). Do not prepend unnecessary words or brand labels.
-2. "categoria": MUST be exactly one of the following Italian categories:
-   ["Primi piatti", "Secondi piatti", "Dolci", "Contorni e insalate", "Lievitati, pane e pizze", "Salse e condimenti", "Antipasti e snack", "Zuppe e vellutate", "Colazione e merende", "Piatti unici e bowl", "Bevande e frullati"]
-3. "slot_consigliato": Exactly one of: "colazione", "spuntino", "pranzo_cena".
-4. "gruppi_alimentari": Array containing one or more from: ["cereali", "verdura", "frutta", "frutta_secca_semi", "cibi_proteici", "grassi"].
-5. "difficolta": Exactly one of: "Facile", "Media", "Difficile".
+2. "categoria": MUST be exactly one of the 5 Macro-Categories:
+   ["Primi e Cereali", "Proteine Vegetali & Secondi", "Panificati e Piatti Unici", "Verdure e Contorni", "Dolci, Colazioni e Snack"]
+3. "macro_categoria": Exactly the same as "categoria".
+4. "sottocategoria": Specific subcategory chosen accurately from the corresponding list:
+   - For "Primi e Cereali": ["Primi piatti", "Risotti", "Gnocchi", "Pasta al forno", "Polenta", "Bowl", "Porridge & Overnight oats", "Insalate di cereali"]
+   - For "Proteine Vegetali & Secondi": ["Secondi a base di Tofu", "Tempeh", "Seitan", "Soia", "Farinate & Frittate", "Polpette & Burger vegetali", "Piatti a base di legumi", "Insalate di legumi"]
+   - For "Panificati e Piatti Unici": ["Piadine & Wraps", "Panini & Bruschette", "Pizze & Focacce", "Torte salate"]
+   - For "Verdure e Contorni": ["Verdure al forno", "Verdure in padella", "Verdure bollite & a vapore", "Zuppe & Vellutate", "Contorni"]
+   - For "Dolci, Colazioni e Snack": ["Biscotti", "Energy balls & Barrette", "Frullati", "Frutta fresca & Macedonie", "Frutta secca", "Gelati", "Merende & Colazioni dolci/salate", "Torte da forno", "A base di latte/yogurt vegetale"]
+5. "slot_consigliato": Exactly one of: "colazione", "spuntino", "pranzo_cena".
+6. "gruppi_alimentari": Array containing one or more from: ["cereali", "verdura", "frutta", "frutta_secca_semi", "cibi_proteici", "grassi"].
+7. "difficolta": Exactly one of: "Facile", "Media", "Difficile".
 6. "porzioni": Integer number of servings (e.g. 4, 2).
 7. "porzioni_testo": String description in Italian (e.g. "4 porzioni", "2 porzioni").
 8. "tempi": Object with:
@@ -398,7 +399,9 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
     .replace(/^-|-$/g, '')
     + '-' + Math.random().toString(36).substring(2, 6);
 
-  const category = VALID_CATEGORIES.includes(parsed.categoria) ? parsed.categoria : 'Primi piatti';
+  const category = VALID_CATEGORIES.includes(parsed.categoria) ? parsed.categoria : 'Primi e Cereali';
+  const macroCategory = parsed.macro_categoria || category;
+  const subCategory = parsed.sottocategoria || '';
   const slot: SlotConsigliato = VALID_SLOTS.includes(parsed.slot_consigliato) ? parsed.slot_consigliato : 'pranzo_cena';
   const porzioni = typeof parsed.porzioni === 'number' && parsed.porzioni > 0 ? parsed.porzioni : 4;
   const tempoTot = parsed.tempi?.tempo_totale_minuti || 30;
@@ -410,6 +413,8 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
     url: sourceUrl || parsed.url || '',
     immagine: (parsed.immagine && typeof parsed.immagine === 'string' && parsed.immagine.trim() && parsed.immagine !== 'null') ? parsed.immagine.trim() : '',
     categoria: category,
+    macro_categoria: macroCategory,
+    sottocategoria: subCategory,
     difficolta: parsed.difficolta === 'Difficile' ? 'Difficile' : parsed.difficolta === 'Media' ? 'Media' : 'Facile',
     porzioni: porzioni,
     porzioni_testo: parsed.porzioni_testo || `${porzioni} porzioni`,

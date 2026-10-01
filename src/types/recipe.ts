@@ -28,6 +28,8 @@ export interface Recipe {
   url: string;
   immagine: string;
   categoria: string;
+  macro_categoria?: string;
+  sottocategoria?: string;
   difficolta: 'Facile' | 'Media' | 'Difficile';
   porzioni: number;
   porzioni_testo: string;

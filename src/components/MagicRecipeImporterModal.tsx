@@ -20,6 +20,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Recipe, SlotConsigliato } from '../types/recipe';
 import { parseRecipeWithAI } from '../services/aiService';
 import { saveCustomRecipe } from '../db/database';
+import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 
 interface MagicRecipeImporterModalProps {
   visible: boolean;
@@ -27,19 +28,7 @@ interface MagicRecipeImporterModalProps {
   onRecipeSaved: (recipe: Recipe) => void;
 }
 
-const CATEGORIES = [
-  'Primi piatti',
-  'Secondi piatti',
-  'Dolci',
-  'Contorni e insalate',
-  'Lievitati, pane e pizze',
-  'Salse e condimenti',
-  'Antipasti e snack',
-  'Zuppe e vellutate',
-  'Colazione e merende',
-  'Piatti unici e bowl',
-  'Bevande e frullati',
-];
+const CATEGORIES = [...MACRO_CATEGORIES];
 
 const SLOTS: { label: string; value: SlotConsigliato }[] = [
   { label: 'Pranzo / Cena', value: 'pranzo_cena' },
@@ -68,7 +57,8 @@ export function MagicRecipeImporterModal({
   // Preview / Edit state
   const [parsedRecipe, setParsedRecipe] = useState<Recipe | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editCategory, setEditCategory] = useState('Primi piatti');
+  const [editCategory, setEditCategory] = useState<string>('Primi e Cereali');
+  const [editSubCategory, setEditSubCategory] = useState<string>('');
   const [editSlot, setEditSlot] = useState<SlotConsigliato>('pranzo_cena');
   const [editServings, setEditServings] = useState('4');
   const [editTotalTime, setEditTotalTime] = useState('30');
@@ -169,7 +159,8 @@ export function MagicRecipeImporterModal({
 
       setParsedRecipe(recipe);
       setEditTitle(recipe.titolo);
-      setEditCategory(recipe.categoria);
+      setEditCategory(recipe.macro_categoria || recipe.categoria);
+      setEditSubCategory(recipe.sottocategoria || '');
       setEditSlot(recipe.slot_consigliato || 'pranzo_cena');
       setEditServings(String(recipe.porzioni || 4));
       setEditTotalTime(String(recipe.tempi?.tempo_totale_minuti || 30));
@@ -219,6 +210,8 @@ export function MagicRecipeImporterModal({
       ...parsedRecipe!,
       titolo: editTitle.trim(),
       categoria: editCategory,
+      macro_categoria: editCategory,
+      sottocategoria: editSubCategory || undefined,
       slot_consigliato: editSlot,
       porzioni: porz,
       porzioni_testo: `${porz} porzioni`,
@@ -446,7 +439,10 @@ export function MagicRecipeImporterModal({
                     <TouchableOpacity
                       key={cat}
                       style={[styles.chip, editCategory === cat && styles.chipActive]}
-                      onPress={() => setEditCategory(cat)}
+                      onPress={() => {
+                        setEditCategory(cat);
+                        setEditSubCategory('');
+                      }}
                     >
                       <Text style={[styles.chipText, editCategory === cat && styles.chipTextActive]}>
                         {cat}
@@ -455,6 +451,26 @@ export function MagicRecipeImporterModal({
                   ))}
                 </ScrollView>
               </View>
+
+              {/* Sottocategoria */}
+              {RECIPE_TAXONOMY[editCategory as MacroCategory] && (
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>Sottocategoria</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+                    {RECIPE_TAXONOMY[editCategory as MacroCategory].map(sub => (
+                      <TouchableOpacity
+                        key={sub}
+                        style={[styles.chip, editSubCategory === sub && styles.chipActive]}
+                        onPress={() => setEditSubCategory(sub)}
+                      >
+                        <Text style={[styles.chipText, editSubCategory === sub && styles.chipTextActive]}>
+                          {sub}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
               {/* Slot Planner */}
               <View style={styles.fieldGroup}>

@@ -371,7 +371,7 @@ export function generateBalancedWeekPlan(
   const mealPool = getRecipesForSlot('pranzo');
   const breakfastPool = getRecipesForSlot('colazione');
   const snackPool = getRecipesForSlot('spuntino_mattina');
-  const sidePool = rawRecipes.filter(r => r.categoria === 'Contorni e insalate');
+  const sidePool = rawRecipes.filter(r => r.categoria === 'Verdure e Contorni' || r.categoria === 'Contorni e insalate' || r.sottocategoria === 'Contorni');
 
   // Indice nutrizionale pre-calcolato per evitare ricalcoli nel loop
   // Solo sui pasti principali (pranzo/cena) che hanno logica proteica

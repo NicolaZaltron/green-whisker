@@ -22,29 +22,18 @@ import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
 import { searchRecipes, initializeSearchIndex, AdvancedFilterOptions } from '../../services/searchService';
 import { getCustomRecipes } from '../../db/database';
+import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
 
 const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
-const CATEGORIES = [
-  'Tutte',
-  'Primi piatti',
-  'Secondi piatti',
-  'Dolci',
-  'Contorni e insalate',
-  'Lievitati, pane e pizze',
-  'Salse e condimenti',
-  'Antipasti e snack',
-  'Zuppe e vellutate',
-  'Colazione e merende',
-  'Piatti unici e bowl',
-  'Bevande e frullati',
-];
+const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
 export default function ExploreScreen() {
   const { width } = useResponsiveDimensions();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Tutte');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('Tutte');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showMagicImporter, setShowMagicImporter] = useState(false);
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
@@ -79,6 +68,7 @@ export default function ExploreScreen() {
     maxMinutes: null,
     difficolta: null,
     tag: null,
+    sottocategoria: null,
   });
 
   const activeFiltersCount = useMemo(() => {
@@ -86,24 +76,44 @@ export default function ExploreScreen() {
     if (filters.maxMinutes) count++;
     if (filters.difficolta) count++;
     if (filters.tag) count++;
+    if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') count++;
+    if (selectedSubCategory !== 'Tutte') count++;
     return count;
-  }, [filters]);
+  }, [filters, selectedSubCategory]);
 
   const handleResetFilters = () => {
     setFilters({
       maxMinutes: null,
       difficolta: null,
       tag: null,
+      sottocategoria: null,
     });
+    setSelectedSubCategory('Tutte');
   };
+
+  const handleSelectCategory = (cat: string) => {
+    setSelectedCategory(cat);
+    setSelectedSubCategory('Tutte');
+  };
+
+  const currentSubcategories = useMemo(() => {
+    if (selectedCategory === 'Tutte' || !RECIPE_TAXONOMY[selectedCategory as MacroCategory]) {
+      return [];
+    }
+    return ['Tutte', ...(RECIPE_TAXONOMY[selectedCategory as MacroCategory] || [])];
+  }, [selectedCategory]);
 
   // Debounced search query for butter-smooth typing on mobile
   const debouncedQuery = useDebounce(searchQuery, 150);
 
   // Filter recipes using Fuse.js fuzzy engine + category + advanced filters
   const filteredRecipes = useMemo(() => {
-    return searchRecipes(debouncedQuery, selectedCategory, filters);
-  }, [debouncedQuery, selectedCategory, filters, customRecipes]);
+    const combinedFilters: AdvancedFilterOptions = {
+      ...filters,
+      sottocategoria: selectedSubCategory !== 'Tutte' ? selectedSubCategory : (filters.sottocategoria || null)
+    };
+    return searchRecipes(debouncedQuery, selectedCategory, combinedFilters);
+  }, [debouncedQuery, selectedCategory, selectedSubCategory, filters, customRecipes]);
 
   // Responsive column count calculation
   const numColumns = useMemo(() => {
@@ -210,7 +220,7 @@ export default function ExploreScreen() {
 
         {viewMode === 'catalog' ? (
           <>
-            {/* Single Fluid Horizontal Category Bar */}
+            {/* Level 1: Macro-Categories Bar */}
             <View style={styles.categoriesSection}>
               <ScrollView
                 horizontal
@@ -237,7 +247,7 @@ export default function ExploreScreen() {
                     <TouchableOpacity
                       key={cat}
                       style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                      onPress={() => setSelectedCategory(cat)}
+                      onPress={() => handleSelectCategory(cat)}
                       activeOpacity={0.8}
                     >
                       <Text
@@ -250,6 +260,35 @@ export default function ExploreScreen() {
                 })}
               </ScrollView>
             </View>
+
+            {/* Level 2: Subcategories Bar (shown when a Macro Category is active) */}
+            {currentSubcategories.length > 0 && (
+              <View style={styles.subcategoriesSection}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.subcategoriesContainer}
+                >
+                  {currentSubcategories.map(sub => {
+                    const isSelected = selectedSubCategory === sub;
+                    return (
+                      <TouchableOpacity
+                        key={sub}
+                        style={[styles.subCategoryChip, isSelected && styles.subCategoryChipSelected]}
+                        onPress={() => setSelectedSubCategory(sub)}
+                        activeOpacity={0.8}
+                      >
+                        <Text
+                          style={[styles.subCategoryChipText, isSelected && styles.subCategoryChipTextSelected]}
+                        >
+                          {sub}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Results Counter */}
             <View style={styles.counterRow}>
@@ -692,6 +731,36 @@ const styles = StyleSheet.create({
   },
   categoryChipTextSelected: {
     color: '#FFFFFF',
+  },
+  subcategoriesSection: {
+    marginBottom: 4,
+    paddingTop: 2,
+  },
+  subcategoriesContainer: {
+    paddingHorizontal: 16,
+    gap: 6,
+    paddingVertical: 2,
+  },
+  subCategoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: '#F0EBE3',
+    borderWidth: 1,
+    borderColor: '#E2DBD0',
+  },
+  subCategoryChipSelected: {
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
+  },
+  subCategoryChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5C6C5F',
+  },
+  subCategoryChipTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   counterRow: {
     paddingHorizontal: 20,

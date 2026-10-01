@@ -355,6 +355,11 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryBadgeText}>{recipe.categoria}</Text>
                 </View>
+                {!!recipe.sottocategoria && recipe.sottocategoria !== recipe.categoria && (
+                  <View style={[styles.categoryBadge, { backgroundColor: '#E2EBE5', borderColor: '#C8DACD' }]}>
+                    <Text style={[styles.categoryBadgeText, { color: '#34523C' }]}>{recipe.sottocategoria}</Text>
+                  </View>
+                )}
                 <View style={styles.diffBadge}>
                   <Ionicons name="speedometer-outline" size={12} color="#D97757" style={{ marginRight: 3 }} />
                   <Text style={styles.diffBadgeText}>{recipe.difficolta}</Text>

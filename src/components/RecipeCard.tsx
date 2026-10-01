@@ -65,7 +65,7 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
         )}
 
         <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>{recipe.categoria}</Text>
+          <Text style={styles.categoryPillText}>{recipe.sottocategoria || recipe.categoria}</Text>
         </View>
 
         {/* Pulsante Preferiti Rapido */}

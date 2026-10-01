@@ -7,6 +7,7 @@ export interface AdvancedFilterOptions {
   maxMinutes?: number | null; // e.g. 20, 35, 50
   difficolta?: 'Facile' | 'Media' | 'Difficile' | null;
   tag?: string | null; // e.g. 'Senza Glutine', 'Al forno', 'Senza cottura'
+  sottocategoria?: string | null;
 }
 
 function createFuse(recipes: Recipe[]): Fuse<Recipe> {
@@ -45,9 +46,9 @@ export function searchRecipes(
     list = results.map(r => r.item);
   }
 
-  // 2. Category Filter
+  // 2. Category Filter (Macro)
   if (categoryFilter && categoryFilter !== 'Tutte') {
-    list = list.filter(r => r.categoria === categoryFilter);
+    list = list.filter(r => r.categoria === categoryFilter || r.macro_categoria === categoryFilter);
   }
 
   // 3. String Tag Filter (backward compat)
@@ -65,6 +66,9 @@ export function searchRecipes(
     }
   } else if (filters && typeof filters === 'object') {
     // 4. Advanced Filters
+    if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') {
+      list = list.filter(r => r.sottocategoria === filters.sottocategoria);
+    }
     if (filters.maxMinutes) {
       list = list.filter(r => r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= filters.maxMinutes!);
     }

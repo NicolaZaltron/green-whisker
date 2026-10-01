@@ -210,7 +210,7 @@ export default function PlannerScreen() {
     let pool: Recipe[];
     if (pickerTargetType === 'side') {
       pool = pickerFilterMode === 'recommended'
-        ? rawRecipes.filter(r => r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni')))
+        ? rawRecipes.filter(r => r.categoria === 'Verdure e Contorni' || r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni')))
         : rawRecipes;
     } else {
       pool = pickerFilterMode === 'recommended'
@@ -635,7 +635,7 @@ export default function PlannerScreen() {
                 >
                   Consigliate ({
                     pickerTargetType === 'side'
-                      ? rawRecipes.filter(r => r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni'))).length
+                      ? rawRecipes.filter(r => r.categoria === 'Verdure e Contorni' || r.categoria === 'Contorni e insalate' || (r.tags && r.tags.includes('Contorni'))).length
                       : getRecipesForSlot(targetSlot).length
                   })
                 </Text>
