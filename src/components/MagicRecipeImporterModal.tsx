@@ -245,7 +245,6 @@ export function MagicRecipeImporterModal({
     try {
       await saveCustomRecipe(finalRecipe);
       onRecipeSaved(finalRecipe);
-      Alert.alert('✨ Ricetta Salvata!', `"${finalRecipe.titolo}" è stata aggiunta con successo al tuo ricettario.`);
       handleReset();
       onClose();
     } catch (e: any) {
