@@ -1,0 +1,123 @@
+[
+  {
+    "id": "hummus-classico-ceci",
+    "titolo": "Hummus Classico di Ceci e Tahina",
+    "fonte": "Green Whisker",
+    "url": "https://example.com/hummus",
+    "immagine": "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=800&auto=format&fit=crop",
+    "categoria": "Secondi piatti",
+    "difficolta": "Facile",
+    "porzioni": 4,
+    "porzioni_testo": "4 porzioni",
+    "tempi": {
+      "tempo_totale_minuti": 15,
+      "tempo_preparazione": "15 minuti",
+      "tempo_cottura": "0 minuti",
+      "tempi_display": "Prep: 15 min"
+    },
+    "slot_consigliato": "pranzo_cena",
+    "gruppi_alimentari": [
+      "cibi_proteici",
+      "grassi"
+    ],
+    "tags": [
+      "100% Vegetale",
+      "Senza Glutine",
+      "Veloce",
+      "Proteico"
+    ],
+    "ingredienti": [
+      "400 g di ceci cotti",
+      "2 cucchiai di tahina (pasta di sesamo)",
+      "1 spicchio d'aglio",
+      "1 limone (succo spremuto)",
+      "2 cucchiai di olio extravergine d'oliva",
+      "1 cucchiaino di cumino in polvere",
+      "1 pizzico di sale fino",
+      "30 ml di acqua fredda o ghiaccio"
+    ],
+    "ingredienti_per_sezione": [
+      {
+        "sezione": "Principale",
+        "ingredienti": [
+          "400 g di ceci cotti",
+          "2 cucchiai di tahina (pasta di sesamo)",
+          "1 spicchio d'aglio",
+          "1 limone (succo spremuto)",
+          "2 cucchiai di olio extravergine d'oliva",
+          "1 cucchiaino di cumino in polvere",
+          "1 pizzico di sale fino",
+          "30 ml di acqua fredda o ghiaccio"
+        ]
+      }
+    ],
+    "ingredienti_dettagliati": [
+      {
+        "sezione": "Principale",
+        "testo": "400 g di ceci cotti",
+        "quantita": 400,
+        "unita": "g",
+        "ingrediente": "ceci cotti"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "2 cucchiai di tahina (pasta di sesamo)",
+        "quantita": 2,
+        "unita": "cucchiai",
+        "ingrediente": "tahina"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "1 spicchio d'aglio",
+        "quantita": 1,
+        "unita": "spicchio",
+        "ingrediente": "aglio"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "1 limone (succo spremuto)",
+        "quantita": 1,
+        "unita": "limone",
+        "ingrediente": "succo di limone"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "2 cucchiai di olio extravergine d'oliva",
+        "quantita": 2,
+        "unita": "cucchiai",
+        "ingrediente": "olio extravergine d'oliva"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "1 cucchiaino di cumino in polvere",
+        "quantita": 1,
+        "unita": "cucchiaino",
+        "ingrediente": "cumino in polvere"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "1 pizzico di sale fino",
+        "quantita": 1,
+        "unita": "pizzico",
+        "ingrediente": "sale fino"
+      },
+      {
+        "sezione": "Principale",
+        "testo": "30 ml di acqua fredda o ghiaccio",
+        "quantita": 30,
+        "unita": "ml",
+        "ingrediente": "acqua fredda"
+      }
+    ],
+    "istruzioni": [
+      "Sciacquare e scolare i ceci cotti.",
+      "Inserire nel boccale del frullatore i ceci, la tahina, lo spicchio d'aglio privato dell'anima, il succo di limone, il sale e il cumino.",
+      "Frullare alla massima potenza aggiungendo l'olio a filo e l'acqua fredda o un cubetto di ghiaccio per ottenere una consistenza spumosa e vellutata.",
+      "Servire in una ciotola guarnendo con un filo d'olio a crudo, paprika dolce e semi di sesamo tostato a piacere."
+    ],
+    "suggerimenti": [
+      "Per un hummus ancora più cremoso, rimuovere le pellicine esterne dei ceci prima di frullarli.",
+      "Si conserva perfettamente in frigorifero in un contenitore ermetico per 3-4 giorni."
+    ]
+  }
+]
