@@ -414,11 +414,11 @@ export async function consolidateShoppingList(): Promise<number> {
 
   try {
     const executeConsolidation = async () => {
-      // 1. Elimina SOLO gli ingredienti non spuntati oggetto di consolidamento
-      // Gli articoli già spuntati nel carrello rimangono intatti e protetti al 100%
+      // 1. Delete ONLY unchecked items that are subject to consolidation
+      // Checked cart items remain untouched and 100% protected
       await dbInstance.runAsync('DELETE FROM shopping_items WHERE checked = 0');
 
-      // 2. Inserisce i nuovi articoli consolidati
+      // 2. Insert new consolidated items
       for (const item of consolidatedNewItems) {
         await dbInstance.runAsync(
           `INSERT INTO shopping_items (id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at)

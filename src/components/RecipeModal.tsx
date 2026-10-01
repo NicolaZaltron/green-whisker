@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -9,7 +9,8 @@ import {
   Linking,
   StatusBar,
   TextInput,
-  Platform
+  Platform,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -50,7 +51,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
-  const [scrollY, setScrollY] = useState(0);
+
+  // Native driver scroll value for smooth 60fps title fade without JS re-renders
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const titleOpacity = scrollY.interpolate({
+    inputRange: [20, 60],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
 
   // Sharing & Personal Notes State
   const [showShareModal, setShowShareModal] = useState(false);
@@ -75,7 +83,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       setShowShareModal(false);
       setIsEditingNote(false);
       setSavedNoteStatus(null);
-      setScrollY(0);
+      scrollY.setValue(0);
 
       const todayStr = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || '';
       setSelectedDate(todayStr);
@@ -282,7 +290,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
         <StatusBar barStyle="dark-content" />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
           {/* Dynamic Sticky Top Navigation Bar */}
-          <View style={[styles.topNav, scrollY > 20 && styles.topNavScrolled]}>
+          <View style={styles.topNav}>
             <TouchableOpacity
               style={styles.navBtn}
               onPress={onClose}
@@ -292,15 +300,15 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
               <Ionicons name="close" size={22} color="#2B332B" />
             </TouchableOpacity>
 
-            <Text
+            <Animated.Text
               style={[
                 styles.topNavTitle,
-                { opacity: scrollY > 30 ? Math.min(1, (scrollY - 30) / 40) : 0 }
+                { opacity: titleOpacity }
               ]}
               numberOfLines={1}
             >
               {recipe.titolo}
-            </Text>
+            </Animated.Text>
 
             <View style={styles.navActions}>
               <TouchableOpacity
@@ -342,11 +350,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             </View>
           )}
 
-          <ScrollView
+          <Animated.ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={e => setScrollY(e.nativeEvent.contentOffset.y)}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
             scrollEventThrottle={16}
           >
             {/* Main Image with expo-image */}
@@ -589,7 +600,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
               <View style={{ height: 20 }} />
             </View>
-          </ScrollView>
+          </Animated.ScrollView>
 
           {/* Sticky Meal Plan Drawer (pops up when showPlanPicker is open) */}
           {showPlanPicker && (
@@ -867,17 +878,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEBE4',
-    backgroundColor: '#FBF9F5',
-    zIndex: 10,
-  },
-  topNavScrolled: {
     borderBottomColor: '#E2DCD1',
+    backgroundColor: '#FBF9F5',
     shadowColor: '#1A2E1F',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 10,
   },
   navBtn: {
     width: 36,
