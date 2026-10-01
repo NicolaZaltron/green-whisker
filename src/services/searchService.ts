@@ -25,7 +25,14 @@ function createFuse(recipes: Recipe[]): Fuse<Recipe> {
 }
 
 let currentDataset: Recipe[] = defaultRecipes;
-let fuseInstance: Fuse<Recipe> | null = createFuse(defaultRecipes);
+let fuseInstance: Fuse<Recipe> | null = null;
+
+function getFuseInstance(): Fuse<Recipe> {
+  if (!fuseInstance) {
+    fuseInstance = createFuse(currentDataset);
+  }
+  return fuseInstance;
+}
 
 export function initializeSearchIndex(recipes: Recipe[]): void {
   currentDataset = recipes;
@@ -41,8 +48,9 @@ export function searchRecipes(
 
   // 1. Text Search (Fuzzy or Exact)
   const trimmed = query.trim();
-  if (trimmed && fuseInstance) {
-    const results = fuseInstance.search(trimmed);
+  if (trimmed) {
+    const fuse = getFuseInstance();
+    const results = fuse.search(trimmed);
     list = results.map(r => r.item);
   }
 

@@ -52,8 +52,21 @@ function normalize(str: string): string {
     .trim();
 }
 
-// Estrazione di tutti i termini univoci di ingredienti per l'autocompletamento
-const UNIQUE_INGREDIENTS: string[] = (() => {
+interface NormalizedIngredientItem {
+  original: string;
+  normalized: string;
+}
+
+let cachedNormalizedIngredients: NormalizedIngredientItem[] | null = null;
+
+/**
+ * Lazily extracts and caches unique ingredient terms to avoid blocking JS thread during app boot.
+ */
+function getNormalizedIngredients(): NormalizedIngredientItem[] {
+  if (cachedNormalizedIngredients !== null) {
+    return cachedNormalizedIngredients;
+  }
+
   const set = new Set<string>();
   const stopWords = new Set([
     'q.b.', 'qb', 'g', 'grammi', 'kg', 'ml', 'cl', 'l', 'litri',
@@ -68,9 +81,9 @@ const UNIQUE_INGREDIENTS: string[] = (() => {
 
   POPULAR_PANTRY_ITEMS.forEach(item => set.add(item));
 
-  defaultRecipes.forEach(recipe => {
-    recipe.ingredienti.forEach(raw => {
-      // Pulisci e cattura il nome principale
+  for (const recipe of defaultRecipes) {
+    if (!recipe.ingredienti) continue;
+    for (const raw of recipe.ingredienti) {
       const words = raw
         .toLowerCase()
         .replace(/[^a-zàèéìòù\s]/g, ' ')
@@ -78,34 +91,46 @@ const UNIQUE_INGREDIENTS: string[] = (() => {
         .filter(w => w.length > 2 && !stopWords.has(w));
 
       if (words.length > 0) {
-        // Aggiungi parole chiave significative (capitalizzate)
         words.forEach(w => {
           if (w.length >= 3) {
             set.add(w.charAt(0).toUpperCase() + w.slice(1));
           }
         });
       }
-    });
-  });
+    }
+  }
 
-  return Array.from(set).sort((a, b) => a.localeCompare('it'));
-})();
+  const sorted = Array.from(set).sort((a, b) => a.localeCompare('it'));
+  cachedNormalizedIngredients = sorted.map(item => ({
+    original: item,
+    normalized: normalize(item)
+  }));
+
+  return cachedNormalizedIngredients;
+}
 
 /**
- * Restituisce suggerimenti di ingredienti in base al testo digitato
+ * Returns ingredient autocomplete suggestions based on typed query with pre-normalized matching and early exit.
  */
 export function getIngredientSuggestions(query: string, alreadySelected: string[] = []): string[] {
   const trimmed = normalize(query);
   if (!trimmed) return [];
 
   const selectedNorm = new Set(alreadySelected.map(normalize));
+  const items = getNormalizedIngredients();
+  const suggestions: string[] = [];
 
-  return UNIQUE_INGREDIENTS
-    .filter(item => {
-      const norm = normalize(item);
-      return !selectedNorm.has(norm) && norm.includes(trimmed);
-    })
-    .slice(0, 8);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!selectedNorm.has(item.normalized) && item.normalized.includes(trimmed)) {
+      suggestions.push(item.original);
+      if (suggestions.length >= 8) {
+        break;
+      }
+    }
+  }
+
+  return suggestions;
 }
 
 /**

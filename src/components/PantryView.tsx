@@ -154,8 +154,8 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
     [numColumns, onSelectRecipe]
   );
 
-  // Header component containing search inputs, autocomplete, chips, and filter tabs
-  const renderListHeader = useCallback(() => (
+  // Header element containing search inputs, autocomplete, chips, and filter tabs
+  const listHeaderElement = (
     <View style={styles.headerContainer}>
       {/* Header Info */}
       <View style={styles.headerBox}>
@@ -324,48 +324,28 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         </View>
       )}
     </View>
-  ), [
-    inputText,
-    suggestions,
-    selectedIngredients,
-    quickChips,
-    assumeStaples,
-    allResults.length,
-    readyCount,
-    almostCount,
-    activeFilter,
-  ]);
+  );
 
-  // Empty state renderer
-  const renderListEmpty = useCallback(() => {
-    if (selectedIngredients.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}>
-            <Ionicons name="basket-outline" size={42} color="#8E9C91" />
-          </View>
-          <Text style={styles.emptyTitle}>Il tuo svuotafrigo è vuoto</Text>
-          <Text style={styles.emptySubtitle}>
-            Aggiungi 2 o più ingredienti che hai in cucina per visualizzare subito cosa puoi preparare.
-          </Text>
-        </View>
-      );
-    }
-
-    if (filteredResults.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={38} color="#8E9C91" />
-          <Text style={styles.emptyTitle}>Nessuna ricetta per questo filtro</Text>
-          <Text style={styles.emptySubtitle}>
-            Prova a selezionare il filtro "Tutte" o aggiungi qualche altro ingrediente.
-          </Text>
-        </View>
-      );
-    }
-
-    return null;
-  }, [selectedIngredients.length, filteredResults.length]);
+  // Empty state element
+  const listEmptyElement = selectedIngredients.length === 0 ? (
+    <View style={styles.emptyContainer}>
+      <View style={styles.emptyIconCircle}>
+        <Ionicons name="basket-outline" size={42} color="#8E9C91" />
+      </View>
+      <Text style={styles.emptyTitle}>Il tuo svuotafrigo è vuoto</Text>
+      <Text style={styles.emptySubtitle}>
+        Aggiungi 2 o più ingredienti che hai in cucina per visualizzare subito cosa puoi preparare.
+      </Text>
+    </View>
+  ) : filteredResults.length === 0 ? (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="search-outline" size={38} color="#8E9C91" />
+      <Text style={styles.emptyTitle}>Nessuna ricetta per questo filtro</Text>
+      <Text style={styles.emptySubtitle}>
+        Prova a selezionare il filtro "Tutte" o aggiungi qualche altro ingrediente.
+      </Text>
+    </View>
+  ) : null;
 
   return (
     <View style={styles.root}>
@@ -390,8 +370,8 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         maxToRenderPerBatch={8}
         windowSize={5}
         removeClippedSubviews={Platform.OS !== 'web'}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={renderListEmpty}
+        ListHeaderComponent={listHeaderElement}
+        ListEmptyComponent={listEmptyElement}
         renderItem={renderPantryItem}
       />
     </View>
