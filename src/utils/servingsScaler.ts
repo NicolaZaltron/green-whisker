@@ -157,3 +157,76 @@ export function cleanShoppingIngredientText(text: string, fallbackName?: string)
   return cleaned || fallbackName || text;
 }
 
+/**
+ * Divide la dicitura di un ingrediente per la spesa in Nome (a sinistra) e Quantità (a destra).
+ * Esempi:
+ * - "260 g Carote" -> { displayName: "Carote", displayQuantity: "260 g" }
+ * - "1 spicchio e 1/2 Aglio" -> { displayName: "Aglio", displayQuantity: "1 spicchio e ½" }
+ * - "Barbabietola cotta", amount: 60, unit: "g" -> { displayName: "Barbabietola cotta", displayQuantity: "60 g" }
+ * - "Olio EVO" -> { displayName: "Olio EVO", displayQuantity: "" }
+ */
+export function splitShoppingItemDisplay(
+  ingredientText: string,
+  fallbackName?: string,
+  amount?: number | null,
+  unit?: string
+): { displayName: string; displayQuantity: string } {
+  const cleanName = (fallbackName || '').trim();
+  const rawText = cleanShoppingIngredientText(ingredientText, cleanName).trim();
+
+  // 1. Se abbiamo amount e unit espliciti
+  if (amount !== null && amount !== undefined && amount > 0) {
+    let qtyStr = '';
+    if (amount === 0.5) {
+      qtyStr = '½';
+    } else if (amount === 0.25) {
+      qtyStr = '¼';
+    } else if (amount === 0.75) {
+      qtyStr = '¾';
+    } else if (amount === 1.5) {
+      qtyStr = '1 e ½';
+    } else if (amount % 1 === 0) {
+      qtyStr = amount.toString();
+    } else {
+      qtyStr = amount.toFixed(1).replace('.0', '');
+    }
+
+    const unitStr = (unit || '').trim();
+    let qtyFull = unitStr ? `${qtyStr} ${unitStr}` : qtyStr;
+    if (unitStr === 'spicchio' && amount > 1) {
+      qtyFull = amount === 1.5 ? '1 spicchio e ½' : `${qtyStr} spicchi`;
+    }
+
+    let nameToUse = cleanName;
+    if (!nameToUse || nameToUse.toLowerCase() === rawText.toLowerCase()) {
+      const stripped = rawText.replace(/^(?:\d+(?:[.,]\d+)?|\d+\/\d+|½|¼|¾)\s*(?:[a-zA-ZÀ-ÿ]+\.?\s*)?/i, '').trim();
+      nameToUse = stripped || rawText;
+    }
+
+    return {
+      displayName: nameToUse.charAt(0).toUpperCase() + nameToUse.slice(1),
+      displayQuantity: qtyFull,
+    };
+  }
+
+  // 2. Analizza eventuale quantità iniziale nel testo
+  const leadingQtyRegex = /^((?:\d+(?:[.,]\d+)?|\d+\/\d+|½|¼|¾)\s*(?:[a-zA-ZÀ-ÿ]+\.?\s*(?:e\s+(?:½|1\/2|\d+)\s*)?)?)\s*(?:di\s+|d')?\s*(.+)$/i;
+  const match = rawText.match(leadingQtyRegex);
+  if (match) {
+    let qtyPart = match[1].trim();
+    qtyPart = qtyPart.replace(/1\/2/g, '½').replace(/1\/4/g, '¼').replace(/3\/4/g, '¾');
+    const namePart = match[2].trim();
+    return {
+      displayName: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+      displayQuantity: qtyPart,
+    };
+  }
+
+  // 3. Fallback: solo nome
+  const finalName = rawText || cleanName;
+  return {
+    displayName: finalName.charAt(0).toUpperCase() + finalName.slice(1),
+    displayQuantity: '',
+  };
+}
+

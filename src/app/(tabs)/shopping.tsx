@@ -29,7 +29,7 @@ import {
   consolidateShoppingList,
 } from '../../db/database';
 import { getWeekDays, aggregateAndAddToShopping } from '../../services/plannerService';
-import { cleanShoppingIngredientText } from '../../utils/servingsScaler';
+import { cleanShoppingIngredientText, splitShoppingItemDisplay } from '../../utils/servingsScaler';
 import {
   SHOPPING_DEPARTMENTS,
   ShoppingDepartment,
@@ -525,36 +525,50 @@ export default function ShoppingScreen() {
               </View>
             );
           }}
-          renderItem={({ item }) => (
-            <View style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
-              <TouchableOpacity
-                style={styles.checkArea}
-                onPress={() => handleToggle(item.id)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-                  {item.checked && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                </View>
-                <View style={styles.itemContent}>
-                  <Text style={[styles.itemText, item.checked && styles.itemTextChecked]}>
-                    {cleanShoppingIngredientText(item.ingredient_text, item.name)}
-                  </Text>
-                  {item.recipe_title && (
-                    <Text style={styles.itemRecipe}>{t('shopping.fromRecipe', { recipe: item.recipe_title })}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+          renderItem={({ item }) => {
+            const { displayName, displayQuantity } = splitShoppingItemDisplay(
+              item.ingredient_text,
+              item.name,
+              item.amount,
+              item.unit
+            );
 
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => handleDelete(item.id)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close" size={18} color="#A3B2A6" />
-              </TouchableOpacity>
-            </View>
-          )}
+            return (
+              <View style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
+                <TouchableOpacity
+                  style={styles.checkArea}
+                  onPress={() => handleToggle(item.id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
+                    {item.checked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                  </View>
+                  <View style={styles.itemRowContent}>
+                    <Text
+                      style={[styles.itemName, item.checked && styles.itemNameChecked]}
+                      numberOfLines={2}
+                    >
+                      {displayName}
+                    </Text>
+                    {displayQuantity ? (
+                      <Text style={[styles.itemQty, item.checked && styles.itemQtyChecked]}>
+                        {displayQuantity}
+                      </Text>
+                    ) : null}
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDelete(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={16} color="#CBD5D0" />
+                </TouchableOpacity>
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
@@ -896,19 +910,22 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 6,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: '#ECE7DF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   itemCardChecked: {
-    backgroundColor: '#F7F8F7',
-    opacity: 0.65,
-    borderColor: '#EAE6DF',
+    backgroundColor: '#F8FAF8',
+    borderColor: '#E6EAE7',
   },
   checkArea: {
     flexDirection: 'row',
@@ -918,36 +935,49 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#BDC7BE',
+    borderColor: '#2D3830',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 11,
+    marginRight: 14,
   },
   checkboxChecked: {
     backgroundColor: '#34523C',
     borderColor: '#34523C',
   },
-  itemContent: {
+  itemRowContent: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 6,
   },
-  itemText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#243328',
+  itemName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1C261F',
+    flexShrink: 1,
+    letterSpacing: -0.2,
   },
-  itemTextChecked: {
+  itemNameChecked: {
     textDecorationLine: 'line-through',
-    color: '#8A998D',
+    color: '#9EABA1',
+    fontWeight: '500',
   },
-  itemRecipe: {
-    fontSize: 11,
-    color: '#7E8B80',
-    marginTop: 2,
+  itemQty: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#8A998D',
+    marginLeft: 12,
+  },
+  itemQtyChecked: {
+    textDecorationLine: 'line-through',
+    color: '#B5C2B9',
   },
   deleteBtn: {
-    padding: 6,
+    padding: 4,
+    marginLeft: 4,
   },
   emptyContainer: {
     alignItems: 'center',
