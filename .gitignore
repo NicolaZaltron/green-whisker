@@ -44,3 +44,7 @@ assets/ricette.backup.json
 .env
 .env.*
 !.env.example
+scripts/apply_recipes_normalization_edge_cases.js
+scripts/apply_recipes_normalization.js
+scripts/normalize_ricette.js
+scripts/test_normalization_rules.js

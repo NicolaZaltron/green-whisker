@@ -210,10 +210,15 @@ export async function getShoppingItems(): Promise<ShoppingItem[]> {
 }
 
 function isNonPurchasableItem(cleanName: string, key: string): boolean {
-  if (!cleanName || !key) return true;
-  if (key === 'ghiaccio' || key === 'cubetti di ghiaccio' || key === 'cubetto di ghiaccio') return true;
-  if (/^acqua(?:\s+(?:di\s+cottura(?:\s+della\s+pasta)?|tiepida|calda|fredda|fresca|del\s+rubinetto|q\.?b\.?))?$/i.test(key)) return true;
-  if (/^acqua\s+di\s+cottura/i.test(cleanName)) return true;
+  if (!cleanName && !key) return true;
+  const n = (cleanName || '').toLowerCase().trim();
+  const k = (key || '').toLowerCase().trim();
+  if (k === 'ghiaccio' || k === 'cubetti di ghiaccio' || k === 'cubetto di ghiaccio' || n === 'ghiaccio') return true;
+  if (/^acqua\b/i.test(k) || /^acqua\b/i.test(n)) {
+    // Escludi acque comprate al supermercato
+    if (/acqua\s+di\s+cocco|acqua\s+tonica|acqua\s+di\s+rose|acqua\s+di\s+fiori/i.test(n)) return false;
+    return true;
+  }
   return false;
 }
 

@@ -140,10 +140,13 @@ export function cleanShoppingIngredientText(text: string, fallbackName?: string)
   // Rimuove prefissi rotti derivanti da vecchie regex ('no raso', 'no di', 'no ', 'o di', 'o ')
   cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
 
+  // Rimuove espressioni di quantità o introduzione da ricetta tipo "abbondante di", "un filo di", "un goccio di"
+  cleaned = cleaned.replace(/^(?:abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?|qualche\s+goccia\s*(?:di\s+|d')?|una\s+presa\s*(?:di\s+|d')?|un\s+pizzico\s*(?:di\s+|d')?)/i, '');
+
   // Rimuove unità da cucina residue
-  const KITCHEN_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|bicchieri|bicchiere|cubetti|cubetto)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
+  const KITCHEN_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|tazzine|tazzina|bicchieri|bicchiere|cubetti|cubetto)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
   cleaned = cleaned.replace(KITCHEN_REGEX, '');
-  cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
+  cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+|abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?)/i, '');
 
   // Pulisci aggettivi di taglio
   cleaned = cleaned.replace(/\b(a cubetti|a fette|a pezzetti|a fettine|a spicchi|tritat[oaei]|sminuzzat[oaei]|grattugiat[oaei]|raso|colmo)\b/gi, ' ');
@@ -171,10 +174,13 @@ export function splitShoppingItemDisplay(
   amount?: number | null,
   unit?: string
 ): { displayName: string; displayQuantity: string } {
-  const cleanName = (fallbackName || '').trim();
-  const rawText = cleanShoppingIngredientText(ingredientText, cleanName).trim();
+  const cleanFallback = (fallbackName || '').trim();
+  const rawText = cleanShoppingIngredientText(ingredientText, cleanFallback).trim();
 
-  // 1. Se abbiamo amount e unit espliciti
+  // Pattern esatto per le sole unità di misura reali (mai parole di cibo come burro, latte, olio)
+  const unitPattern = '(?:g|gr|grammi|grammo|kg|chili|chilo|chilogrammi|ml|millilitri|cl|dl|l|litri|litro|tazzin[oaei]?|tazz[oaei]?|cucchiai[oaei]?|cucchiain[oaei]?|pizzic[oaei]?|spicchi[oaei]?|fogli[oaei]?|fogliolin[oaei]?|rotol[oaei]?|panett[oaei]?|confezion[oaei]?|barattol[oaei]?|vasett[oaei]?|scatolett[oaei]?|lattin[oaei]?|bustin[oaei]?|fett[oaei]?|ciuff[oaei]?|ramett[oaei]?)';
+
+  // 1. Se abbiamo amount numerico valido
   if (amount !== null && amount !== undefined && amount > 0) {
     let qtyStr = '';
     if (amount === 0.5) {
@@ -197,25 +203,28 @@ export function splitShoppingItemDisplay(
       qtyFull = amount === 1.5 ? '1 spicchio e ½' : `${qtyStr} spicchi`;
     }
 
-    let nameToUse = cleanName;
+    let nameToUse = cleanFallback;
     if (!nameToUse || nameToUse.toLowerCase() === rawText.toLowerCase()) {
-      const stripped = rawText.replace(/^(?:\d+(?:[.,]\d+)?|\d+\/\d+|½|¼|¾)\s*(?:[a-zA-ZÀ-ÿ]+\.?\s*)?/i, '').trim();
-      nameToUse = stripped || rawText;
+      // Rimuovi SOLO numero e unità di misura reale all'inizio
+      const stripRegex = new RegExp(`^(?:\\d+(?:[.,]\\d+)?|\\d+/\\d+|½|¼|¾)\\s*(?:${unitPattern}\\.?\\s*)?(?:di\\s+|d')?\\s*`, 'i');
+      nameToUse = rawText.replace(stripRegex, '').trim();
     }
 
+    if (!nameToUse) nameToUse = rawText;
+    nameToUse = cleanShoppingIngredientText(nameToUse);
     return {
       displayName: nameToUse.charAt(0).toUpperCase() + nameToUse.slice(1),
       displayQuantity: qtyFull,
     };
   }
 
-  // 2. Analizza eventuale quantità iniziale nel testo
-  const leadingQtyRegex = /^((?:\d+(?:[.,]\d+)?|\d+\/\d+|½|¼|¾)\s*(?:[a-zA-ZÀ-ÿ]+\.?\s*(?:e\s+(?:½|1\/2|\d+)\s*)?)?)\s*(?:di\s+|d')?\s*(.+)$/i;
-  const match = rawText.match(leadingQtyRegex);
+  // 2. Analizza eventuale quantità iniziale nel testo originale
+  const leadingQtyRegex = new RegExp(`^((?:\\d+(?:[.,]\\d+)?|\\d+/\\d+|½|¼|¾)\\s*(?:${unitPattern}\\.?\\s*(?:e\\s+(?:½|1/2|\\d+)\\s*)?)?)\\s*(?:di\\s+|d')?\\s*(.+)$`, 'i');
+  const match = (ingredientText || rawText).trim().match(leadingQtyRegex);
   if (match) {
     let qtyPart = match[1].trim();
     qtyPart = qtyPart.replace(/1\/2/g, '½').replace(/1\/4/g, '¼').replace(/3\/4/g, '¾');
-    const namePart = match[2].trim();
+    const namePart = cleanShoppingIngredientText(match[2].trim(), cleanFallback);
     return {
       displayName: namePart.charAt(0).toUpperCase() + namePart.slice(1),
       displayQuantity: qtyPart,
@@ -223,7 +232,7 @@ export function splitShoppingItemDisplay(
   }
 
   // 3. Fallback: solo nome
-  const finalName = rawText || cleanName;
+  const finalName = cleanShoppingIngredientText(rawText || cleanFallback);
   return {
     displayName: finalName.charAt(0).toUpperCase() + finalName.slice(1),
     displayQuantity: '',

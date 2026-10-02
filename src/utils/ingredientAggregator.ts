@@ -39,6 +39,8 @@ const KITCHEN_UNITS = new Set([
   'quanto basta',
   'tazza',
   'tazze',
+  'tazzina',
+  'tazzine',
   'bicchiere',
   'bicchieri',
   'ciuffo',
@@ -74,7 +76,7 @@ const DISCRETE_UNITS: Record<string, { singular: string; plural: string }> = {
   spicchi: { singular: 'spicchio', plural: 'spicchi' },
 };
 
-const KITCHEN_MEASURE_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|bicchieri|bicchiere|cubetti|cubetto|fette|fetta|rotoli|rotolo|panetti|panetto|vasetti|vasetto|barattoli|barattolo|scatolette|scatoletta|lattine|lattina)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
+const KITCHEN_MEASURE_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|tazzine|tazzina|bicchieri|bicchiere|cubetti|cubetto|fette|fetta|rotoli|rotolo|panetti|panetto|vasetti|vasetto|barattoli|barattolo|scatolette|scatoletta|lattine|lattina)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
 
 const WEIGHT_VOL_REGEX = /^(?:\d+(?:[.,]\d+)?|\d+\/\d+)\s*(?:g|gr|grammi|kg|chili|chilo|ml|millilitri|l|litri)\s*(?:di\s+|d')?/i;
 
@@ -100,6 +102,9 @@ export function cleanSupermarketIngredientName(raw: string): string {
   // 4. Rimuovi prefissi rotti derivanti da vecchie regex (es. 'no raso', 'no di', 'no ', 'o di', 'o ')
   name = name.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
 
+  // 4b. Rimuovi espressioni di quantità o introduzione da ricetta tipo "abbondante di", "un filo di", "un goccio di", "una spolverata di"
+  name = name.replace(/^(?:abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?|qualche\s+goccia\s*(?:di\s+|d')?|una\s+presa\s*(?:di\s+|d')?|un\s+pizzico\s*(?:di\s+|d')?)/i, '');
+
   // 5. Rimuovi pesi e volumi se inclusi nel nome (es. '50 g Basilico' -> 'Basilico')
   name = name.replace(WEIGHT_VOL_REGEX, '');
 
@@ -109,8 +114,8 @@ export function cleanSupermarketIngredientName(raw: string): string {
   // 7. Rimuovi numeri isolati all'inizio (es. '1 Melanzana' -> 'Melanzana')
   name = name.replace(/^(?:\d+(?:[.,]\d+)?|\d+\/\d+)\s*(?:di\s+|d')?/i, '');
 
-  // 8. Ricontrolla eventuali prefissi 'no ' o 'o ' scoperti dopo la rimozione dei numeri
-  name = name.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
+  // 8. Ricontrolla eventuali prefissi 'no ', 'o ' o espressioni "abbondante di" scoperte dopo la rimozione dei numeri/unità
+  name = name.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+|abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?)/i, '');
 
   // 9. Taglia duplicazioni singolare/plurale da web scraping (es. 'Peperoncino verde ... Peperoncini verdi ...')
   const words = name.trim().split(/\s+/);

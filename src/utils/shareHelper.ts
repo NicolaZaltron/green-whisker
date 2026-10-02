@@ -185,7 +185,13 @@ export function formatShoppingListShareText(items: ShoppingItem[]): string {
   for (const dept of SHOPPING_DEPARTMENTS) {
     const list = map.get(dept) || [];
     if (list.length > 0) {
-      const deptTitle = i18n.t(`shopping.departments.${dept}`, { defaultValue: dept });
+      list.sort((a, b) => {
+        const textA = cleanShoppingIngredientText(a.ingredient_text, a.name);
+        const textB = cleanShoppingIngredientText(b.ingredient_text, b.name);
+        return textA.localeCompare(textB, 'it', { sensitivity: 'base' });
+      });
+
+      const deptTitle = i18n.t(`shoppingDepartments.${dept}`, { defaultValue: dept });
       lines.push(`📦 *${deptTitle.toUpperCase()}*`);
       list.forEach(i => {
         const checkMark = i.checked ? '✔️ ' : '▫️ ';

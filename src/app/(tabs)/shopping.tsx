@@ -134,6 +134,13 @@ export default function ShoppingScreen() {
     for (const dept of SHOPPING_DEPARTMENTS) {
       const deptItems = map.get(dept) || [];
       if (deptItems.length > 0) {
+        // Ordinamento alfabetico all'interno di ogni categoria
+        deptItems.sort((a, b) => {
+          const nameA = splitShoppingItemDisplay(a.ingredient_text, a.name, a.amount, a.unit).displayName;
+          const nameB = splitShoppingItemDisplay(b.ingredient_text, b.name, b.amount, b.unit).displayName;
+          return nameA.localeCompare(nameB, 'it', { sensitivity: 'base' });
+        });
+
         const checked = deptItems.filter(i => i.checked).length;
         sections.push({
           department: dept,
@@ -274,9 +281,9 @@ export default function ShoppingScreen() {
             <View style={styles.iconBadge}>
               <Ionicons name="cart" size={22} color="#34523C" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{t('shopping.title')}</Text>
-              <Text style={styles.subtitle}>
+            <View style={styles.titleTextContainer}>
+              <Text style={styles.title} numberOfLines={1}>{t('shopping.title')}</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>
                 {items.length === 0
                   ? t('shopping.emptySubtitle')
                   : t('shopping.subtitleDetails', {
@@ -311,12 +318,12 @@ export default function ShoppingScreen() {
 
                   {completedCount > 0 && (
                     <TouchableOpacity
-                      style={styles.headerActionBtn}
+                      style={[styles.headerActionBtn, styles.headerActionBtnCompleted]}
                       onPress={handleClearCompleted}
                       activeOpacity={0.7}
+                      accessibilityLabel={t('shopping.removeCompleted')}
                     >
-                      <Ionicons name="checkbox-outline" size={16} color="#34523C" />
-                      <Text style={styles.headerActionText}>{t('shopping.removeCompleted')}</Text>
+                      <Ionicons name="checkmark-done-outline" size={18} color="#2E663B" />
                     </TouchableOpacity>
                   )}
 
@@ -712,9 +719,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF0EB',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  titleTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: '800',
     color: '#243328',
     letterSpacing: -0.5,
@@ -729,15 +741,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
   },
   headerActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    width: 36,
+    height: 36,
     borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E8E3DB',
     shadowColor: '#000',
@@ -745,10 +757,9 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
   },
-  headerActionText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#34523C',
+  headerActionBtnCompleted: {
+    backgroundColor: '#EAF5EE',
+    borderColor: '#C8E2D0',
   },
   inputContainer: {
     backgroundColor: '#FFFFFF',
