@@ -13,9 +13,9 @@ export interface AdvancedFilterOptions {
 function createFuse(recipes: Recipe[]): Fuse<Recipe> {
   return new Fuse(recipes, {
     keys: [
-      { name: 'titolo', weight: 0.6 },
-      { name: 'ingredienti', weight: 0.3 },
-      { name: 'categoria', weight: 0.1 }
+      { name: 'title', weight: 0.6 },
+      { name: 'ingredients', weight: 0.3 },
+      { name: 'category', weight: 0.1 }
     ],
     threshold: 0.35,
     ignoreLocation: true,
@@ -56,13 +56,13 @@ export function searchRecipes(
 
   // 2. Category Filter (Macro)
   if (categoryFilter && categoryFilter !== 'Tutte') {
-    list = list.filter(r => r.categoria === categoryFilter || r.macro_categoria === categoryFilter);
+    list = list.filter(r => r.category === categoryFilter || r.macro_category === categoryFilter);
   }
 
   // 3. String Tag Filter (backward compat)
   if (typeof filters === 'string' && filters) {
     if (filters === '< 30 min') {
-      list = list.filter(r => r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= 30);
+      list = list.filter(r => r.times.total_minutes > 0 && r.times.total_minutes <= 30);
     } else if (filters === 'Senza Glutine') {
       list = list.filter(r => r.tags.some(t => t.toLowerCase().includes('senza glutine')));
     } else if (filters === 'Al forno') {
@@ -70,18 +70,18 @@ export function searchRecipes(
     } else if (filters === 'Senza cottura') {
       list = list.filter(r => r.tags.some(t => t.toLowerCase().includes('senza cottura')));
     } else if (filters === 'Facile') {
-      list = list.filter(r => r.difficolta === 'Facile');
+      list = list.filter(r => r.difficulty === 'Facile' || r.difficulty === 'easy');
     }
   } else if (filters && typeof filters === 'object') {
     // 4. Advanced Filters
     if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') {
-      list = list.filter(r => r.sottocategoria === filters.sottocategoria);
+      list = list.filter(r => r.subcategory === filters.sottocategoria);
     }
     if (filters.maxMinutes) {
-      list = list.filter(r => r.tempi.tempo_totale_minuti > 0 && r.tempi.tempo_totale_minuti <= filters.maxMinutes!);
+      list = list.filter(r => r.times.total_minutes > 0 && r.times.total_minutes <= filters.maxMinutes!);
     }
     if (filters.difficolta) {
-      list = list.filter(r => r.difficolta === filters.difficolta);
+      list = list.filter(r => r.difficulty === filters.difficolta || (filters.difficolta === 'Facile' && r.difficulty === 'easy') || (filters.difficolta === 'Media' && r.difficulty === 'medium') || (filters.difficolta === 'Difficile' && r.difficulty === 'hard'));
     }
     if (filters.tag) {
       const lower = filters.tag.toLowerCase();

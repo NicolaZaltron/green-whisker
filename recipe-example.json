@@ -1,76 +1,94 @@
 {
-  "$schema_description": "Schema di riferimento con placeholder per Green Whisker",
-  "id": "id-univoco-ricetta-kebab-case",
-  "titolo": "Titolo della Ricetta",
-  "fonte": "Nome Fonte, Blog o Autore",
-  "url": "https://example.com/ricetta-originale",
-  "immagine": "https://example.com/immagini/foto-piatto.jpg",
-  "categoria": "Secondi piatti",
-  "difficolta": "Facile",
-  "porzioni": 4,
-  "porzioni_testo": "4 porzioni",
-  "tempi": {
-    "tempo_totale_minuti": 30,
-    "tempo_preparazione": "15 minuti",
-    "tempo_cottura": "15 minuti",
-    "tempi_display": "Prep: 15 min, Cottura: 15 min"
+  "$schema_description": "Schema canonico di riferimento per Green Whisker",
+  "id": "tofu-marinato-al-limone-ed-erbe",
+  "title": "Tofu Marinato al Limone ed Erbe",
+  "source": "Personalizzata (AI)",
+  "url": "https://example.com/tofu-marinato",
+  "image": "https://example.com/immagini/tofu-marinato.jpg",
+  "macro_category": "MACRO_PROTEINE_E_SECONDI",
+  "category": "CAT_SECONDI_A_BASE_DI_TOFU",
+  "subcategory": "CAT_SECONDI_A_BASE_DI_TOFU",
+  "difficulty": "easy",
+  "servings": 2,
+  "servings_text": "2 porzioni",
+  "times": {
+    "total_minutes": 25,
+    "prep_time": "10 minuti",
+    "cook_time": "15 minuti",
+    "display_time": "Prep: 10 min, Cottura: 15 min"
   },
-  "slot_consigliato": "pranzo_cena",
-  "gruppi_alimentari": [
+  "recommended_slot": "pranzo_cena",
+  "food_groups": [
     "cibi_proteici",
     "verdura",
     "grassi"
   ],
+  "protein_group": "soia_derivati",
+  "carb_family": "none",
+  "veggie_color": "yellow_white",
+  "is_complete_plate": false,
+  "seasons": [
+    "primavera",
+    "estate",
+    "autunno",
+    "inverno"
+  ],
   "tags": [
     "100% Vegetale",
     "Senza Glutine",
-    "Veloce"
+    "Proteico",
+    "CAT_SECONDI_A_BASE_DI_TOFU"
   ],
-  "ingredienti": [
-    "200 g di ingrediente principale",
-    "2 cucchiai di olio o condimento",
-    "1 pizzico di sale e spezie"
+  "ingredients": [
+    "250 g di tofu al naturale",
+    "1 succo e scorza di limone bio",
+    "2 cucchiai di olio extravergine d'oliva",
+    "1 cucchiaino di origano essiccato",
+    "1 pizzico di sale e pepe"
   ],
-  "ingredienti_per_sezione": [
+  "ingredients_by_section": [
     {
-      "sezione": "Principale",
-      "ingredienti": [
-        "200 g di ingrediente principale",
-        "2 cucchiai di olio o condimento",
-        "1 pizzico di sale e spezie"
+      "section": "Principale",
+      "ingredients": [
+        "250 g di tofu al naturale",
+        "1 succo e scorza di limone bio",
+        "2 cucchiai di olio extravergine d'oliva",
+        "1 cucchiaino di origano essiccato",
+        "1 pizzico di sale e pepe"
       ]
     }
   ],
-  "ingredienti_dettagliati": [
+  "detailed_ingredients": [
     {
-      "sezione": "Principale",
-      "testo": "200 g di ingrediente principale",
-      "quantita": 200,
-      "unita": "g",
-      "ingrediente": "ingrediente principale"
+      "section": "Principale",
+      "text": "250 g di tofu al naturale",
+      "amount": 250,
+      "unit": "g",
+      "ingredient": "tofu al naturale"
     },
     {
-      "sezione": "Principale",
-      "testo": "2 cucchiai di olio o condimento",
-      "quantita": 2,
-      "unita": "cucchiai",
-      "ingrediente": "olio o condimento"
+      "section": "Principale",
+      "text": "1 succo e scorza di limone bio",
+      "amount": 1,
+      "unit": "",
+      "ingredient": "limone bio"
     },
     {
-      "sezione": "Principale",
-      "testo": "1 pizzico di sale e spezie",
-      "quantita": 1,
-      "unita": "pizzico",
-      "ingrediente": "sale e spezie"
+      "section": "Principale",
+      "text": "2 cucchiai di olio extravergine d'oliva",
+      "amount": 2,
+      "unit": "cucchiai",
+      "ingredient": "olio extravergine d'oliva"
     }
   ],
-  "istruzioni": [
-    "Primo passaggio: lavare e preparare gli ingredienti.",
-    "Secondo passaggio: cuocere o lavorare il composto seguendo i tempi indicati.",
-    "Terzo passaggio: impiattare e servire caldo o a temperatura ambiente."
+  "instructions": [
+    "Asciugare bene il panetto di tofu e tagliarlo a cubetti regolari.",
+    "In una ciotola emulsionare il succo di limone, la scorza grattugiata, l'olio, l'origano, sale e pepe.",
+    "Unire i cubetti di tofu alla marinatura e lasciar riposare per almeno 15 minuti.",
+    "Scaldare una padella antiaderente e dorare il tofu su tutti i lati finché diventa croccante in superficie."
   ],
-  "suggerimenti": [
-    "Suggerimento dello chef su varianti o sostituzioni di ingredienti.",
-    "Consiglio pratico per la conservazione (es. in frigorifero per 2-3 giorni)."
+  "tips": [
+    "Per una crosticina ancora più croccante, spolvera i cubetti con un cucchiaino di amido di mais prima di cuocerli.",
+    "Si conserva in frigorifero in un contenitore ermetico per un massimo di 3 giorni."
   ]
 }

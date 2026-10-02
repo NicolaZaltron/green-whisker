@@ -48,6 +48,32 @@ It combines a private recipe catalog with an intelligent pantry matcher, a visua
 
 ---
 
+## 🥗 Smart Meal Planning Algorithm
+
+Green Whisker features an intelligent, nutrition-first meal planning engine that automatically generates varied, balanced 7-day plant-based menus based on three functional pillars:
+
+### 1. Slot Matching Rule (Canonical Category Pools)
+Recipes are strictly partitioned by their canonical category IDs (`CAT_...`) to ensure every dish fits its intended time of day across the 5 daily slots:
+- 🌅 **Breakfast**: Selected exclusively from `CAT_PORRIDGE_E_OVERNIGHT_OATS`, `CAT_A_BASE_DI_YOGURT_VEGETALE`, `CAT_BISCOTTI`, `CAT_MERENDE_E_COLAZIONI_DOLCI`, `CAT_FRULLATI`, `CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO`, and `CAT_A_BASE_DI_LATTE_VEGETALE`.
+- 🍎 **Morning & Afternoon Snacks**: Sourced from `CAT_ENERGY_BALLS_E_BARRETTE`, `CAT_FRUTTA_FRESCA_E_MACEDONIE`, `CAT_FRUTTA_SECCA`, and `CAT_GELATI`.
+- 🍝 🍲 **Main Meals (Lunch & Dinner)**: Distributed between single-dish meals, first courses, protein mains, and vegetable side dishes.
+
+### 2. Dish Structure (Structured Meals vs. Complete Single Dishes)
+For lunch and dinner, the engine dynamically alternates meal formats:
+- **Option A — Structured Meal (Primo + Side or Secondo + Side)**: Alternates between a first course (`CAT_PRIMI_PIATTI`, `CAT_RISOTTI`, `CAT_GNOCCHI`, `CAT_POLENTA`, `CAT_ZUPPE_E_VELLUTATE`) or a plant protein main (`CAT_SECONDI_...`, `CAT_PIATTI_A_BASE_DI_LEGUMI`, `CAT_FARINATE_E_FRITTATE`), paired with an authentic vegetable side dish (`CAT_CONTORNI`, `CAT_VERDURE_AL_FORNO`, `CAT_VERDURE_IN_PADELLA`, `CAT_VERDURE_BOLLITE_E_A_VAPORE`).
+- **Option B — Complete Single Dish (Piatto Unico)**: Selects self-contained balanced dishes from `CAT_BOWL`, `CAT_INSALATE_DI_CEREALI`, `CAT_INSALATE_DI_LEGUMI`, `CAT_PASTA_AL_FORNO`, `CAT_PIADINE_E_WRAPS`, `CAT_PIZZE_E_FOCACCIE`, or `CAT_TORTE_SALATE`, leaving the side dish empty without forcing redundant sides.
+- *Continuity constraint*: Never schedules two consecutive single dishes. If lunch is a single dish or primo, dinner prioritizes a structured protein dish with vegetables.
+
+### 3. Anti-Monotonia & Nutritional Rotation Score
+The engine uses sliding-window tracking and score penalties to prevent repetition and ensure diverse nutrition:
+- **Category Recency Penalties**: Tracks the last 6 main meals (2–3 days). Applying progressive penalties (-80 pts if repeated from the immediate previous meal, -60 pts from 2 meals ago, -40 pts from yesterday, -20 pts within 3 days) ensures categories like `CAT_RISOTTI` or `CAT_GNOCCHI` are not served back-to-back.
+- **Protein Subgroup Rotation**: Categorizes protein sources into sub-families (`soia_derivati` such as tofu/tempeh/seitan, `legumi` such as chickpeas/lentils/beans, and `alternative_veg` like farinate/veggie burgers). If soy/tofu is chosen for dinner, a -75 pts penalty forces the next dinner to source protein from whole legumes or farinate.
+- **Carb Family Alternation**: Penalizes (-45 pts) consecutive identical carbohydrate families (pasta, rice, pseudocereals, tubers, bread).
+- **Rainbow Plate & Seasonality**: Rewards seasonal produce (+10 pts) and promotes phytonutrient diversity through chromatic contrast between lunch and dinner veggies (e.g. green vs. red/orange/purple).
+- **Exclusion of Condiments**: Auxiliary recipes classified under `CAT_SALSE_E_CONDIMENTI` (pestos, dressings, mayo, vegan cheeses) are strictly excluded from meal and side slots.
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Framework**: [React Native](https://reactnative.dev/) (v0.86) with [Expo](https://expo.dev/) (SDK 57)

@@ -33,6 +33,7 @@ import {
   shareNative,
   copyRecipeToClipboard
 } from '../utils/shareHelper';
+import { useTranslation } from 'react-i18next';
 
 interface RecipeModalProps {
   recipe: Recipe | null;
@@ -42,8 +43,9 @@ interface RecipeModalProps {
 }
 
 export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClose, onFavoriteChange }) => {
+  const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
-  const [currentServings, setCurrentServings] = useState<number>(recipe?.porzioni || 4);
+  const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   // Synchronous favorite state from global context
@@ -76,7 +78,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   // Reset & load favorite status and personal notes
   useEffect(() => {
     if (recipe) {
-      setCurrentServings(recipe.porzioni || 4);
+      setCurrentServings(recipe.servings || 4);
       setCheckedIngredients({});
       setCompletedSteps({});
       setFeedbackMessage(null);
@@ -89,9 +91,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       const todayStr = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || '';
       setSelectedDate(todayStr);
 
-      if (recipe.slot_consigliato === 'colazione') {
+      if (recipe.recommended_slot === 'colazione' || recipe.recommended_slot === 'breakfast') {
         setSelectedSlot('colazione');
-      } else if (recipe.slot_consigliato === 'spuntino') {
+      } else if (recipe.recommended_slot === 'spuntino' || recipe.recommended_slot === 'snack') {
         setSelectedSlot('spuntino_pomeriggio');
       } else {
         setSelectedSlot('pranzo');
@@ -103,7 +105,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
   if (!recipe || !visible) return null;
 
-  const baseServings = recipe.porzioni || 4;
+  const baseServings = recipe.servings || 4;
   const scale = currentServings / baseServings;
 
   const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
@@ -147,7 +149,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const formatScaledIngredient = (item: IngredientItem) => {
-    return scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale).formattedText;
+    return scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale).formattedText;
   };
 
   const handleScheduleMeal = async (dateStr: string) => {
@@ -170,11 +172,11 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
       category?: string;
     }> = [];
 
-    const titleWithServings = `${recipe.titolo} (${currentServings} porz.)`;
+    const titleWithServings = `${recipe.title} (${currentServings} porz.)`;
 
-    if (recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0) {
-      for (const item of recipe.ingredienti_dettagliati) {
-        const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+    if (recipe.detailed_ingredients && recipe.detailed_ingredients.length > 0) {
+      for (const item of recipe.detailed_ingredients) {
+        const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
         itemsToAdd.push({
           recipeId: recipe.id,
           recipeTitle: titleWithServings,
@@ -182,11 +184,11 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
           name: scaled.name,
           amount: scaled.scaledAmount,
           unit: scaled.unit,
-          category: item.sezione || 'Generale'
+          category: item.section || 'Generale'
         });
       }
     } else {
-      for (const ing of recipe.ingredienti) {
+      for (const ing of (recipe.ingredients || [])) {
         itemsToAdd.push({
           recipeId: recipe.id,
           recipeTitle: titleWithServings,
@@ -222,12 +224,12 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const getShareText = () => {
-    const scaledList = (recipe.ingredienti_dettagliati || []).map(item => {
-      const sc = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+    const scaledList = (recipe.detailed_ingredients || []).map(item => {
+      const sc = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
       return {
         ...item,
-        quantita: sc.scaledAmount ?? null,
-        testo: sc.formattedText,
+        amount: sc.scaledAmount ?? null,
+        text: sc.formattedText,
       };
     });
     return formatRecipeShareText(
@@ -259,7 +261,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const handleShareNative = async () => {
     const text = getShareText();
     setShowShareModal(false);
-    await shareNative(recipe.titolo, text);
+    await shareNative(recipe.title, text);
   };
 
   const handleCopyClipboard = async () => {
@@ -275,8 +277,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const sections: { title: string; items: IngredientItem[] }[] = [];
   const secMap: Record<string, IngredientItem[]> = {};
 
-  (recipe.ingredienti_dettagliati || []).forEach(item => {
-    const sec = item.sezione || 'Ingredienti';
+  (recipe.detailed_ingredients || []).forEach(item => {
+    const sec = item.section || 'Ingredienti';
     if (!secMap[sec]) {
       secMap[sec] = [];
       sections.push({ title: sec, items: secMap[sec] });
@@ -307,7 +309,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
               ]}
               numberOfLines={1}
             >
-              {recipe.titolo}
+              {recipe.title}
             </Animated.Text>
 
             <View style={styles.navActions}>
@@ -361,10 +363,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             scrollEventThrottle={16}
           >
             {/* Main Image with expo-image */}
-            {recipe.immagine ? (
+            {recipe.image ? (
               <View style={styles.imageContainer}>
                 <Image
-                  source={{ uri: recipe.immagine }}
+                  source={{ uri: recipe.image }}
                   style={styles.image}
                   contentFit="cover"
                   transition={250}
@@ -385,27 +387,31 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             <View style={styles.content}>
               <View style={styles.badgeRow}>
                 <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>{recipe.categoria}</Text>
+                  <Text style={styles.categoryBadgeText}>
+                    {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
+                  </Text>
                 </View>
-                {!!recipe.sottocategoria && recipe.sottocategoria !== recipe.categoria && (
+                {!!recipe.macro_category && recipe.macro_category !== recipe.category && (
                   <View style={[styles.categoryBadge, { backgroundColor: '#E2EBE5', borderColor: '#C8DACD' }]}>
-                    <Text style={[styles.categoryBadgeText, { color: '#34523C' }]}>{recipe.sottocategoria}</Text>
+                    <Text style={[styles.categoryBadgeText, { color: '#34523C' }]}>
+                      {t('categories.' + recipe.macro_category, { defaultValue: recipe.macro_category })}
+                    </Text>
                   </View>
                 )}
                 <View style={styles.diffBadge}>
                   <Ionicons name="speedometer-outline" size={12} color="#D97757" style={{ marginRight: 3 }} />
-                  <Text style={styles.diffBadgeText}>{recipe.difficolta}</Text>
+                  <Text style={styles.diffBadgeText}>{recipe.difficulty}</Text>
                 </View>
               </View>
 
-              <Text style={styles.title}>{recipe.titolo}</Text>
+              <Text style={styles.title}>{recipe.title}</Text>
 
               {/* Quick Metrics Bar */}
               <View style={styles.metricsBar}>
                 <View style={styles.metricItem}>
                   <Ionicons name="time-outline" size={20} color="#4A6B53" />
                   <Text style={styles.metricLabel}>TEMPO</Text>
-                  <Text style={styles.metricValue}>{recipe.tempi.tempo_totale_minuti} min</Text>
+                  <Text style={styles.metricValue}>{recipe.times.total_minutes} min</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
@@ -417,7 +423,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 <View style={styles.metricItem}>
                   <Ionicons name="bar-chart-outline" size={20} color="#4A6B53" />
                   <Text style={styles.metricLabel}>LIVELLO</Text>
-                  <Text style={styles.metricValue}>{recipe.difficolta}</Text>
+                  <Text style={styles.metricValue}>{recipe.difficulty}</Text>
                 </View>
               </View>
 
@@ -426,7 +432,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 <View style={styles.scalerInfo}>
                   <Text style={styles.scalerTitle}>Dosi e ingredienti</Text>
                   <Text style={styles.scalerSub}>
-                    {scale !== 1 ? `Ricalcolate per ${currentServings} porzioni` : (recipe.porzioni_testo || `Per ${baseServings} porzioni`)}
+                    {scale !== 1 ? `Ricalcolate per ${currentServings} porzioni` : (recipe.servings_text || `Per ${baseServings} porzioni`)}
                     {scale !== 1 && ` (base: ${baseServings})`}
                   </Text>
                 </View>
@@ -504,7 +510,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
               {/* Instructions */}
               <View style={styles.instructionsSection}>
                 <Text style={styles.sectionTitle}>Preparazione</Text>
-                {recipe.istruzioni.map((step, idx) => {
+                {(recipe.instructions || []).map((step, idx) => {
                   const isDone = !!completedSteps[idx];
                   return (
                     <TouchableOpacity
@@ -574,13 +580,13 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
               </View>
 
               {/* Tips & Storage */}
-              {recipe.suggerimenti && recipe.suggerimenti.length > 0 && (
+              {recipe.tips && recipe.tips.length > 0 && (
                 <View style={styles.tipsBox}>
                   <View style={styles.tipsHeader}>
                     <Ionicons name="bulb-outline" size={20} color="#4A6B53" />
                     <Text style={styles.tipsTitle}>I consigli per te</Text>
                   </View>
-                  {recipe.suggerimenti.map((sugg, idx) => (
+                  {recipe.tips.map((sugg, idx) => (
                     <Text key={idx} style={styles.tipsText}>
                       • {sugg}
                     </Text>
@@ -750,7 +756,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                 <View style={{ flex: 1 }}>
                   <Text style={styles.shareSheetTitle}>Condividi Ricetta</Text>
                   <Text style={styles.shareSheetSub} numberOfLines={1}>
-                    {recipe.titolo} • {currentServings} {currentServings === 1 ? 'porzione' : 'porzioni'}
+                    {recipe.title} • {currentServings} {currentServings === 1 ? 'porzione' : 'porzioni'}
                   </Text>
                 </View>
                 <TouchableOpacity

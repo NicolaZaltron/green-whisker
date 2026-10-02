@@ -176,9 +176,9 @@ export default function PlannerScreen() {
       showToast('Contorno aggiornato!');
     } else {
       const currentServings = prefs?.servings ?? 2;
-      const baseServings = recipe.porzioni || 4;
+      const baseServings = recipe.servings || 4;
       const scale = currentServings / baseServings;
-      const titleWithServings = `${recipe.titolo} (${currentServings} porz.)`;
+      const titleWithServings = `${recipe.title} (${currentServings} porz.)`;
 
       const itemsToAdd: Array<{
         recipeId: string;
@@ -190,9 +190,9 @@ export default function PlannerScreen() {
         category?: string;
       }> = [];
 
-      if (recipe.ingredienti_dettagliati && recipe.ingredienti_dettagliati.length > 0) {
-        for (const item of recipe.ingredienti_dettagliati) {
-          const scaled = scaleIngredient(item.quantita, item.unita, item.ingrediente, item.testo, scale);
+      if (recipe.detailed_ingredients && recipe.detailed_ingredients.length > 0) {
+        for (const item of recipe.detailed_ingredients) {
+          const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
           itemsToAdd.push({
             recipeId: recipe.id,
             recipeTitle: titleWithServings,
@@ -200,11 +200,11 @@ export default function PlannerScreen() {
             name: scaled.name,
             amount: scaled.scaledAmount,
             unit: scaled.unit,
-            category: item.sezione || 'Generale'
+            category: item.section || 'Generale'
           });
         }
       } else {
-        for (const ing of recipe.ingredienti) {
+        for (const ing of (recipe.ingredients || [])) {
           itemsToAdd.push({
             recipeId: recipe.id,
             recipeTitle: titleWithServings,
@@ -589,19 +589,21 @@ const MealSlotCard = React.memo(function MealSlotCard({
       {entry && recipe ? (
         <View style={styles.slotCardsGroup}>
           <View style={styles.mealCard}>
-            {recipe.immagine ? (
-              <Image source={{ uri: recipe.immagine }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+            {recipe.image ? (
+              <Image source={{ uri: recipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
             ) : (
               <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
                 <Ionicons name="restaurant-outline" size={24} color="#A3B2A6" />
               </View>
             )}
             <View style={styles.mealInfo}>
-              <Text style={[styles.mealCategory, { color }]}>{recipe.categoria}</Text>
-              <Text style={styles.mealTitle} numberOfLines={2}>{recipe.titolo}</Text>
+              <Text style={[styles.mealCategory, { color }]}>
+                {t('categories.' + recipe.category, { defaultValue: recipe.category })}
+              </Text>
+              <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
               <View style={styles.mealMeta}>
                 <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                <Text style={styles.mealMetaText}>{recipe.tempi.tempo_totale_minuti} min</Text>
+                <Text style={styles.mealMetaText}>{recipe.times.total_minutes} min</Text>
                 <Text style={styles.mealMetaDivider}>·</Text>
                 <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
                 <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>
@@ -623,8 +625,8 @@ const MealSlotCard = React.memo(function MealSlotCard({
 
           {sideRecipe && (
             <View style={styles.sideMealCard}>
-              {sideRecipe.immagine ? (
-                <Image source={{ uri: sideRecipe.immagine }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+              {sideRecipe.image ? (
+                <Image source={{ uri: sideRecipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
               ) : (
                 <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
                   <Ionicons name="leaf-outline" size={24} color="#3A8C7E" />
@@ -635,10 +637,10 @@ const MealSlotCard = React.memo(function MealSlotCard({
                   <Ionicons name="leaf" size={11} color="#3A8C7E" />
                   <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
                 </View>
-                <Text style={styles.mealTitle} numberOfLines={2}>{sideRecipe.titolo}</Text>
+                <Text style={styles.mealTitle} numberOfLines={2}>{sideRecipe.title}</Text>
                 <View style={styles.mealMeta}>
                   <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                  <Text style={styles.mealMetaText}>{sideRecipe.tempi.tempo_totale_minuti} min</Text>
+                  <Text style={styles.mealMetaText}>{sideRecipe.times.total_minutes} min</Text>
                   <Text style={styles.mealMetaDivider}>·</Text>
                   <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
                   <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>

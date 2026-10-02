@@ -82,8 +82,9 @@ function getNormalizedIngredients(): NormalizedIngredientItem[] {
   POPULAR_PANTRY_ITEMS.forEach(item => set.add(item));
 
   for (const recipe of defaultRecipes) {
-    if (!recipe.ingredienti) continue;
-    for (const raw of recipe.ingredienti) {
+    const ingList = recipe.ingredients || [];
+    if (ingList.length === 0) continue;
+    for (const raw of ingList) {
       const words = raw
         .toLowerCase()
         .replace(/[^a-zàèéìòù\s]/g, ' ')
@@ -156,7 +157,8 @@ export function searchPantryRecipes(
     const matched: string[] = [];
     const missing: string[] = [];
 
-    for (const rawIng of recipe.ingredienti) {
+    const ingList = recipe.ingredients || [];
+    for (const rawIng of ingList) {
       const normIng = normalize(rawIng);
       const isStaple = DEFAULT_STAPLES.some(s => normIng.includes(s));
 

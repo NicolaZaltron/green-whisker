@@ -1,4 +1,5 @@
 import { Recipe, SlotConsigliato, GruppoAlimentare } from '../types/recipe';
+import { RECIPE_TAXONOMY, MacroCategory, MACRO_CATEGORIES } from '../constants/categories';
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom';
 
@@ -83,58 +84,130 @@ async function fetchWithTimeout(
   }
 }
 
-const VALID_CATEGORIES = [
-  'Primi e Cereali',
-  'Proteine Vegetali & Secondi',
-  'Panificati e Piatti Unici',
-  'Verdure e Contorni',
-  'Dolci, Colazioni e Snack',
-];
+export const VALID_MACRO_CATEGORIES = MACRO_CATEGORIES;
 
-const VALID_SLOTS: SlotConsigliato[] = ['colazione', 'spuntino', 'pranzo_cena'];
+export const VALID_SLOTS: SlotConsigliato[] = ['colazione', 'spuntino', 'pranzo_cena'];
+
+const LEGACY_MACRO_MAP: Record<string, MacroCategory> = {
+  'primi e cereali': 'MACRO_PRIMI_E_CEREALI',
+  'proteine vegetali & secondi': 'MACRO_PROTEINE_E_SECONDI',
+  'secondi piatti': 'MACRO_PROTEINE_E_SECONDI',
+  'panificati e piatti unici': 'MACRO_PANIFICATI_E_PIATTI_UNICI',
+  'verdure e contorni': 'MACRO_VERDURE_E_CONTORNI',
+  'dolci, colazioni e snack': 'MACRO_COLAZIONI_DOLCI',
+  'dolci e colazioni': 'MACRO_COLAZIONI_DOLCI',
+};
+
+const LEGACY_CAT_MAP: Record<string, string> = {
+  'primi piatti': 'CAT_PRIMI_PIATTI',
+  'risotti': 'CAT_RISOTTI',
+  'gnocchi': 'CAT_GNOCCHI',
+  'pasta al forno': 'CAT_PASTA_AL_FORNO',
+  'polenta': 'CAT_POLENTA',
+  'bowl': 'CAT_BOWL',
+  'porridge & overnight oats': 'CAT_PORRIDGE_E_OVERNIGHT_OATS',
+  'porridge': 'CAT_PORRIDGE_E_OVERNIGHT_OATS',
+  'insalate di cereali': 'CAT_INSALATE_DI_CEREALI',
+  'secondi piatti': 'CAT_SECONDI_PIATTI',
+  'piatti a base di legumi': 'CAT_PIATTI_A_BASE_DI_LEGUMI',
+  'insalate di legumi': 'CAT_INSALATE_DI_LEGUMI',
+  'secondi a base di tofu': 'CAT_SECONDI_A_BASE_DI_TOFU',
+  'tofu': 'CAT_SECONDI_A_BASE_DI_TOFU',
+  'secondi a base di tempeh': 'CAT_SECONDI_A_BASE_DI_TEMPEH',
+  'tempeh': 'CAT_SECONDI_A_BASE_DI_TEMPEH',
+  'secondi a base di seitan': 'CAT_SECONDI_A_BASE_DI_SEITAN',
+  'seitan': 'CAT_SECONDI_A_BASE_DI_SEITAN',
+  'secondi a base di soia': 'CAT_SECONDI_A_BASE_DI_SOIA',
+  'soia': 'CAT_SECONDI_A_BASE_DI_SOIA',
+  'farinate e frittate': 'CAT_FARINATE_E_FRITTATE',
+  'farinate & frittate': 'CAT_FARINATE_E_FRITTATE',
+  'polpette e burger': 'CAT_POLPETTE_E_BURGER',
+  'polpette & burger': 'CAT_POLPETTE_E_BURGER',
+  'cotolette': 'CAT_COTOLETTE',
+  'piadine e wraps': 'CAT_PIADINE_E_WRAPS',
+  'piadine & wraps': 'CAT_PIADINE_E_WRAPS',
+  'panini e bruschette': 'CAT_PANINI_E_BRUSCHETTE',
+  'panini & bruschette': 'CAT_PANINI_E_BRUSCHETTE',
+  'pizze e focacce': 'CAT_PIZZE_E_FOCACCIE',
+  'pizze & focacce': 'CAT_PIZZE_E_FOCACCIE',
+  'torte salate': 'CAT_TORTE_SALATE',
+  'contorni': 'CAT_CONTORNI',
+  'verdure al forno': 'CAT_VERDURE_AL_FORNO',
+  'verdure in padella': 'CAT_VERDURE_IN_PADELLA',
+  'verdure bollite e a vapore': 'CAT_VERDURE_BOLLITE_E_A_VAPORE',
+  'zuppe e vellutate': 'CAT_ZUPPE_E_VELLUTATE',
+  'salse e condimenti': 'CAT_SALSE_E_CONDIMENTI',
+  'colazioni e merende dolci': 'CAT_MERENDE_E_COLAZIONI_DOLCI',
+  'merende e colazioni dolci': 'CAT_MERENDE_E_COLAZIONI_DOLCI',
+  'colazioni e merende salate': 'CAT_MERENDE_E_COLAZIONI_SALATE',
+  'biscotti': 'CAT_BISCOTTI',
+  'torte e dolci da forno': 'CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO',
+  'torte da forno': 'CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO',
+  'barrette e energy balls': 'CAT_ENERGY_BALLS_E_BARRETTE',
+  'energy balls & barrette': 'CAT_ENERGY_BALLS_E_BARRETTE',
+  'frullati': 'CAT_FRULLATI',
+  'frutta fresca e macedonie': 'CAT_FRUTTA_FRESCA_E_MACEDONIE',
+  'frutta secca': 'CAT_FRUTTA_SECCA',
+  'gelati': 'CAT_GELATI',
+  'a base di latte vegetale': 'CAT_A_BASE_DI_LATTE_VEGETALE',
+  'a base di yogurt vegetale': 'CAT_A_BASE_DI_YOGURT_VEGETALE',
+};
 
 const RECIPE_PROMPT_SYSTEM = `
 You are an expert plant-based chef and culinary AI for the Italian vegan recipe app 'Green Whisker'.
 Your task is to parse, extract, or format a complete 100% plant-based/vegan recipe from the provided text, URL, or image, and return EXCLUSIVELY a valid JSON object matching the required schema.
 
 IMPORTANT LANGUAGE INSTRUCTION:
-- All generated recipe fields (titolo, ingredienti, istruzioni, suggerimenti, etc.) MUST be written in natural, fluent Italian.
+- All generated recipe fields (title, ingredients, instructions, tips, etc.) MUST be written in natural, fluent Italian.
 
 STRICT SCHEMA & PARSING RULES:
-1. "titolo": Clean Italian recipe title (e.g., "Trofie al Pesto con Patate e Fagiolini"). Do not prepend unnecessary words or brand labels.
-2. "categoria": MUST be exactly one of the 5 Macro-Categories:
-   ["Primi e Cereali", "Proteine Vegetali & Secondi", "Panificati e Piatti Unici", "Verdure e Contorni", "Dolci, Colazioni e Snack"]
-3. "macro_categoria": Exactly the same as "categoria".
-4. "sottocategoria": Specific subcategory chosen accurately from the corresponding list:
-   - For "Primi e Cereali": ["Primi piatti", "Risotti", "Gnocchi", "Pasta al forno", "Polenta", "Bowl", "Porridge & Overnight oats", "Insalate di cereali"]
-   - For "Proteine Vegetali & Secondi": ["Secondi a base di Tofu", "Tempeh", "Seitan", "Soia", "Farinate & Frittate", "Polpette & Burger vegetali", "Piatti a base di legumi", "Insalate di legumi"]
-   - For "Panificati e Piatti Unici": ["Piadine & Wraps", "Panini & Bruschette", "Pizze & Focacce", "Torte salate"]
-   - For "Verdure e Contorni": ["Verdure al forno", "Verdure in padella", "Verdure bollite & a vapore", "Zuppe & Vellutate", "Contorni"]
-   - For "Dolci, Colazioni e Snack": ["Biscotti", "Energy balls & Barrette", "Frullati", "Frutta fresca & Macedonie", "Frutta secca", "Gelati", "Merende & Colazioni dolci/salate", "Torte da forno", "A base di latte/yogurt vegetale"]
-5. "slot_consigliato": Exactly one of: "colazione", "spuntino", "pranzo_cena".
-6. "gruppi_alimentari": Array containing one or more from: ["cereali", "verdura", "frutta", "frutta_secca_semi", "cibi_proteici", "grassi"].
-7. "difficolta": Exactly one of: "Facile", "Media", "Difficile".
-6. "porzioni": Integer number of servings (e.g. 4, 2).
-7. "porzioni_testo": String description in Italian (e.g. "4 porzioni", "2 porzioni").
-8. "tempi": Object with:
-   - "tempo_totale_minuti": Integer number (e.g. 30)
-   - "tempo_preparazione": String in Italian (e.g. "10 minuti")
-   - "tempo_cottura": String in Italian (e.g. "20 minuti")
-   - "tempi_display": String formatted as "Prep: X min, Cottura: Y min"
-9. "ingredienti": Array of ingredient strings in Italian. Every item MUST preserve its full quantity at the beginning (e.g. "200 g di tofu al naturale", "2 cucchiai di salsa di soia", "1 spicchio di aglio", "1/2 cucchiaino di sale"). NEVER omit or strip leading digits!
-10. "ingredienti_per_sezione": Array of objects: [{ "sezione": "Principale", "ingredienti": ["..."] }]. If the recipe specifies distinct sections (e.g. "Impasto", "Condimento", "Salsa"), split them into respective sections.
-11. "ingredienti_dettagliati": Array of structured ingredient objects:
+1. "title": Clean Italian recipe title (e.g., "Trofie al Pesto con Patate e Fagiolini"). Do not prepend unnecessary words or brand labels.
+2. "macro_category": Exactly one of the 5 canonical Macro IDs:
+   - "MACRO_PRIMI_E_CEREALI"
+   - "MACRO_PROTEINE_E_SECONDI"
+   - "MACRO_PANIFICATI_E_PIATTI_UNICI"
+   - "MACRO_VERDURE_E_CONTORNI"
+   - "MACRO_COLAZIONI_DOLCI"
+3. "category": Exactly one of the canonical Category IDs matching the macro_category:
+   - For MACRO_PRIMI_E_CEREALI:
+     "CAT_PRIMI_PIATTI", "CAT_RISOTTI", "CAT_GNOCCHI", "CAT_PASTA_AL_FORNO", "CAT_POLENTA", "CAT_BOWL", "CAT_PORRIDGE_E_OVERNIGHT_OATS", "CAT_INSALATE_DI_CEREALI"
+   - For MACRO_PROTEINE_E_SECONDI:
+     "CAT_SECONDI_PIATTI", "CAT_PIATTI_A_BASE_DI_LEGUMI", "CAT_INSALATE_DI_LEGUMI", "CAT_SECONDI_A_BASE_DI_TOFU", "CAT_SECONDI_A_BASE_DI_TEMPEH", "CAT_SECONDI_A_BASE_DI_SEITAN", "CAT_SECONDI_A_BASE_DI_SOIA", "CAT_FARINATE_E_FRITTATE", "CAT_POLPETTE_E_BURGER", "CAT_COTOLETTE"
+   - For MACRO_PANIFICATI_E_PIATTI_UNICI:
+     "CAT_PIADINE_E_WRAPS", "CAT_PANINI_E_BRUSCHETTE", "CAT_PIZZE_E_FOCACCIE", "CAT_TORTE_SALATE"
+   - For MACRO_VERDURE_E_CONTORNI:
+     "CAT_CONTORNI", "CAT_VERDURE_AL_FORNO", "CAT_VERDURE_IN_PADELLA", "CAT_VERDURE_BOLLITE_E_A_VAPORE", "CAT_ZUPPE_E_VELLUTATE", "CAT_SALSE_E_CONDIMENTI"
+   - For MACRO_COLAZIONI_DOLCI:
+     "CAT_MERENDE_E_COLAZIONI_DOLCI", "CAT_MERENDE_E_COLAZIONI_SALATE", "CAT_BISCOTTI", "CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO", "CAT_ENERGY_BALLS_E_BARRETTE", "CAT_FRULLATI", "CAT_FRUTTA_FRESCA_E_MACEDONIE", "CAT_FRUTTA_SECCA", "CAT_GELATI", "CAT_A_BASE_DI_LATTE_VEGETALE", "CAT_A_BASE_DI_YOGURT_VEGETALE"
+4. "subcategory": Set exactly equal to "category".
+5. "recommended_slot": Exactly one of: "colazione", "spuntino", "pranzo_cena".
+6. "food_groups": Array containing one or more from: ["cereali", "verdura", "frutta", "frutta_secca_semi", "cibi_proteici", "grassi"].
+7. "protein_group": Exactly one of: "legumi_interi", "soia_derivati", "cereali_proteici", "leggero_vegetale".
+8. "carb_family": Exactly one of: "pasta", "riso", "farro_orzo", "pseudocereali", "tuberi", "pane_cereali_rapidi", "none".
+9. "veggie_color": Dominant vegetable phytocolor: "green", "red_orange", "purple_blue", "yellow_white", "neutral".
+10. "is_complete_plate": Boolean (true if self-contained balanced meal, false if structured component needing side/main).
+11. "difficulty": Exactly one of: "easy", "medium", "hard".
+12. "servings": Integer number of servings (e.g. 4, 2).
+13. "servings_text": Description in Italian (e.g. "4 porzioni", "2 porzioni").
+14. "times": Object with:
+    - "total_minutes": Integer number (e.g. 30)
+    - "prep_time": String in Italian (e.g. "10 minuti")
+    - "cook_time": String in Italian (e.g. "20 minuti")
+    - "display_time": String formatted as "Prep: 10 min, Cottura: 20 min"
+15. "ingredients": Array of ingredient strings in Italian. Every item MUST preserve its full quantity at the beginning (e.g. "200 g di tofu al naturale", "2 cucchiai di salsa di soia", "1 spicchio di aglio").
+16. "ingredients_by_section": Array of objects: [{ "section": "Principale", "ingredients": ["..."] }].
+17. "detailed_ingredients": Array of structured objects:
     [{
-      "sezione": "Principale",
-      "testo": "200 g di tofu al naturale",
-      "quantita": 200,
-      "unita": "g",
-      "ingrediente": "tofu al naturale"
+      "section": "Principale",
+      "text": "200 g di tofu al naturale",
+      "amount": 200,
+      "unit": "g",
+      "ingredient": "tofu al naturale"
     }]
-12. "istruzioni": Array of strings, where each element is an orderly, concise cooking step in Italian.
-13. "suggerimenti": Array of strings with 1-2 helpful chef tips (e.g. storage advice, serving suggestions, or culinary tricks).
-14. "tags": Array of strings (e.g. ["100% Vegetale", "Senza Glutine", "Primi piatti"]).
-15. "immagine": Direct URL string of the main recipe photo (extract the full image URL from markdown image tags like ![...](https://...), picking the photo of the dish and ignoring site logos, social icons, or author profile avatars). If not available, return "".
+18. "instructions": Array of strings, where each element is an orderly, concise cooking step in Italian.
+19. "tips": Array of strings with 1-2 helpful chef tips in Italian.
+20. "tags": Array of strings (e.g. ["100% Vegetale", "Senza Glutine"]).
+21. "image": Direct URL string of the main recipe photo if available, or "".
 
 Respond ONLY with the JSON object, without any additional markdown explanation or surrounding commentary.
 `;
@@ -472,49 +545,100 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
     .replace(/^-|-$/g, '')
     + '-' + Math.random().toString(36).substring(2, 6);
 
-  const category = VALID_CATEGORIES.includes(parsed.categoria) ? parsed.categoria : 'Primi e Cereali';
-  const macroCategory = parsed.macro_categoria || category;
-  const subCategory = parsed.sottocategoria || '';
-  const slot: SlotConsigliato = VALID_SLOTS.includes(parsed.slot_consigliato) ? parsed.slot_consigliato : 'pranzo_cena';
-  const porzioni = typeof parsed.porzioni === 'number' && parsed.porzioni > 0 ? parsed.porzioni : 4;
-  const tempoTot = parsed.tempi?.tempo_totale_minuti || 30;
+  // Canonical Macro and Category resolution with resilient fallback
+  const rawMacro = (parsed.macro_category || parsed.macro_categoria || parsed.category || parsed.categoria || '').toString().trim();
+  const rawCat = (parsed.category || parsed.categoria || parsed.subcategory || parsed.sottocategoria || '').toString().trim();
+
+  let resolvedMacro: MacroCategory = 'MACRO_PRIMI_E_CEREALI';
+  if (VALID_MACRO_CATEGORIES.includes(rawMacro as MacroCategory)) {
+    resolvedMacro = rawMacro as MacroCategory;
+  } else if (LEGACY_MACRO_MAP[rawMacro.toLowerCase()]) {
+    resolvedMacro = LEGACY_MACRO_MAP[rawMacro.toLowerCase()];
+  }
+
+  let resolvedCat: string = '';
+  const validForMacro: readonly string[] = RECIPE_TAXONOMY[resolvedMacro] || [];
+  if (validForMacro.includes(rawCat)) {
+    resolvedCat = rawCat;
+  } else if (LEGACY_CAT_MAP[rawCat.toLowerCase()]) {
+    resolvedCat = LEGACY_CAT_MAP[rawCat.toLowerCase()];
+  } else {
+    // Search across all taxonomy
+    for (const [mKey, subs] of Object.entries(RECIPE_TAXONOMY)) {
+      if ((subs as readonly string[]).includes(rawCat)) {
+        resolvedCat = rawCat;
+        resolvedMacro = mKey as MacroCategory;
+        break;
+      }
+    }
+  }
+
+  if (!resolvedCat) {
+    resolvedCat = validForMacro[0] || 'CAT_PRIMI_PIATTI';
+  }
+
+  const slot: SlotConsigliato = VALID_SLOTS.includes(parsed.recommended_slot || parsed.slot_consigliato)
+    ? (parsed.recommended_slot || parsed.slot_consigliato)
+    : 'pranzo_cena';
+
+  const porzioni = typeof parsed.servings === 'number' && parsed.servings > 0
+    ? parsed.servings
+    : (typeof parsed.porzioni === 'number' && parsed.porzioni > 0 ? parsed.porzioni : 4);
+
+  const tempoTot = parsed.times?.total_minutes || parsed.tempi?.tempo_totale_minuti || 30;
 
   const recipe: Recipe = {
     id: safeId,
-    titolo: parsed.titolo || 'Nuova Ricetta',
-    fonte: 'Personalizzata (AI)',
+    title: parsed.title || parsed.titolo || 'Nuova Ricetta',
+    source: 'Personalizzata (AI)',
     url: sourceUrl || parsed.url || '',
-    immagine: (parsed.immagine && typeof parsed.immagine === 'string' && parsed.immagine.trim() && parsed.immagine !== 'null') ? parsed.immagine.trim() : '',
-    categoria: category,
-    macro_categoria: macroCategory,
-    sottocategoria: subCategory,
-    difficolta: parsed.difficolta === 'Difficile' ? 'Difficile' : parsed.difficolta === 'Media' ? 'Media' : 'Facile',
-    porzioni: porzioni,
-    porzioni_testo: parsed.porzioni_testo || `${porzioni} porzioni`,
-    tempi: {
-      tempo_totale_minuti: tempoTot,
-      tempo_preparazione: parsed.tempi?.tempo_preparazione || `${Math.round(tempoTot * 0.4)} minuti`,
-      tempo_cottura: parsed.tempi?.tempo_cottura || `${Math.round(tempoTot * 0.6)} minuti`,
-      tempi_display: parsed.tempi?.tempi_display || `Prep: ${Math.round(tempoTot * 0.4)} min, Cottura: ${Math.round(tempoTot * 0.6)} min`
+    image: (parsed.image || (parsed.immagine && typeof parsed.immagine === 'string' && parsed.immagine.trim() && parsed.immagine !== 'null'))
+      ? (parsed.image || parsed.immagine).trim()
+      : '',
+    category: resolvedCat,
+    macro_category: resolvedMacro,
+    subcategory: resolvedCat,
+    difficulty: parsed.difficulty || (parsed.difficolta === 'Difficile' ? 'hard' : parsed.difficolta === 'Media' ? 'medium' : 'easy'),
+    servings: porzioni,
+    servings_text: parsed.servings_text || parsed.porzioni_testo || `${porzioni} porzioni`,
+    times: {
+      total_minutes: tempoTot,
+      prep_time: parsed.times?.prep_time || parsed.tempi?.tempo_preparazione || `${Math.round(tempoTot * 0.4)} minuti`,
+      cook_time: parsed.times?.cook_time || parsed.tempi?.tempo_cottura || `${Math.round(tempoTot * 0.6)} minuti`,
+      display_time: parsed.times?.display_time || parsed.tempi?.tempi_display || `Prep: ${Math.round(tempoTot * 0.4)} min, Cottura: ${Math.round(tempoTot * 0.6)} min`
     },
-    ingredienti: Array.isArray(parsed.ingredienti) ? parsed.ingredienti : [],
-    ingredienti_per_sezione: Array.isArray(parsed.ingredienti_per_sezione) && parsed.ingredienti_per_sezione.length > 0
-      ? parsed.ingredienti_per_sezione
-      : [{ sezione: 'Principale', ingredienti: Array.isArray(parsed.ingredienti) ? parsed.ingredienti : [] }],
-    ingredienti_dettagliati: Array.isArray(parsed.ingredienti_dettagliati) && parsed.ingredienti_dettagliati.length > 0
-      ? parsed.ingredienti_dettagliati
-      : (Array.isArray(parsed.ingredienti) ? parsed.ingredienti : []).map((t: string) => ({
-          sezione: 'Principale',
-          testo: t,
-          quantita: null,
-          unita: '',
-          ingrediente: t
+    ingredients: Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [],
+    ingredients_by_section: Array.isArray(parsed.ingredients_by_section || parsed.ingredienti_per_sezione) && (parsed.ingredients_by_section || parsed.ingredienti_per_sezione).length > 0
+      ? (parsed.ingredients_by_section || parsed.ingredienti_per_sezione).map((s: any) => ({
+          section: s.section || s.sezione || 'Principale',
+          ingredients: s.ingredients || s.ingredienti || []
+        }))
+      : [{ section: 'Principale', ingredients: Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [] }],
+    detailed_ingredients: Array.isArray(parsed.detailed_ingredients || parsed.ingredienti_dettagliati) && (parsed.detailed_ingredients || parsed.ingredienti_dettagliati).length > 0
+      ? (parsed.detailed_ingredients || parsed.ingredienti_dettagliati).map((i: any) => ({
+          section: i.section || i.sezione || 'Principale',
+          text: i.text || i.testo || '',
+          amount: typeof i.amount !== 'undefined' ? i.amount : (typeof i.quantita !== 'undefined' ? i.quantita : null),
+          unit: i.unit || i.unita || '',
+          ingredient: i.ingredient || i.ingrediente || i.text || i.testo || ''
+        }))
+      : (Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : []).map((t: string) => ({
+          section: 'Principale',
+          text: t,
+          amount: null,
+          unit: '',
+          ingredient: t
         })),
-    istruzioni: Array.isArray(parsed.istruzioni) ? parsed.istruzioni : [],
-    suggerimenti: Array.isArray(parsed.suggerimenti) ? parsed.suggerimenti : [],
-    tags: Array.isArray(parsed.tags) && parsed.tags.length > 0 ? parsed.tags : ['100% Vegetale', category],
-    slot_consigliato: slot,
-    gruppi_alimentari: Array.isArray(parsed.gruppi_alimentari) ? parsed.gruppi_alimentari : ['verdura', 'cibi_proteici']
+    instructions: Array.isArray(parsed.instructions || parsed.istruzioni) ? (parsed.instructions || parsed.istruzioni) : [],
+    tips: Array.isArray(parsed.tips || parsed.suggerimenti) ? (parsed.tips || parsed.suggerimenti) : [],
+    tags: Array.isArray(parsed.tags) && parsed.tags.length > 0 ? parsed.tags : ['100% Vegetale', resolvedCat],
+    recommended_slot: slot,
+    food_groups: Array.isArray(parsed.food_groups || parsed.gruppi_alimentari) ? (parsed.food_groups || parsed.gruppi_alimentari) : ['verdura', 'cibi_proteici'],
+    protein_group: parsed.protein_group || 'legumi_interi',
+    carb_family: parsed.carb_family || 'pasta',
+    veggie_color: parsed.veggie_color || 'green',
+    seasons: parsed.seasons || ['inverno', 'primavera', 'estate', 'autunno'],
+    is_complete_plate: typeof parsed.is_complete_plate === 'boolean' ? parsed.is_complete_plate : true,
   };
 
   return recipe;

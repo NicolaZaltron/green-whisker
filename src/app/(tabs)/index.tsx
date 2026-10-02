@@ -287,7 +287,7 @@ export default function ExploreScreen() {
                       <Text
                         style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
                       >
-                        {cat}
+                        {cat === 'Tutte' ? t('explore.allCategories') : t('categories.' + cat, { defaultValue: cat })}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -315,7 +315,7 @@ export default function ExploreScreen() {
                         <Text
                           style={[styles.subCategoryChipText, isSelected && styles.subCategoryChipTextSelected]}
                         >
-                          {sub}
+                          {sub === 'Tutte' ? t('explore.allCategories') : t('categories.' + sub, { defaultValue: sub })}
                         </Text>
                       </TouchableOpacity>
                     );

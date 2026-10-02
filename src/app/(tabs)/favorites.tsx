@@ -56,7 +56,7 @@ export default function FavoritesScreen() {
     if (!searchQuery.trim()) return favoriteRecipes;
     const q = searchQuery.toLowerCase().trim();
     return favoriteRecipes.filter(
-      r => r.titolo.toLowerCase().includes(q) || r.ingredienti.some(i => i.toLowerCase().includes(q))
+      r => r.title.toLowerCase().includes(q) || r.ingredients.some(i => i.toLowerCase().includes(q))
     );
   }, [favoriteRecipes, searchQuery]);
 

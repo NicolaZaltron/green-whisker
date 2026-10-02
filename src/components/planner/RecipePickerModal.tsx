@@ -18,6 +18,7 @@ import {
   SLOT_LABELS,
   SLOT_ICONS,
   getRecipesForSlot,
+  isAuthenticSideDish,
 } from '../../services/plannerService';
 
 export interface RecipePickerModalProps {
@@ -48,16 +49,12 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
     let pool: Recipe[];
 
     if (targetType === 'side') {
-      pool = allRecipes.filter(r =>
-        r.categoria === 'Verdure e Contorni' ||
-        r.categoria === 'Contorni e insalate' ||
-        (r.tags && r.tags.includes('Contorni'))
-      );
+      pool = allRecipes.filter(isAuthenticSideDish);
     } else if (filterMode === 'recommended') {
       const slotRecs = getRecipesForSlot(targetSlot);
       const customSlot = allRecipes.filter(
         r => r.id.startsWith('custom-') &&
-        (r.slot_consigliato === targetSlot || r.slot_consigliato === 'pranzo_cena')
+        ((r.recommended_slot as any) === targetSlot || (r.recommended_slot as any) === 'pranzo_cena')
       );
       pool = [...slotRecs, ...customSlot];
     } else {
@@ -75,8 +72,8 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
     if (!query.trim()) return uniquePool;
     const q = query.toLowerCase().trim();
     return uniquePool.filter(r =>
-      r.titolo.toLowerCase().includes(q) ||
-      r.categoria.toLowerCase().includes(q) ||
+      r.title.toLowerCase().includes(q) ||
+      r.category.toLowerCase().includes(q) ||
       (r.tags && r.tags.some(t => t.toLowerCase().includes(q)))
     );
   }, [allRecipes, targetType, filterMode, targetSlot, query]);
@@ -96,16 +93,12 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   const recommendedCount = useMemo(() => {
     let pool: Recipe[];
     if (targetType === 'side') {
-      pool = allRecipes.filter(
-        r => r.categoria === 'Verdure e Contorni' ||
-        r.categoria === 'Contorni e insalate' ||
-        (r.tags && r.tags.includes('Contorni'))
-      );
+      pool = allRecipes.filter(isAuthenticSideDish);
     } else {
       const slotRecs = getRecipesForSlot(targetSlot);
       const customSlot = allRecipes.filter(
         r => r.id.startsWith('custom-') &&
-        (r.slot_consigliato === targetSlot || r.slot_consigliato === 'pranzo_cena')
+        ((r.recommended_slot as any) === targetSlot || (r.recommended_slot as any) === 'pranzo_cena')
       );
       pool = [...slotRecs, ...customSlot];
     }
@@ -219,9 +212,9 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
               onPress={() => handleSelect(item)}
               activeOpacity={0.7}
             >
-              {item.immagine ? (
+              {item.image ? (
                 <Image
-                  source={{ uri: item.immagine }}
+                  source={{ uri: item.image }}
                   style={styles.pickerThumb}
                   contentFit="cover"
                   cachePolicy="disk"
@@ -230,10 +223,10 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                 <View style={[styles.pickerThumb, { backgroundColor: '#EAE5DC' }]} />
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.pickerItemCat}>{item.categoria}</Text>
-                <Text style={styles.pickerItemTitle} numberOfLines={2}>{item.titolo}</Text>
+                <Text style={styles.pickerItemCat}>{t('categories.' + item.category, { defaultValue: item.category })}</Text>
+                <Text style={styles.pickerItemTitle} numberOfLines={2}>{item.title}</Text>
                 <Text style={styles.pickerItemMeta}>
-                  {item.tempi?.tempo_totale_minuti || 30} min • {t('common.servings', { count: item.porzioni || 4 })}
+                  {item.times?.total_minutes || 30} min • {t('common.servings', { count: item.servings || 4 })}
                 </Text>
               </View>
               <Ionicons name="add-circle" size={24} color="#4A6B53" />

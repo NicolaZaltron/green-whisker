@@ -161,5 +161,56 @@
     "tips": "Suggerimenti dello Chef",
     "addToShopping": "Aggiungi alla Spesa",
     "share": "Condividi"
+  },
+  "categories": {
+    "MACRO_PRIMI_E_CEREALI": "Primi e Cereali",
+    "MACRO_PROTEINE_E_SECONDI": "Proteine Vegetali & Secondi",
+    "MACRO_PANIFICATI_E_PIATTI_UNICI": "Panificati e Piatti Unici",
+    "MACRO_VERDURE_E_CONTORNI": "Verdure e Contorni",
+    "MACRO_COLAZIONI_DOLCI": "Dolci, Colazioni e Snack",
+
+    "CAT_PRIMI_PIATTI": "Primi piatti",
+    "CAT_RISOTTI": "Risotti",
+    "CAT_GNOCCHI": "Gnocchi",
+    "CAT_PASTA_AL_FORNO": "Pasta al forno",
+    "CAT_POLENTA": "Polenta",
+    "CAT_BOWL": "Bowl",
+    "CAT_PORRIDGE_E_OVERNIGHT_OATS": "Porridge & Overnight Oats",
+    "CAT_INSALATE_DI_CEREALI": "Insalate di cereali",
+
+    "CAT_SECONDI_PIATTI": "Secondi piatti",
+    "CAT_PIATTI_A_BASE_DI_LEGUMI": "Piatti a base di legumi",
+    "CAT_INSALATE_DI_LEGUMI": "Insalate di legumi",
+    "CAT_SECONDI_A_BASE_DI_TOFU": "Secondi a base di Tofu",
+    "CAT_SECONDI_A_BASE_DI_TEMPEH": "Secondi a base di Tempeh",
+    "CAT_SECONDI_A_BASE_DI_SEITAN": "Secondi a base di Seitan",
+    "CAT_SECONDI_A_BASE_DI_SOIA": "Secondi a base di Soia",
+    "CAT_FARINATE_E_FRITTATE": "Farinate e Frittate",
+    "CAT_POLPETTE_E_BURGER": "Polpette e Burger",
+    "CAT_COTOLETTE": "Cotolette",
+
+    "CAT_PIADINE_E_WRAPS": "Piadine e Wraps",
+    "CAT_PANINI_E_BRUSCHETTE": "Panini e Bruschette",
+    "CAT_PIZZE_E_FOCACCIE": "Pizze e Focacce",
+    "CAT_TORTE_SALATE": "Torte salate",
+
+    "CAT_CONTORNI": "Contorni",
+    "CAT_VERDURE_AL_FORNO": "Verdure al forno",
+    "CAT_VERDURE_IN_PADELLA": "Verdure in padella",
+    "CAT_VERDURE_BOLLITE_E_A_VAPORE": "Verdure bollite e a vapore",
+    "CAT_ZUPPE_E_VELLUTATE": "Zuppe e Vellutate",
+    "CAT_SALSE_E_CONDIMENTI": "Salse e condimenti",
+
+    "CAT_MERENDE_E_COLAZIONI_DOLCI": "Colazioni e merende dolci",
+    "CAT_MERENDE_E_COLAZIONI_SALATE": "Colazioni e merende salate",
+    "CAT_BISCOTTI": "Biscotti",
+    "CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO": "Torte e dolci da forno",
+    "CAT_ENERGY_BALLS_E_BARRETTE": "Barrette e Energy Balls",
+    "CAT_FRULLATI": "Frullati e Smoothie",
+    "CAT_FRUTTA_FRESCA_E_MACEDONIE": "Frutta fresca e macedonie",
+    "CAT_FRUTTA_SECCA": "Frutta secca e semi",
+    "CAT_GELATI": "Gelati e sorbetti",
+    "CAT_A_BASE_DI_LATTE_VEGETALE": "A base di latte vegetale",
+    "CAT_A_BASE_DI_YOGURT_VEGETALE": "A base di yogurt vegetale"
   }
 }

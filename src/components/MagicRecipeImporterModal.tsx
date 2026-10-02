@@ -21,6 +21,7 @@ import { Recipe, SlotConsigliato } from '../types/recipe';
 import { parseRecipeWithAI } from '../services/aiService';
 import { saveCustomRecipe } from '../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
+import { useTranslation } from 'react-i18next';
 
 interface MagicRecipeImporterModalProps {
   visible: boolean;
@@ -47,6 +48,7 @@ export function MagicRecipeImporterModal({
   onClose,
   onRecipeSaved,
 }: MagicRecipeImporterModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'text' | 'photo'>('text');
   
   // Input states
@@ -61,8 +63,8 @@ export function MagicRecipeImporterModal({
   // Preview / Edit state
   const [parsedRecipe, setParsedRecipe] = useState<Recipe | null>(null);
   const [editTitle, setEditTitle] = useState('');
-  const [editCategory, setEditCategory] = useState<string>('Primi e Cereali');
-  const [editSubCategory, setEditSubCategory] = useState<string>('');
+  const [editCategory, setEditCategory] = useState<string>('MACRO_PRIMI_E_CEREALI');
+  const [editSubCategory, setEditSubCategory] = useState<string>('CAT_PRIMI_PIATTI');
   const [editSlot, setEditSlot] = useState<SlotConsigliato>('pranzo_cena');
   const [editServings, setEditServings] = useState('4');
   const [editTotalTime, setEditTotalTime] = useState('30');
@@ -185,21 +187,21 @@ export function MagicRecipeImporterModal({
           : undefined,
       });
 
-      const initialImg = recipe.immagine || (activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
+      const initialImg = recipe.image || (activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
 
       setParsedRecipe(recipe);
-      setEditTitle(recipe.titolo);
-      setEditCategory(recipe.macro_categoria || recipe.categoria);
-      setEditSubCategory(recipe.sottocategoria || '');
-      setEditSlot(recipe.slot_consigliato || 'pranzo_cena');
-      setEditServings(String(recipe.porzioni || 4));
-      setEditTotalTime(String(recipe.tempi?.tempo_totale_minuti || 30));
-      setEditDifficulty(recipe.difficolta || 'Facile');
+      setEditTitle(recipe.title);
+      setEditCategory(recipe.macro_category || 'MACRO_PRIMI_E_CEREALI');
+      setEditSubCategory(recipe.subcategory || recipe.category || '');
+      setEditSlot((recipe.recommended_slot as any) || 'pranzo_cena');
+      setEditServings(String(recipe.servings || 4));
+      setEditTotalTime(String(recipe.times?.total_minutes || 30));
+      setEditDifficulty(recipe.difficulty === 'hard' || recipe.difficulty === 'Difficile' ? 'Difficile' : recipe.difficulty === 'medium' || recipe.difficulty === 'Media' ? 'Media' : 'Facile');
       setEditImageUrl(initialImg);
       setImageLoadError(false);
-      setEditIngredients((recipe.ingredienti || []).join('\n'));
-      setEditInstructions((recipe.istruzioni || []).join('\n'));
-      setEditTips((recipe.suggerimenti || []).join('\n'));
+      setEditIngredients((recipe.ingredients || []).join('\n'));
+      setEditInstructions((recipe.instructions || []).join('\n'));
+      setEditTips((recipe.tips || []).join('\n'));
     } catch (e: any) {
       setErrorMsg(e.message || 'Errore durante l\'estrazione della ricetta.');
     } finally {
@@ -236,40 +238,48 @@ export function MagicRecipeImporterModal({
     const porz = parseInt(editServings, 10) || 4;
     const totTime = parseInt(editTotalTime, 10) || 30;
 
+    const chosenMacro = (editCategory as MacroCategory) || 'MACRO_PRIMI_E_CEREALI';
+    const chosenCat = editSubCategory || (RECIPE_TAXONOMY[chosenMacro]?.[0] || 'CAT_PRIMI_PIATTI');
+
     const finalRecipe: Recipe = {
       ...parsedRecipe!,
-      titolo: editTitle.trim(),
-      categoria: editCategory,
-      macro_categoria: editCategory,
-      sottocategoria: editSubCategory || undefined,
-      slot_consigliato: editSlot,
-      porzioni: porz,
-      porzioni_testo: `${porz} porzioni`,
-      difficolta: editDifficulty,
-      immagine: editImageUrl.trim(),
-      tempi: {
-        tempo_totale_minuti: totTime,
-        tempo_preparazione: `${Math.round(totTime * 0.4)} minuti`,
-        tempo_cottura: `${Math.round(totTime * 0.6)} minuti`,
-        tempi_display: `Prep: ${Math.round(totTime * 0.4)} min, Cottura: ${Math.round(totTime * 0.6)} min`
+      title: editTitle.trim(),
+      category: chosenCat,
+      macro_category: chosenMacro,
+      subcategory: chosenCat,
+      recommended_slot: editSlot as any,
+      servings: porz,
+      servings_text: `${porz} porzioni`,
+      difficulty: editDifficulty,
+      image: editImageUrl.trim(),
+      times: {
+        total_minutes: totTime,
+        prep_time: `${Math.round(totTime * 0.4)} minuti`,
+        cook_time: `${Math.round(totTime * 0.6)} minuti`,
+        display_time: `Prep: ${Math.round(totTime * 0.4)} min, Cottura: ${Math.round(totTime * 0.6)} min`
       },
-      ingredienti: ings,
-      ingredienti_per_sezione: [
+      ingredients: ings,
+      ingredients_by_section: [
         {
-          sezione: 'Principale',
-          ingredienti: ings
+          section: 'Principale',
+          ingredients: ings
         }
       ],
-      ingredienti_dettagliati: ings.map(item => ({
-        sezione: 'Principale',
-        testo: item,
-        quantita: null,
-        unita: '',
-        ingrediente: item
+      detailed_ingredients: ings.map(item => ({
+        section: 'Principale',
+        text: item,
+        amount: null,
+        unit: '',
+        ingredient: item
       })),
-      istruzioni: steps,
-      suggerimenti: tips,
-      tags: ['100% Vegetale', editCategory]
+      instructions: steps,
+      tips: tips,
+      tags: ['100% Vegetale', chosenCat],
+      protein_group: parsedRecipe?.protein_group || 'legumi_interi',
+      carb_family: parsedRecipe?.carb_family || 'pasta',
+      veggie_color: parsedRecipe?.veggie_color || 'green',
+      seasons: parsedRecipe?.seasons || ['inverno', 'primavera', 'estate', 'autunno'],
+      is_complete_plate: parsedRecipe?.is_complete_plate ?? true,
     };
 
     try {
@@ -536,11 +546,12 @@ export function MagicRecipeImporterModal({
                       style={[styles.chip, editCategory === cat && styles.chipActive]}
                       onPress={() => {
                         setEditCategory(cat);
-                        setEditSubCategory('');
+                        const firstSub = RECIPE_TAXONOMY[cat as MacroCategory]?.[0] || '';
+                        setEditSubCategory(firstSub);
                       }}
                     >
                       <Text style={[styles.chipText, editCategory === cat && styles.chipTextActive]}>
-                        {cat}
+                        {t('categories.' + cat, { defaultValue: cat })}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -559,7 +570,7 @@ export function MagicRecipeImporterModal({
                         onPress={() => setEditSubCategory(sub)}
                       >
                         <Text style={[styles.chipText, editSubCategory === sub && styles.chipTextActive]}>
-                          {sub}
+                          {t('categories.' + sub, { defaultValue: sub })}
                         </Text>
                       </TouchableOpacity>
                     ))}

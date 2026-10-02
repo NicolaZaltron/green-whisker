@@ -1,47 +1,59 @@
 export interface IngredientItem {
-  sezione: string;
-  testo: string;
-  quantita: number | null;
-  unita: string;
-  ingrediente: string;
+  section: string;
+  text: string;
+  amount: number | null;
+  unit: string;
+  ingredient: string;
 }
 
 export interface IngredientSection {
-  sezione: string;
-  ingredienti: string[];
+  section: string;
+  ingredients: string[];
 }
 
 export interface RecipeTimes {
-  tempo_totale_minuti: number;
-  tempo_preparazione: string | null;
-  tempo_cottura: string | null;
-  tempi_display: string;
+  total_minutes: number;
+  prep_time: string | null;
+  cook_time: string | null;
+  display_time: string;
 }
 
-export type SlotConsigliato = 'colazione' | 'spuntino' | 'pranzo_cena';
+export type RecommendedSlot = 'colazione' | 'spuntino' | 'pranzo_cena' | 'breakfast' | 'snack' | 'lunch_dinner';
+export type SlotConsigliato = RecommendedSlot;
 export type GruppoAlimentare = 'cereali' | 'verdura' | 'frutta' | 'frutta_secca_semi' | 'cibi_proteici' | 'grassi';
+
+export type ProteinGroup = 'legumi_interi' | 'soia_derivati' | 'cereali_proteici' | 'leggero_vegetale';
+export type CarbFamily = 'pasta' | 'riso' | 'farro_orzo' | 'pseudocereali' | 'tuberi' | 'pane_cereali_rapidi' | 'none';
+export type VeggieColor = 'green' | 'red_orange' | 'purple_blue' | 'yellow_white' | 'neutral';
+export type Season = 'inverno' | 'primavera' | 'estate' | 'autunno';
 
 export interface Recipe {
   id: string;
-  titolo: string;
-  fonte: string;
+  title: string;
+  source: string;
   url: string;
-  immagine: string;
-  categoria: string;
-  macro_categoria?: string;
-  sottocategoria?: string;
-  difficolta: 'Facile' | 'Media' | 'Difficile';
-  porzioni: number;
-  porzioni_testo: string;
-  tempi: RecipeTimes;
-  ingredienti: string[];
-  ingredienti_per_sezione: IngredientSection[];
-  ingredienti_dettagliati: IngredientItem[];
-  istruzioni: string[];
-  suggerimenti: string[];
+  image: string;
+  category: string;
+  macro_category?: string;
+  subcategory?: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'Facile' | 'Media' | 'Difficile';
+  servings: number;
+  servings_text?: string;
+  times: RecipeTimes;
+  ingredients: string[];
+  ingredients_by_section?: IngredientSection[];
+  detailed_ingredients?: IngredientItem[];
+  instructions: string[];
+  tips?: string[];
   tags: string[];
-  slot_consigliato?: SlotConsigliato;
-  gruppi_alimentari?: GruppoAlimentare[];
+  recommended_slot?: RecommendedSlot;
+  food_groups?: GruppoAlimentare[];
+
+  protein_group: ProteinGroup;
+  carb_family: CarbFamily;
+  veggie_color: VeggieColor;
+  seasons: Season[];
+  is_complete_plate: boolean;
 }
 
 export interface ShoppingItem {

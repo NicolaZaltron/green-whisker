@@ -161,5 +161,56 @@
     "tips": "Chef Tips",
     "addToShopping": "Add to Shopping List",
     "share": "Share"
+  },
+  "categories": {
+    "MACRO_PRIMI_E_CEREALI": "First Courses & Grains",
+    "MACRO_PROTEINE_E_SECONDI": "Plant Proteins & Mains",
+    "MACRO_PANIFICATI_E_PIATTI_UNICI": "Breads & Single Dishes",
+    "MACRO_VERDURE_E_CONTORNI": "Vegetables & Sides",
+    "MACRO_COLAZIONI_DOLCI": "Breakfast, Sweets & Snacks",
+
+    "CAT_PRIMI_PIATTI": "Pasta & First Courses",
+    "CAT_RISOTTI": "Risottos",
+    "CAT_GNOCCHI": "Gnocchi",
+    "CAT_PASTA_AL_FORNO": "Baked Pasta",
+    "CAT_POLENTA": "Polenta",
+    "CAT_BOWL": "Bowls",
+    "CAT_PORRIDGE_E_OVERNIGHT_OATS": "Porridge & Overnight Oats",
+    "CAT_INSALATE_DI_CEREALI": "Grain Salads",
+
+    "CAT_SECONDI_PIATTI": "Main Dishes",
+    "CAT_PIATTI_A_BASE_DI_LEGUMI": "Legume Dishes",
+    "CAT_INSALATE_DI_LEGUMI": "Legume Salads",
+    "CAT_SECONDI_A_BASE_DI_TOFU": "Tofu Mains",
+    "CAT_SECONDI_A_BASE_DI_TEMPEH": "Tempeh Mains",
+    "CAT_SECONDI_A_BASE_DI_SEITAN": "Seitan Mains",
+    "CAT_SECONDI_A_BASE_DI_SOIA": "Soy Mains",
+    "CAT_FARINATE_E_FRITTATE": "Chickpea Omelettes & Frittatas",
+    "CAT_POLPETTE_E_BURGER": "Patties & Veggie Burgers",
+    "CAT_COTOLETTE": "Cutlets",
+
+    "CAT_PIADINE_E_WRAPS": "Flatbreads & Wraps",
+    "CAT_PANINI_E_BRUSCHETTE": "Sandwiches & Bruschettas",
+    "CAT_PIZZE_E_FOCACCIE": "Pizzas & Focaccias",
+    "CAT_TORTE_SALATE": "Savory Pies & Quiches",
+
+    "CAT_CONTORNI": "Side Dishes",
+    "CAT_VERDURE_AL_FORNO": "Baked Vegetables",
+    "CAT_VERDURE_IN_PADELLA": "Pan-Fried Vegetables",
+    "CAT_VERDURE_BOLLITE_E_A_VAPORE": "Steamed & Boiled Vegetables",
+    "CAT_ZUPPE_E_VELLUTATE": "Soups & Creamy Stews",
+    "CAT_SALSE_E_CONDIMENTI": "Sauces & Condiments",
+
+    "CAT_MERENDE_E_COLAZIONI_DOLCI": "Sweet Breakfasts & Snacks",
+    "CAT_MERENDE_E_COLAZIONI_SALATE": "Savory Breakfasts & Snacks",
+    "CAT_BISCOTTI": "Cookies & Biscuits",
+    "CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO": "Cakes & Baked Sweets",
+    "CAT_ENERGY_BALLS_E_BARRETTE": "Energy Balls & Bars",
+    "CAT_FRULLATI": "Smoothies & Shakes",
+    "CAT_FRUTTA_FRESCA_E_MACEDONIE": "Fresh Fruit & Fruit Salads",
+    "CAT_FRUTTA_SECCA": "Nuts & Seeds",
+    "CAT_GELATI": "Ice Creams & Sorbets",
+    "CAT_A_BASE_DI_LATTE_VEGETALE": "Plant Milk Specialties",
+    "CAT_A_BASE_DI_YOGURT_VEGETALE": "Plant Yogurt Specialties"
   }
 }

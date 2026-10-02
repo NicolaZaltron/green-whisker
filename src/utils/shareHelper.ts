@@ -18,16 +18,16 @@ export function formatRecipeShareText(
   const lines: string[] = [];
 
   // Header
-  lines.push(`🌿 *${recipe.titolo.trim()}*`);
+  lines.push(`🌿 *${recipe.title.trim()}*`);
 
   const metaParts: string[] = [];
   if (servings) metaParts.push(`👥 ${servings} ${servings === 1 ? 'porzione' : 'porzioni'}`);
-  if (recipe.tempi?.tempi_display) {
-    metaParts.push(`⏱️ ${recipe.tempi.tempi_display}`);
-  } else if (recipe.tempi?.tempo_totale_minuti) {
-    metaParts.push(`⏱️ ${recipe.tempi.tempo_totale_minuti} min`);
+  if (recipe.times?.display_time) {
+    metaParts.push(`⏱️ ${recipe.times.display_time}`);
+  } else if (recipe.times?.total_minutes) {
+    metaParts.push(`⏱️ ${recipe.times.total_minutes} min`);
   }
-  if (recipe.difficolta) metaParts.push(`📊 Difficoltà: ${recipe.difficolta}`);
+  if (recipe.difficulty) metaParts.push(`📊 Difficoltà: ${recipe.difficulty}`);
 
   if (metaParts.length > 0) {
     lines.push(metaParts.join(' • '));
@@ -39,23 +39,24 @@ export function formatRecipeShareText(
   if (scaledIngredients && scaledIngredients.length > 0) {
     let currentSection = '';
     scaledIngredients.forEach(ing => {
-      if (ing.sezione && ing.sezione !== 'Principale' && ing.sezione !== 'Ingredienti' && ing.sezione !== currentSection) {
-        currentSection = ing.sezione;
+      const sec = (ing as any).section || (ing as any).sezione;
+      if (sec && sec !== 'Principale' && sec !== 'Main' && sec !== 'Ingredienti' && sec !== currentSection) {
+        currentSection = sec;
         lines.push(`\n_${currentSection}:_`);
       }
-      lines.push(`• ${ing.testo}`);
+      lines.push(`• ${(ing as any).text || (ing as any).testo || ''}`);
     });
-  } else if (recipe.ingredienti && recipe.ingredienti.length > 0) {
-    recipe.ingredienti.forEach(ing => {
+  } else if (recipe.ingredients && recipe.ingredients.length > 0) {
+    recipe.ingredients.forEach(ing => {
       lines.push(`• ${ing}`);
     });
   }
   lines.push('');
 
   // Instructions / Steps Section
-  if (recipe.istruzioni && recipe.istruzioni.length > 0) {
+  if (recipe.instructions && recipe.instructions.length > 0) {
     lines.push('👩‍🍳 *PREPARAZIONE:*');
-    recipe.istruzioni.forEach((step, idx) => {
+    recipe.instructions.forEach((step, idx) => {
       lines.push(`${idx + 1}. ${step.trim()}`);
     });
     lines.push('');

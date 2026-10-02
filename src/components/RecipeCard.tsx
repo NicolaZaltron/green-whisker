@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
 import { useFavoritesSafe } from '../context/FavoritesContext';
+import { useTranslation } from 'react-i18next';
 
 export interface PantryMatchInfo {
   percentage: number;
@@ -31,6 +32,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
   pantryMatch,
   onAddMissingToShopping,
 }) => {
+  const { t } = useTranslation();
   // Synchronous O(1) favorite status lookup without mount query cascades
   const favContext = useFavoritesSafe();
   const favorite = isFavProp !== undefined ? isFavProp : favContext?.isFavorite(recipe.id) ?? false;
@@ -50,9 +52,9 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
       <View style={styles.imageWrapper}>
-        {recipe.immagine ? (
+        {recipe.image ? (
           <Image
-            source={{ uri: recipe.immagine }}
+            source={{ uri: recipe.image }}
             style={styles.image}
             contentFit="cover"
             transition={200}
@@ -65,7 +67,9 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
         )}
 
         <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>{recipe.sottocategoria || recipe.categoria}</Text>
+          <Text style={styles.categoryPillText}>
+            {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
+          </Text>
         </View>
 
         {/* Pulsante Preferiti Rapido */}
@@ -82,7 +86,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
           />
         </TouchableOpacity>
 
-        {recipe.tempi.tempo_totale_minuti > 0 && recipe.tempi.tempo_totale_minuti <= 25 && (
+        {recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 && (
           <View style={styles.fastPill}>
             <Ionicons name="flash" size={11} color="#FFF" />
             <Text style={styles.fastPillText}>Veloce</Text>
@@ -114,24 +118,24 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
         )}
 
         <Text style={styles.title} numberOfLines={2}>
-          {recipe.titolo}
+          {recipe.title}
         </Text>
 
         <View style={styles.footer}>
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={14} color="#6C786E" style={{ marginRight: 3 }} />
-            <Text style={styles.metaText}>{recipe.tempi.tempo_totale_minuti} min</Text>
+            <Text style={styles.metaText}>{recipe.times.total_minutes} min</Text>
           </View>
 
           <View style={styles.dot} />
 
           <View style={styles.metaRow}>
             <Ionicons name="people-outline" size={14} color="#6C786E" style={{ marginRight: 3 }} />
-            <Text style={styles.metaText}>{recipe.porzioni}</Text>
+            <Text style={styles.metaText}>{recipe.servings}</Text>
           </View>
 
           <View style={styles.diffBadge}>
-            <Text style={styles.diffText}>{recipe.difficolta}</Text>
+            <Text style={styles.diffText}>{recipe.difficulty}</Text>
           </View>
         </View>
 
@@ -140,7 +144,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
             style={styles.addMissingBtn}
             onPress={(e: any) => {
               e?.stopPropagation?.();
-              onAddMissingToShopping(pantryMatch.missing, recipe.titolo);
+              onAddMissingToShopping(pantryMatch.missing, recipe.title);
             }}
             activeOpacity={0.8}
           >
