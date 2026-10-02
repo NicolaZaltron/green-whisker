@@ -37,14 +37,19 @@ It combines a private recipe catalog with an intelligent pantry matcher, a visua
 - 🎲 **Plan Auto-Generator**: Automatically generate a balanced weekly meal plan based on your preferences.
 - 🛒 **Direct Shopping Sync**: Send missing ingredients from your planned meals straight to your shopping list with a single confirmation.
 
-### 🛒 5. Smart Grocery List
-- 🏷️ **15 Department Categories**: Items are automatically classified into exact supermarket aisles: *Banco frigo, Bevande vegetali, Cereali da colazione, Condimenti, Conserve, Dolcificanti, Farine, Frutta secca e semi oleosi, Legumi, Pane e prodotti da forno, Pasta, Riso e altri cereali, Spezie ed erbe aromatiche, Verdura, Varie*.
-- ➕ **Custom Items & Quantities**: Add manual items with real-time smart department auto-detection.
-- ✔️ **Interactive Checklist**: Check off items in the supermarket and clear completed items with one tap.
+### 🛒 5. Smart Grocery List (Reparti del Supermercato)
+- 🏷️ **13 Canonical Supermarket Departments**: Items are automatically routed into 13 real-world supermarket aisles: *Ortofrutta (Produce), Banco frigo (Refrigerated), Panetteria (Bakery), Pasta e Cereali (Pasta & Grains), Legumi (Legumes & Pulses), Bevande vegetali & Caffè (Plant Milks & Beverages), Condimenti (Condiments & Pestos), Conserve (Canned & Preserves), Farine (Flours & Baking), Dolcificanti (Sweeteners), Frutta secca e semi oleosi (Nuts & Seeds), Spezie ed erbe aromatiche (Herbs & Spices), Varie (Miscellaneous)*.
+- ⚡ **100% Offline & Deterministic**: Powered by an instant local categorization lexicon with zero network latency, zero API costs, and full offline reliability inside supermarkets.
+- 🧮 **Intelligent Ingredient Consolidation**: Merges identical ingredients across different recipes, summing weights (grams/kg), volumes (ml/l), and discrete units (spicchi, rotoli, panetti, vasetti, lattine) into unified shopping entries.
+- 🧹 **Advanced Recipe Text Cleaning & Filtering**: Strips culinary narrative prefixes (e.g., *"Abbondante di..."*, *"Un filo di..."*, *"Un pizzico di..."*) while isolating quantities to the right, and automatically filters non-purchasable kitchen water (*"Acqua fredda"*, *"Acqua calda"*, *"Acqua di cottura"*).
+- 🔤 **A-Z Alphabetical Sorting**: Every aisle category automatically sorts items alphabetically from A to Z for fast, stress-free navigation down the aisle.
+- 🪗 **Interactive Accordion Checklist**: Collapsible cards per department with completion counters (*"X di Y presi"*), circular checkboxes, and one-tap bulk removal of completed items.
+- 📤 **Department-Grouped Sharing**: Export cleanly formatted shopping lists to WhatsApp, Telegram, or Notes with emoji checkmarks and aisle headers.
 
-### 📱 6. Offline-First & Cross-Platform
-- Runs smoothly on **iOS**, **Android**, and **Web**.
-- **Local SQLite Database**: Native storage powered by **Expo SQLite** with automatic browser LocalStorage fallback on the web. Zero cloud dependency required for day-to-day use.
+### 📱 6. Offline-First, i18n & Cross-Platform
+- 🌍 **Full Internationalization (i18n)**: Native bilingual support for **Italian 🇮🇹** and **English 🇬🇧** with automatic device locale detection.
+- 📱 Runs smoothly on **iOS**, **Android**, and **Web**.
+- 💾 **Local SQLite Database**: Native storage powered by **Expo SQLite** with automatic browser LocalStorage fallback on the web. Zero cloud dependency required for day-to-day use.
 
 ---
 
@@ -79,10 +84,12 @@ The engine uses sliding-window tracking and score penalties to prevent repetitio
 - **Framework**: [React Native](https://reactnative.dev/) (v0.86) with [Expo](https://expo.dev/) (SDK 57)
 - **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based navigation)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Internationalization**: [i18next](https://www.i18next.com/) & [react-i18next](https://react.i18next.com/) with [Expo Localization](https://docs.expo.dev/versions/latest/sdk/localization/) (IT / EN)
 - **Local Database**: [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
 - **Search Engine**: [Fuse.js](https://fusejs.io/)
 - **Media & Images**: [Expo Image](https://docs.expo.dev/versions/latest/sdk/image/) & [Expo ImagePicker](https://docs.expo.dev/versions/latest/sdk/imagepicker/)
 - **AI Engine**: Google Gemini API, OpenAI, Claude, OpenRouter, or Local LLMs via REST + [Jina Reader](https://jina.ai/reader/)
+- **Classification & Consolidation**: Custom deterministic supermarket parsing & unit aggregation engine
 
 ---
 
@@ -186,15 +193,17 @@ green-whisker/
 │   ├── ricette.example.json    # Starter template recipe array
 │   ├── icon.png, splash-icon   # App icons and branding assets
 │   └── ...
+├── scripts/                    # Recipes normalization & planner test simulations
 ├── src/
 │   ├── app/                    # Expo Router tab screens (index, planner, shopping, favorites)
 │   ├── components/             # UI components (RecipeCard, RecipeModal, MagicRecipeImporterModal, PantryView)
-│   ├── constants/              # Category definitions, food groups, icons
-│   ├── db/                     # Expo SQLite schema & web LocalStorage abstraction
+│   ├── constants/              # Category definitions, shopping departments, food groups, icons
+│   ├── db/                     # Expo SQLite schema, migrations & web LocalStorage abstraction
 │   ├── hooks/                  # Custom hooks (responsive layout, debouncing)
+│   ├── i18n/                   # Multi-language localization (Italian 🇮🇹 & English 🇬🇧)
 │   ├── services/               # AI parser (Gemini/OpenAI/Claude/Ollama), Fuse.js search, Meal Planner
 │   ├── types/                  # TypeScript interfaces (Recipe, MealPlan, ShoppingItem)
-│   └── utils/                  # Servings scaler, text cleaners, share utilities
+│   └── utils/                  # Servings scaler, shopping classifier, ingredient aggregator, share helpers
 ├── .env.example                # AI provider configuration template
 ├── eas.json                    # EAS Build & Submit configuration (APK / AAB)
 ├── recipe-example.json         # Single recipe JSON schema specification
@@ -205,12 +214,36 @@ green-whisker/
 
 ## 📝 Custom Recipe Schema
 
-Custom recipes imported or manually created adhere to the schema documented in [`recipe-example.json`](./recipe-example.json). Each recipe includes:
-- Unique `id`, `titolo`, `categoria`, `difficolta`, `porzioni`
-- `tempi` object (`tempo_preparazione`, `tempo_cottura`, `tempo_totale_minuti`)
-- `ingredienti_dettagliati` with normalized quantities and units for dynamic serving scaling
-- `istruzioni` array for step-by-step cooking checklists
-- Nutritional classifications (`gruppi_alimentari`, `tags`, `slot_consigliato`)
+Custom recipes imported via AI or manually maintained adhere to the canonical schema defined in [`src/types/recipe.ts`](./src/types/recipe.ts) and demonstrated in [`recipe-example.json`](./recipe-example.json):
+
+### Core Metadata
+- `id` *(string)*: Unique slug identifier (e.g. `"tofu-marinato-al-limone-ed-erbe"`).
+- `title` *(string)*: Recipe title.
+- `source` *(string)*: Provenance (e.g. `"Personalizzata (AI)"`, author, or blog name).
+- `url` *(string)*: Original source web link.
+- `image` *(string)*: Remote URL or local asset URI.
+- `difficulty` *(string)*: `'easy' | 'medium' | 'hard'`.
+- `servings` *(number)* & `servings_text` *(string)*: Default portion count (e.g. `2`, `"2 porzioni"`).
+- `times` *(object)*: `{ total_minutes, prep_time, cook_time, display_time }`.
+
+### Ingredients & Preparation
+- `ingredients` *(string[])*: Clean plain-text list of ingredients.
+- `ingredients_by_section` *(array)*: Section-grouped ingredients (e.g. `[{ section: "Marinatura", ingredients: [...] }]`).
+- `detailed_ingredients` *(array)*: Structured objects `{ section, text, amount, unit, ingredient }` utilized by `servingsScaler` for portion scaling and `ingredientAggregator` for supermarket consolidation.
+- `instructions` *(string[])*: Step-by-step preparation checklist.
+- `tips` *(string[])*: Optional chef notes and storage recommendations.
+- `tags` *(string[])*: Dietary tags and categories (e.g. `["100% Vegetale", "Senza Glutine", "Proteico"]`).
+
+### Categorization & Smart Planner Engine
+- `category` *(string)*: Canonical category ID (e.g. `CAT_SECONDI_A_BASE_DI_TOFU`).
+- `macro_category` *(string)*: Top-level classification (e.g. `MACRO_PROTEINE_E_SECONDI`).
+- `recommended_slot` *(string)*: Intended meal slot (`'colazione' | 'spuntino' | 'pranzo_cena'`).
+- `food_groups` *(string[])*: Core plant-based food groups (`'cereali' | 'verdura' | 'frutta' | 'frutta_secca_semi' | 'cibi_proteici' | 'grassi'`).
+- `protein_group` *(string)*: Plant protein family (`'soia_derivati' | 'legumi_interi' | 'cereali_proteici' | 'leggero_vegetale'`).
+- `carb_family` *(string)*: Carbohydrate source (`'pasta' | 'riso' | 'farro_orzo' | 'pseudocereali' | 'tuberi' | 'pane_cereali_rapidi' | 'none'`).
+- `veggie_color` *(string)*: Phytonutrient rainbow color (`'green' | 'red_orange' | 'purple_blue' | 'yellow_white' | 'neutral'`).
+- `is_complete_plate` *(boolean)*: Declares whether the recipe is a complete single dish (*Piatto Unico*) or requires a vegetable side dish.
+- `seasons` *(string[])*: Supported culinary seasons (`'primavera' | 'estate' | 'autunno' | 'inverno'`).
 
 ---
 
