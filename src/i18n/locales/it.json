@@ -212,5 +212,20 @@
     "CAT_GELATI": "Gelati e sorbetti",
     "CAT_A_BASE_DI_LATTE_VEGETALE": "A base di latte vegetale",
     "CAT_A_BASE_DI_YOGURT_VEGETALE": "A base di yogurt vegetale"
+  },
+  "shoppingDepartments": {
+    "CAT_SHOPPING_VERDURA": "Ortofrutta",
+    "CAT_SHOPPING_BANCO_FRIGO": "Banco frigo",
+    "CAT_SHOPPING_PANE_E_PRODOTTI_DA_FORNO": "Panetteria",
+    "CAT_SHOPPING_PASTA_E_CEREALI": "Pasta e Cereali",
+    "CAT_SHOPPING_LEGUMI": "Legumi",
+    "CAT_SHOPPING_BEVANDE_VEGETALI": "Bevande vegetali",
+    "CAT_SHOPPING_FARINE": "Farine",
+    "CAT_SHOPPING_CONSERVE": "Conserve",
+    "CAT_SHOPPING_CONDIMENTI": "Condimenti",
+    "CAT_SHOPPING_SPEZIE_ED_ERBE_AROMATICHE": "Spezie ed erbe",
+    "CAT_SHOPPING_FRUTTA_SECCA_E_SEMI_OLEOSI": "Frutta secca e semi",
+    "CAT_SHOPPING_DOLCIFICANTI": "Dolcificanti",
+    "CAT_SHOPPING_VARIE": "Varie"
   }
 }

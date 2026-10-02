@@ -4,6 +4,7 @@ import { Recipe, IngredientItem, ShoppingItem } from '../types/recipe';
 import { SHOPPING_DEPARTMENTS, ShoppingDepartment } from '../constants/shoppingDepartments';
 import { classifyShoppingDepartment } from './shoppingClassifier';
 import { cleanShoppingIngredientText } from './servingsScaler';
+import i18n from '../i18n';
 
 /**
  * Formats a recipe into a clean, aesthetic plain-text message suitable for
@@ -184,7 +185,8 @@ export function formatShoppingListShareText(items: ShoppingItem[]): string {
   for (const dept of SHOPPING_DEPARTMENTS) {
     const list = map.get(dept) || [];
     if (list.length > 0) {
-      lines.push(`📦 *${dept.toUpperCase()}*`);
+      const deptTitle = i18n.t(`shopping.departments.${dept}`, { defaultValue: dept });
+      lines.push(`📦 *${deptTitle.toUpperCase()}*`);
       list.forEach(i => {
         const checkMark = i.checked ? '✔️ ' : '▫️ ';
         const text = cleanShoppingIngredientText(i.ingredient_text, i.name);

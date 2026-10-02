@@ -90,7 +90,7 @@ export default function ShoppingScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadItems(false);
+      loadItems(true);
     }, [])
   );
 
@@ -107,7 +107,7 @@ export default function ShoppingScreen() {
   // Reparto rilevato in tempo reale per l'input manuale
   const detectedDept: ShoppingDepartment = useMemo(() => {
     if (manualDeptOverride) return manualDeptOverride;
-    if (!newItemText.trim()) return 'Varie';
+    if (!newItemText.trim()) return 'CAT_SHOPPING_VARIE';
     return classifyShoppingDepartment(newItemText.trim());
   }, [newItemText, manualDeptOverride]);
 
@@ -385,7 +385,7 @@ export default function ShoppingScreen() {
                       { color: DEPARTMENT_COLORS[detectedDept]?.text || '#34523C' },
                     ]}
                   >
-                    {detectedDept}
+                    {t('shoppingDepartments.' + detectedDept, { defaultValue: detectedDept })}
                   </Text>
                   <Ionicons name="chevron-down" size={12} color="#7E8B80" />
                 </TouchableOpacity>
@@ -449,7 +449,7 @@ export default function ShoppingScreen() {
                         isActive && { color: colors.text, fontWeight: '700' },
                       ]}
                     >
-                      {sec.department} ({sec.total})
+                      {t('shoppingDepartments.' + sec.department, { defaultValue: sec.department })} ({sec.total})
                     </Text>
                     {sec.isAllChecked && (
                       <Ionicons name="checkmark-circle" size={13} color="#34523C" />
@@ -501,7 +501,7 @@ export default function ShoppingScreen() {
 
                   <View style={{ flex: 1 }}>
                     <View style={styles.sectionTitleRow}>
-                      <Text style={styles.sectionTitle}>{section.department}</Text>
+                      <Text style={styles.sectionTitle}>{t('shoppingDepartments.' + section.department, { defaultValue: section.department })}</Text>
                       {section.isAllChecked && (
                         <View style={styles.completedBadge}>
                           <Ionicons name="checkmark" size={11} color="#FFF" />
@@ -562,7 +562,7 @@ export default function ShoppingScreen() {
               </View>
               <Text style={styles.emptyTitle}>
                 {selectedDeptFilter !== 'ALL'
-                  ? t('shopping.emptyDeptTitle', { dept: selectedDeptFilter })
+                  ? t('shopping.emptyDeptTitle', { dept: t('shoppingDepartments.' + selectedDeptFilter, { defaultValue: selectedDeptFilter }) })
                   : t('shopping.emptyTitle')}
               </Text>
               <Text style={styles.emptySubtitle}>
@@ -644,7 +644,7 @@ export default function ShoppingScreen() {
                           isSelected && { color: colors.text, fontWeight: '700' },
                         ]}
                       >
-                        {dept}
+                        {t('shoppingDepartments.' + dept, { defaultValue: dept })}
                       </Text>
                       {isSelected && (
                         <Ionicons name="checkmark" size={18} color={colors.text} />

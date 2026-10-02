@@ -212,5 +212,20 @@
     "CAT_GELATI": "Ice Creams & Sorbets",
     "CAT_A_BASE_DI_LATTE_VEGETALE": "Plant Milk Specialties",
     "CAT_A_BASE_DI_YOGURT_VEGETALE": "Plant Yogurt Specialties"
+  },
+  "shoppingDepartments": {
+    "CAT_SHOPPING_VERDURA": "Produce",
+    "CAT_SHOPPING_BANCO_FRIGO": "Refrigerated",
+    "CAT_SHOPPING_PANE_E_PRODOTTI_DA_FORNO": "Bakery",
+    "CAT_SHOPPING_PASTA_E_CEREALI": "Pasta & Grains",
+    "CAT_SHOPPING_LEGUMI": "Legumes",
+    "CAT_SHOPPING_BEVANDE_VEGETALI": "Plant Milk & Drinks",
+    "CAT_SHOPPING_FARINE": "Flour & Baking",
+    "CAT_SHOPPING_CONSERVE": "Canned & Jars",
+    "CAT_SHOPPING_CONDIMENTI": "Oils & Condiments",
+    "CAT_SHOPPING_SPEZIE_ED_ERBE_AROMATICHE": "Spices & Herbs",
+    "CAT_SHOPPING_FRUTTA_SECCA_E_SEMI_OLEOSI": "Nuts & Seeds",
+    "CAT_SHOPPING_DOLCIFICANTI": "Sweeteners",
+    "CAT_SHOPPING_VARIE": "Miscellaneous"
   }
 }

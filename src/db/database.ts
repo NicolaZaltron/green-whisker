@@ -74,7 +74,7 @@ export async function initDatabase(): Promise<void> {
         amount REAL,
         unit TEXT,
         checked INTEGER NOT NULL DEFAULT 0,
-        category TEXT NOT NULL DEFAULT 'Dispensa',
+        category TEXT NOT NULL DEFAULT 'CAT_SHOPPING_VARIE',
         created_at INTEGER NOT NULL
       );
 
@@ -209,6 +209,14 @@ export async function getShoppingItems(): Promise<ShoppingItem[]> {
   }
 }
 
+function isNonPurchasableItem(cleanName: string, key: string): boolean {
+  if (!cleanName || !key) return true;
+  if (key === 'ghiaccio' || key === 'cubetti di ghiaccio' || key === 'cubetto di ghiaccio') return true;
+  if (/^acqua(?:\s+(?:di\s+cottura(?:\s+della\s+pasta)?|tiepida|calda|fredda|fresca|del\s+rubinetto|q\.?b\.?))?$/i.test(key)) return true;
+  if (/^acqua\s+di\s+cottura/i.test(cleanName)) return true;
+  return false;
+}
+
 export async function addShoppingItems(items: Array<{
   recipeId?: string;
   recipeTitle?: string;
@@ -224,7 +232,7 @@ export async function addShoppingItems(items: Array<{
     .filter(item => {
       const clean = cleanSupermarketIngredientName(item.name || item.ingredientText);
       const key = normalizeIngredientKey(clean);
-      return Boolean(clean) && key !== 'ghiaccio' && key !== 'cubetti di ghiaccio' && key !== 'cubetto di ghiaccio';
+      return !isNonPurchasableItem(clean, key);
     })
     .map(item => {
       const cleanName = cleanSupermarketIngredientName(item.name || item.ingredientText);
@@ -329,7 +337,7 @@ export async function consolidateShoppingList(): Promise<number> {
   for (const item of unchecked) {
     const cleanName = cleanSupermarketIngredientName(item.name || item.ingredient_text);
     const key = normalizeIngredientKey(cleanName);
-    if (!cleanName || key === 'ghiaccio' || key === 'cubetti di ghiaccio' || key === 'cubetto di ghiaccio') {
+    if (isNonPurchasableItem(cleanName, key)) {
       continue;
     }
     const category = classifyShoppingDepartment(cleanName, item.category);
