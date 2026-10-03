@@ -25,6 +25,9 @@ const WEB_STORAGE_KEYS = {
   CUSTOM_RECIPES: 'gw_custom_recipes',
 };
 
+// Fallback in-memory store if localStorage or SQLite is unavailable
+const memoryFallback = new Map<string, string>();
+
 function getWebData<T>(key: string, defaultValue: T): T {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -34,17 +37,20 @@ function getWebData<T>(key: string, defaultValue: T): T {
   } catch (e) {
     console.warn('Error reading from localStorage', e);
   }
-  return defaultValue;
+  const mem = memoryFallback.get(key);
+  return mem ? JSON.parse(mem) : defaultValue;
 }
 
 function setWebData<T>(key: string, value: T): void {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem(key, JSON.stringify(value));
+      return;
     }
   } catch (e) {
     console.warn('Error saving to localStorage', e);
   }
+  memoryFallback.set(key, JSON.stringify(value));
 }
 
 export async function initDatabase(): Promise<void> {
@@ -95,11 +101,6 @@ export async function initDatabase(): Promise<void> {
         updated_at INTEGER NOT NULL
       );
 
-      CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
-      CREATE INDEX IF NOT EXISTS idx_meal_plan_date_slot ON meal_plan(date, slot);
-      CREATE INDEX IF NOT EXISTS idx_shopping_items_checked ON shopping_items(checked, category);
-      CREATE INDEX IF NOT EXISTS idx_custom_recipes_created ON custom_recipes(created_at DESC);
-
       CREATE TABLE IF NOT EXISTS kv_store (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -110,6 +111,11 @@ export async function initDatabase(): Promise<void> {
         json_data TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+
+      CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
+      CREATE INDEX IF NOT EXISTS idx_meal_plan_date_slot ON meal_plan(date, slot);
+      CREATE INDEX IF NOT EXISTS idx_shopping_items_checked ON shopping_items(checked, category);
+      CREATE INDEX IF NOT EXISTS idx_custom_recipes_created ON custom_recipes(created_at DESC);
     `);
 
     // Migrazione safe per database esistenti dove la colonna non era ancora presente
