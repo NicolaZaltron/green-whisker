@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import { Recipe, ShoppingItem, MealPlanEntry } from '../types/recipe';
 import { cleanShoppingIngredientText } from '../utils/servingsScaler';
 import { classifyShoppingDepartment } from '../utils/shoppingClassifier';
+import { expandDeletion } from '../services/catalogFormat';
 import {
   normalizeIngredientKey,
   cleanSupermarketIngredientName,
@@ -23,7 +24,10 @@ const WEB_STORAGE_KEYS = {
   PLANNER_PREFS: 'gw_planner_prefs',
   PLANNER_LAST_GEN: 'gw_planner_last_gen',
   CUSTOM_RECIPES: 'gw_custom_recipes',
+  CATALOG: 'gw_catalog',
 };
+
+const CATALOG_INIT_KEY = 'catalog_init_v1';
 
 // Fallback in-memory store if localStorage or SQLite is unavailable
 const memoryFallback = new Map<string, string>();
@@ -106,6 +110,16 @@ export async function initDatabase(): Promise<void> {
         value TEXT NOT NULL
       );
 
+      CREATE TABLE IF NOT EXISTS catalog (
+        id TEXT PRIMARY KEY,
+        json_data TEXT NOT NULL,
+        base_id TEXT,
+        diet TEXT NOT NULL,
+        origin TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
       CREATE TABLE IF NOT EXISTS custom_recipes (
         id TEXT PRIMARY KEY,
         json_data TEXT NOT NULL,
@@ -116,6 +130,9 @@ export async function initDatabase(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date_slot ON meal_plan(date, slot);
       CREATE INDEX IF NOT EXISTS idx_shopping_items_checked ON shopping_items(checked, category);
       CREATE INDEX IF NOT EXISTS idx_custom_recipes_created ON custom_recipes(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_catalog_base ON catalog(base_id);
+      CREATE INDEX IF NOT EXISTS idx_catalog_diet ON catalog(diet);
+      CREATE INDEX IF NOT EXISTS idx_catalog_origin ON catalog(origin);
     `);
 
     // Migrazione safe per database esistenti dove la colonna non era ancora presente
@@ -807,76 +824,181 @@ export async function setKV(key: string, value: string): Promise<void> {
   }
 }
 
-// --- CUSTOM RECIPES ---
-export async function saveCustomRecipe(recipe: Recipe): Promise<void> {
-  const jsonStr = JSON.stringify(recipe);
+// --- CATALOGO ---
+// Tutte le ricette del telefono (originali e varianti). Le varianti hanno base_id valorizzato.
 
-  if (isWebFallback || !dbInstance) {
-    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
-    const idx = list.findIndex(r => r.id === recipe.id);
-    if (idx !== -1) {
-      list[idx] = recipe;
-    } else {
-      list.unshift(recipe);
-    }
-    setWebData(WEB_STORAGE_KEYS.CUSTOM_RECIPES, list);
-    return;
-  }
-
-  try {
-    await dbInstance.runAsync(`
-      INSERT INTO custom_recipes (id, json_data, created_at)
-      VALUES (?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET json_data = excluded.json_data
-    `, [recipe.id, jsonStr, Date.now()]);
-  } catch (e) {
-    console.error('saveCustomRecipe error', e);
-  }
+function catalogIndexFields(recipe: Recipe) {
+  const now = Date.now();
+  return {
+    base: recipe.variant_of ?? null,
+    diet: recipe.diet ?? 'omnivore',
+    origin: recipe.origin ?? 'file',
+    created: recipe.created_at ?? now,
+    updated: recipe.updated_at ?? now,
+  };
 }
 
-export async function getCustomRecipes(): Promise<Recipe[]> {
+export async function getCatalogRecipes(): Promise<Recipe[]> {
   if (isWebFallback || !dbInstance) {
-    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
-    const seen = new Set<string>();
-    return list.filter(r => {
-      if (!r || !r.id || seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
+    return getWebData<Recipe[]>(WEB_STORAGE_KEYS.CATALOG, []);
   }
 
   try {
-    const rows = await dbInstance.getAllAsync('SELECT json_data FROM custom_recipes ORDER BY created_at DESC');
-    const seen = new Set<string>();
-    return rows.map((r: any) => {
+    const rows = await dbInstance.getAllAsync('SELECT json_data FROM catalog ORDER BY created_at DESC');
+    return rows.flatMap((r: any) => {
       try {
-        return JSON.parse(r.json_data);
+        return [JSON.parse(r.json_data) as Recipe];
       } catch {
-        return null;
+        return [];
       }
-    }).filter((r: Recipe | null): r is Recipe => {
-      if (!r || !r.id || seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
     });
   } catch (e) {
-    console.error('getCustomRecipes error', e);
+    console.error('getCatalogRecipes error', e);
     return [];
   }
 }
 
-export async function deleteCustomRecipe(id: string): Promise<void> {
+/**
+ * Inserisce o aggiorna le ricette. Con mode 'keep' le ricette con un id già presente non vengono toccate.
+ */
+export async function upsertCatalogRecipes(recipes: Recipe[], mode: 'overwrite' | 'keep' = 'overwrite'): Promise<{ inserted: number; updated: number; skipped: number }> {
+  const existing = new Set((await getCatalogRecipes()).map(r => r.id));
+  const result = { inserted: 0, updated: 0, skipped: 0 };
+  const toWrite = recipes.filter(r => {
+    if (!existing.has(r.id)) {
+      result.inserted++;
+      return true;
+    }
+    if (mode === 'keep') {
+      result.skipped++;
+      return false;
+    }
+    result.updated++;
+    return true;
+  });
+
   if (isWebFallback || !dbInstance) {
-    const list = getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
-    const filtered = list.filter(r => r.id !== id);
-    setWebData(WEB_STORAGE_KEYS.CUSTOM_RECIPES, filtered);
+    const byId = new Map((await getCatalogRecipes()).map(r => [r.id, r]));
+    toWrite.forEach(r => byId.set(r.id, r));
+    setWebData(WEB_STORAGE_KEYS.CATALOG, Array.from(byId.values()));
+    return result;
+  }
+
+  const write = async () => {
+    for (const recipe of toWrite) {
+      const f = catalogIndexFields(recipe);
+      await dbInstance.runAsync(`
+        INSERT INTO catalog (id, json_data, base_id, diet, origin, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          json_data = excluded.json_data,
+          base_id = excluded.base_id,
+          diet = excluded.diet,
+          origin = excluded.origin,
+          updated_at = excluded.updated_at
+      `, [recipe.id, JSON.stringify(recipe), f.base, f.diet, f.origin, f.created, f.updated]);
+    }
+  };
+
+  try {
+    if (typeof (dbInstance as any).withTransactionAsync === 'function') {
+      await (dbInstance as any).withTransactionAsync(write);
+    } else {
+      await write();
+    }
+  } catch (e) {
+    console.error('upsertCatalogRecipes error', e);
+  }
+  return result;
+}
+
+/**
+ * Rimuove dal planner, dai preferiti e dalle note le ricette eliminate dal catalogo.
+ * La lista della spesa non viene toccata: conserva già il testo degli ingredienti.
+ */
+export async function removeRecipeReferences(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const gone = new Set(ids);
+
+  if (isWebFallback || !dbInstance) {
+    setWebData(WEB_STORAGE_KEYS.FAVORITES, getWebData<string[]>(WEB_STORAGE_KEYS.FAVORITES, []).filter(id => !gone.has(id)));
+    const notes = getWebData<Record<string, string>>(WEB_STORAGE_KEYS.NOTES, {});
+    ids.forEach(id => { delete notes[id]; });
+    setWebData(WEB_STORAGE_KEYS.NOTES, notes);
+    const plans = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    setWebData(WEB_STORAGE_KEYS.PLANNER, plans
+      .filter(p => !gone.has(p.recipe_id))
+      .map(p => (p.side_recipe_id && gone.has(p.side_recipe_id) ? { ...p, side_recipe_id: undefined } : p)));
     return;
   }
 
+  const placeholders = ids.map(() => '?').join(',');
   try {
-    await dbInstance.runAsync('DELETE FROM custom_recipes WHERE id = ?', [id]);
+    await dbInstance.runAsync(`DELETE FROM favorites WHERE recipe_id IN (${placeholders})`, ids);
+    await dbInstance.runAsync(`DELETE FROM recipe_notes WHERE recipe_id IN (${placeholders})`, ids);
+    await dbInstance.runAsync(`DELETE FROM meal_plan WHERE recipe_id IN (${placeholders})`, ids);
+    await dbInstance.runAsync(`UPDATE meal_plan SET side_recipe_id = NULL WHERE side_recipe_id IN (${placeholders})`, ids);
   } catch (e) {
-    console.error('deleteCustomRecipe error', e);
+    console.error('removeRecipeReferences error', e);
   }
 }
+
+/**
+ * Elimina le ricette indicate e le loro varianti. Restituisce gli id eliminati, per pulire i riferimenti.
+ */
+export async function deleteCatalogRecipes(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const all = await getCatalogRecipes();
+  const deleted = expandDeletion(ids, all);
+
+  if (isWebFallback || !dbInstance) {
+    const gone = new Set(deleted);
+    setWebData(WEB_STORAGE_KEYS.CATALOG, all.filter(r => !gone.has(r.id)));
+    return deleted;
+  }
+
+  try {
+    const placeholders = deleted.map(() => '?').join(',');
+    await dbInstance.runAsync(`DELETE FROM catalog WHERE id IN (${placeholders})`, deleted);
+  } catch (e) {
+    console.error('deleteCatalogRecipes error', e);
+  }
+  return deleted;
+}
+
+// Ricette personali della vecchia versione (tabella custom_recipes): solo per la migrazione
+async function readLegacyCustomRecipes(): Promise<Recipe[]> {
+  if (isWebFallback || !dbInstance) {
+    return getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
+  }
+  try {
+    const rows = await dbInstance.getAllAsync('SELECT json_data FROM custom_recipes ORDER BY created_at DESC');
+    return rows.flatMap((r: any) => {
+      try {
+        return [JSON.parse(r.json_data) as Recipe];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Migrazione una tantum dalla vecchia tabella delle ricette personali. Le ricette importate dall'AI diventano origin 'ai'.
+ */
+export async function initCatalog(): Promise<void> {
+  if ((await getKV(CATALOG_INIT_KEY)) === '1') return;
+
+  const legacy = await readLegacyCustomRecipes();
+  const migrated = legacy.map(r => ({
+    ...r,
+    origin: r.id.startsWith('custom-') ? 'ai' as const : (r.origin ?? 'file' as const),
+  }));
+  await upsertCatalogRecipes(migrated, 'overwrite');
+
+  await setKV(CATALOG_INIT_KEY, '1');
+}
+
 

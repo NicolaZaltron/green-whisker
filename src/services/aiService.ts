@@ -5,7 +5,11 @@ import { ingredientItemFromText } from '../utils/servingsScaler';
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom';
 
-export type RecipeDiet = 'original' | 'vegetarian' | 'vegan';
+// Modalità di estrazione: 'original' non adatta la ricetta, le altre generano una variante
+export type ExtractMode = 'original' | 'vegetarian' | 'vegan';
+
+// Ruolo del modello: 'simple' per testo semplice, 'complex' per immagini e adattamenti
+export type ModelRole = 'simple' | 'complex';
 
 export interface AIConfig {
   provider: AIProvider;
@@ -17,6 +21,8 @@ export interface AIConfig {
 interface ProviderDefaults {
   label: string;
   model: string;
+  // Modello per ricette complesse (immagini, adattamenti)
+  complexModel: string;
   modelPresets?: string[];
   baseUrl?: string;
   // Indirizzo modificabile dall'utente (server compatibili OpenAI, modelli locali)
@@ -30,12 +36,13 @@ export const PROVIDER_DEFAULTS: Record<AIProvider, ProviderDefaults> = {
   gemini: {
     label: 'Gemini',
     model: 'gemini-flash-lite-latest',
+    complexModel: 'gemini-flash-latest',
     modelPresets: ['gemini-flash-latest', 'gemini-flash-lite-latest'],
   },
-  openai: { label: 'OpenAI', model: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1', baseUrlEditable: true },
-  claude: { label: 'Claude', model: 'claude-3-5-sonnet-20241022' },
-  openrouter: { label: 'OpenRouter', model: 'deepseek/deepseek-chat', baseUrl: 'https://openrouter.ai/api/v1' },
-  custom: { label: 'Custom', model: 'llama3.2', baseUrl: 'http://localhost:11434/v1', baseUrlEditable: true },
+  openai: { label: 'OpenAI', model: 'gpt-4o-mini', complexModel: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1', baseUrlEditable: true },
+  claude: { label: 'Claude', model: 'claude-3-5-sonnet-20241022', complexModel: 'claude-3-5-sonnet-20241022' },
+  openrouter: { label: 'OpenRouter', model: 'deepseek/deepseek-chat', complexModel: 'deepseek/deepseek-chat', baseUrl: 'https://openrouter.ai/api/v1' },
+  custom: { label: 'Custom', model: 'llama3.2', complexModel: 'llama3.2', baseUrl: 'http://localhost:11434/v1', baseUrlEditable: true },
 };
 
 // Expo requires direct static member access on process.env.EXPO_PUBLIC_* for Metro AST inlining
@@ -66,19 +73,34 @@ export function getEnvAIConfig(providerOverride?: AIProvider): AIConfig {
 }
 
 /**
- * Configurazione del provider attivo: le impostazioni salvate nell'app hanno la precedenza sul .env
+ * Configurazione di un provider: le impostazioni salvate nell'app hanno la precedenza sul .env
  */
-export async function getAIConfig(): Promise<AIConfig> {
+export async function getAIConfigFor(provider: AIProvider, role: ModelRole = 'simple'): Promise<AIConfig> {
   const settings = await loadAISettings();
-  const envConfig = getEnvAIConfig(settings.provider);
-  const saved = settings.providers[envConfig.provider] ?? {};
+  const envConfig = getEnvAIConfig(provider);
+  const saved = settings.providers[provider] ?? {};
+
+  // EXPO_PUBLIC_AI_MODEL vale solo per il ruolo 'simple'
+  const model = role === 'complex'
+    ? saved.complexModel || PROVIDER_DEFAULTS[provider].complexModel
+    : saved.simpleModel || saved.model || envConfig.model;
 
   return {
     ...envConfig,
     apiKey: saved.apiKey || envConfig.apiKey,
-    model: saved.model || envConfig.model,
+    model,
     baseUrl: saved.baseUrl || envConfig.baseUrl,
   };
+}
+
+/**
+ * Configurazione del provider attivo per il ruolo richiesto
+ */
+export async function getAIConfig(role: ModelRole = 'simple'): Promise<AIConfig> {
+  const settings = await loadAISettings();
+  // Senza provider salvato si usa quello del .env
+  const provider = settings.provider ?? getEnvAIConfig().provider;
+  return getAIConfigFor(provider, role);
 }
 
 /**
@@ -178,29 +200,24 @@ const LEGACY_CAT_MAP: Record<string, string> = {
 };
 
 const RECIPE_TASK_VEGAN = `
-You are an expert plant-based chef and culinary AI for the Italian vegan recipe app 'Green Whisker'.
-Your task is to parse, extract, or format a complete 100% plant-based/vegan recipe from the provided text, URL, or image, and return EXCLUSIVELY a valid JSON object matching the required schema.
+You adapt recipes for the Italian app 'Green Whisker'. Rewrite the source recipe as fully plant-based: replace every animal-derived ingredient (meat, fish, eggs, dairy, honey, gelatin, broth) with suitable plant-based ingredients, adjusting quantities and steps. Keep everything else unchanged. List each replacement in the 'substitutions' array as {"from": "...", "to": "..."}. Return EXCLUSIVELY a valid JSON object matching the required schema.
 `;
 
 const RECIPE_TASK_ORIGINAL = `
-You are an expert chef and culinary AI for the Italian recipe app 'Green Whisker'.
-Your task is to parse, extract, or format the recipe from the provided text, URL, or image EXACTLY as written: keep every ingredient, quantity and step of the original.
-Do NOT substitute or remove animal-derived ingredients (eggs, milk, butter, cheese, meat, fish, honey, etc.) and do NOT add plant-based alternatives.
-Add the tag "100% Vegetale" only if the final recipe contains no animal-derived ingredients.
-Return EXCLUSIVELY a valid JSON object matching the required schema.
+You convert recipes for the Italian app 'Green Whisker'. Transcribe the source recipe faithfully into the schema: keep every ingredient, quantity and step; do not substitute, remove or add ingredients. Return EXCLUSIVELY a valid JSON object matching the required schema.
 `;
 
 const RECIPE_TASK_VEGETARIAN = `
-You are an expert vegetarian chef and culinary AI for the Italian recipe app 'Green Whisker'.
-Your task is to parse, extract, or format the recipe from the provided text, URL, or image as a VEGETARIAN recipe, and return EXCLUSIVELY a valid JSON object matching the required schema.
-Replace all meat, poultry and fish (and derivatives such as broth or anchovies) with vegetarian alternatives, adjusting quantities and steps accordingly.
-Eggs and dairy may be kept. Keep every other ingredient and step as close as possible to the original.
-Do not add the tag "100% Vegetale"; add the tag "Vegetariana" instead.
+You adapt recipes for the Italian app 'Green Whisker'. Rewrite the source recipe as vegetarian: replace meat, fish and their derivatives (broth, anchovies, gelatin) with suitable vegetarian ingredients, adjusting quantities and steps. Keep eggs, dairy and everything else unchanged. List each replacement in the 'substitutions' array as {"from": "...", "to": "..."}. Return EXCLUSIVELY a valid JSON object matching the required schema.
 `;
 
 const RECIPE_PROMPT_RULES = `
 IMPORTANT LANGUAGE INSTRUCTION:
 - All generated recipe fields (title, ingredients, instructions, tips, etc.) MUST be written in natural, fluent Italian.
+
+CONTENT RULES:
+- Never invent quantities: if a quantity is missing write 'q.b.'.
+- Do not add steps that are not implied by the source recipe.
 
 STRICT SCHEMA & PARSING RULES:
 1. "title": Clean Italian recipe title (e.g., "Trofie al Pesto con Patate e Fagiolini"). Do not prepend unnecessary words or brand labels.
@@ -238,31 +255,87 @@ STRICT SCHEMA & PARSING RULES:
     - "display_time": String formatted as "Prep: 10 min, Cottura: 20 min"
 15. "ingredients": Array of ingredient strings in Italian. Every item MUST preserve its full quantity at the beginning (e.g. "200 g di tofu al naturale", "2 cucchiai di salsa di soia", "1 spicchio di aglio").
 16. "ingredients_by_section": Array of objects: [{ "section": "Principale", "ingredients": ["..."] }].
-17. "detailed_ingredients": Array of structured objects:
-    [{
-      "section": "Principale",
-      "text": "200 g di tofu al naturale",
-      "amount": 200,
-      "unit": "g",
-      "ingredient": "tofu al naturale"
-    }]
-18. "instructions": Array of strings, where each element is an orderly, concise cooking step in Italian.
-19. "tips": Array of strings with 1-2 helpful chef tips in Italian.
-20. "tags": Array of strings (e.g. ["100% Vegetale", "Senza Glutine"]).
-21. "image": Direct URL string of the main recipe photo if available, or "".
+17. "instructions": Array of strings, where each element is an orderly, concise cooking step in Italian.
+18. "tips": Array of strings with 1-2 helpful chef tips in Italian.
+19. "tags": short descriptive tags in Italian (e.g. Senza Glutine, Veloce).
+20. "image": Direct URL string of the main recipe photo if available, or "".
+21. "substitutions": Optional array of {"from": "...", "to": "..."} strings, one per replaced ingredient; empty array when nothing is substituted.
 
 Respond ONLY with the JSON object, without any additional markdown explanation or surrounding commentary.
 `;
 
-const RECIPE_TASKS: Record<RecipeDiet, string> = {
+const RECIPE_TASKS: Record<ExtractMode, string> = {
   original: RECIPE_TASK_ORIGINAL,
   vegetarian: RECIPE_TASK_VEGETARIAN,
   vegan: RECIPE_TASK_VEGAN,
 };
 
-function buildRecipePrompt(diet: RecipeDiet = 'original'): string {
+function buildRecipePrompt(diet: ExtractMode = 'original'): string {
   return RECIPE_TASKS[diet] + RECIPE_PROMPT_RULES;
 }
+
+const ALL_CATEGORY_IDS: string[] = Object.values(RECIPE_TAXONOMY).flat();
+
+// Schema per Gemini: tipi e, dove esistono valori validi, enum
+const RECIPE_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    title: { type: 'STRING' },
+    image: { type: 'STRING' },
+    url: { type: 'STRING' },
+    source: { type: 'STRING' },
+    servings_text: { type: 'STRING' },
+    times: {
+      type: 'OBJECT',
+      properties: {
+        total_minutes: { type: 'INTEGER' },
+        prep_time: { type: 'STRING' },
+        cook_time: { type: 'STRING' },
+        display_time: { type: 'STRING' }
+      },
+      required: ['total_minutes']
+    },
+    ingredients_by_section: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { section: { type: 'STRING' }, ingredients: { type: 'ARRAY', items: { type: 'STRING' } } },
+        required: ['section', 'ingredients']
+      }
+    },
+    seasons: {
+      type: 'ARRAY',
+      items: { type: 'STRING', enum: ['inverno', 'primavera', 'estate', 'autunno'] }
+    },
+    category: { type: 'STRING', enum: ALL_CATEGORY_IDS },
+    subcategory: { type: 'STRING', enum: ALL_CATEGORY_IDS },
+    macro_category: { type: 'STRING', enum: MACRO_CATEGORIES },
+    difficulty: { type: 'STRING', enum: ['easy', 'medium', 'hard'] },
+    servings: { type: 'INTEGER' },
+    is_complete_plate: { type: 'BOOLEAN' },
+    recommended_slot: { type: 'STRING', enum: ['colazione', 'spuntino', 'pranzo_cena'] },
+    food_groups: {
+      type: 'ARRAY',
+      items: { type: 'STRING', enum: ['cereali', 'verdura', 'frutta', 'frutta_secca_semi', 'cibi_proteici', 'grassi'] }
+    },
+    protein_group: { type: 'STRING', enum: ['legumi_interi', 'soia_derivati', 'cereali_proteici', 'leggero_vegetale'] },
+    carb_family: { type: 'STRING', enum: ['pasta', 'riso', 'farro_orzo', 'pseudocereali', 'tuberi', 'pane_cereali_rapidi', 'none'] },
+    veggie_color: { type: 'STRING', enum: ['green', 'red_orange', 'purple_blue', 'yellow_white', 'neutral'] },
+    ingredients: { type: 'ARRAY', items: { type: 'STRING' } },
+    instructions: { type: 'ARRAY', items: { type: 'STRING' } },
+    tips: { type: 'ARRAY', items: { type: 'STRING' } },
+    tags: { type: 'ARRAY', items: { type: 'STRING' } },
+    substitutions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { from: { type: 'STRING' }, to: { type: 'STRING' } },
+        required: ['from', 'to']
+      }
+    }
+  },
+  required: ['title', 'category', 'macro_category', 'ingredients', 'instructions']
+};
 
 export interface RecipeImageInput {
   base64: string;
@@ -277,11 +350,16 @@ export interface ParseRecipeInput {
   imageMimeType?: string;
   images?: RecipeImageInput[];
   // Dieta a cui adattare la ricetta; 'original' la estrae senza sostituire gli ingredienti
-  diet?: RecipeDiet;
+  diet?: ExtractMode;
+  // True quando si adatta una ricetta esistente a una dieta
+  adapt?: boolean;
 }
 
 export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe> {
-  const config = await getAIConfig();
+  // Immagini e adattamenti richiedono il modello complesso
+  const hasImages = (input.images?.length ?? 0) > 0 || !!input.imageBase64;
+  const role: ModelRole = hasImages || input.adapt ? 'complex' : 'simple';
+  const config = await getAIConfig(role);
 
   if (!config.apiKey && config.provider !== 'custom') {
     throw new Error(`Chiave API mancante per ${PROVIDER_DEFAULTS[config.provider].label}. Inseriscila dal menu, in Impostazioni AI.`);
@@ -331,9 +409,7 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
     'gemini-flash-latest'
   ]));
 
-  const contentsParts: any[] = [
-    { text: buildRecipePrompt(input.diet) }
-  ];
+  const contentsParts: any[] = [];
 
   const allImages: RecipeImageInput[] = input.images && input.images.length > 0
     ? input.images
@@ -353,32 +429,36 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
 
     if (allImages.length === 1) {
       contentsParts.push({
-        text: 'Extract and structure the complete plant-based recipe from the attached image (cookbook page, screenshot, handwritten note).'
+        text: 'Extract and structure the complete recipe from the attached image (cookbook page, screenshot, handwritten note).'
       });
     } else {
       contentsParts.push({
-        text: `These ${allImages.length} images are consecutive pages/photos of the SAME recipe from a cookbook or notebook (for example, page 1 might contain the title and ingredients, while page 2 contains directions, notes, or variations). Analyze, merge, and unite all information from all ${allImages.length} images into a single cohesive, high-quality, complete plant-based recipe.`
+        text: `These ${allImages.length} images are consecutive pages/photos of the SAME recipe from a cookbook or notebook (for example, page 1 might contain the title and ingredients, while page 2 contains directions, notes, or variations). Analyze, merge, and unite all information from all ${allImages.length} images into a single cohesive, high-quality, complete recipe.`
       });
     }
   }
 
   if (input.url) {
     contentsParts.push({
-      text: `Extract and structure the plant-based recipe from this URL: ${input.url}`
+      text: `Extract and structure the recipe from this URL: ${input.url}`
     });
   }
 
   if (input.text) {
     contentsParts.push({
-      text: `Extract and structure the recipe from this text:\n\n${input.text}`
+      text: input.adapt
+        ? `Adapt this recipe as requested by the system instruction. Source recipe:\n\n${input.text}`
+        : `Extract and structure the recipe from this text:\n\n${input.text}`
     });
   }
 
   const payload = {
+    systemInstruction: { parts: [{ text: buildRecipePrompt(input.diet) }] },
     contents: [{ parts: contentsParts }],
     generationConfig: {
       temperature: 0.2,
-      responseMimeType: 'application/json'
+      responseMimeType: 'application/json',
+      responseSchema: RECIPE_RESPONSE_SCHEMA
     }
   };
 
@@ -594,7 +674,7 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
     throw new Error('Impossibile interpretare la risposta JSON generata dal modello.');
   }
 
-  const safeId = 'custom-' + (parsed.titolo || 'ricetta')
+  const safeId = 'custom-' + (parsed.title || parsed.titolo || 'ricetta')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
@@ -642,7 +722,30 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
 
   const tempoTot = parsed.times?.total_minutes || parsed.tempi?.tempo_totale_minuti || 30;
 
-  const recipe: Recipe = {
+  // Sostituzioni per le varianti: incluse solo se nel formato {from, to} atteso
+  const substitutions: { from: string; to: string }[] | undefined =
+    Array.isArray(parsed.substitutions) && parsed.substitutions.every((s: any) => typeof s?.from === 'string' && typeof s?.to === 'string')
+      ? parsed.substitutions.map((s: any) => ({ from: s.from, to: s.to }))
+      : undefined;
+
+  const flatIngredients: string[] = Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [];
+  const rawSections = parsed.ingredients_by_section || parsed.ingredienti_per_sezione;
+  const ingredientsBySection = Array.isArray(rawSections) && rawSections.length > 0
+    ? rawSections.map((s: any) => ({
+        section: s.section || s.sezione || 'Principale',
+        ingredients: s.ingredients || s.ingredienti || []
+      }))
+    : [{ section: 'Principale', ingredients: flatIngredients }];
+
+  // Senza detailed_ingredients, le quantità si ricavano dal testo mantenendo la sezione
+  const sectionedDetailed = ingredientsBySection.flatMap((s: { section: string; ingredients: string[] }) =>
+    s.ingredients.map((text: string) => ingredientItemFromText(text, s.section))
+  );
+  const fallbackDetailed = sectionedDetailed.length > 0
+    ? sectionedDetailed
+    : flatIngredients.map((t: string) => ingredientItemFromText(t));
+
+  const recipe: Recipe & { substitutions?: { from: string; to: string }[] } = {
     id: safeId,
     title: parsed.title || parsed.titolo || 'Nuova Ricetta',
     source: 'Personalizzata (AI)',
@@ -662,13 +765,8 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
       cook_time: parsed.times?.cook_time || parsed.tempi?.tempo_cottura || `${Math.round(tempoTot * 0.6)} minuti`,
       display_time: parsed.times?.display_time || parsed.tempi?.tempi_display || `Prep: ${Math.round(tempoTot * 0.4)} min, Cottura: ${Math.round(tempoTot * 0.6)} min`
     },
-    ingredients: Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [],
-    ingredients_by_section: Array.isArray(parsed.ingredients_by_section || parsed.ingredienti_per_sezione) && (parsed.ingredients_by_section || parsed.ingredienti_per_sezione).length > 0
-      ? (parsed.ingredients_by_section || parsed.ingredienti_per_sezione).map((s: any) => ({
-          section: s.section || s.sezione || 'Principale',
-          ingredients: s.ingredients || s.ingredienti || []
-        }))
-      : [{ section: 'Principale', ingredients: Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [] }],
+    ingredients: flatIngredients,
+    ingredients_by_section: ingredientsBySection,
     detailed_ingredients: Array.isArray(parsed.detailed_ingredients || parsed.ingredienti_dettagliati) && (parsed.detailed_ingredients || parsed.ingredienti_dettagliati).length > 0
       ? (parsed.detailed_ingredients || parsed.ingredienti_dettagliati).map((i: any) => ({
           section: i.section || i.sezione || 'Principale',
@@ -677,7 +775,7 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
           unit: i.unit || i.unita || '',
           ingredient: i.ingredient || i.ingrediente || i.text || i.testo || ''
         }))
-      : (Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : []).map((t: string) => ingredientItemFromText(t)),
+      : fallbackDetailed,
     instructions: Array.isArray(parsed.instructions || parsed.istruzioni) ? (parsed.instructions || parsed.istruzioni) : [],
     tips: Array.isArray(parsed.tips || parsed.suggerimenti) ? (parsed.tips || parsed.suggerimenti) : [],
     tags: Array.isArray(parsed.tags) && parsed.tags.length > 0 ? parsed.tags : [resolvedCat],
@@ -688,6 +786,7 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
     veggie_color: parsed.veggie_color || 'green',
     seasons: parsed.seasons || ['inverno', 'primavera', 'estate', 'autunno'],
     is_complete_plate: typeof parsed.is_complete_plate === 'boolean' ? parsed.is_complete_plate : true,
+    ...(substitutions ? { substitutions } : {}),
   };
 
   return recipe;

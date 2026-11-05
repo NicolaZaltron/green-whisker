@@ -25,9 +25,9 @@ import {
   clearAllShoppingItems,
   addShoppingItems,
   getMealPlans,
-  getCustomRecipes,
   consolidateShoppingList,
 } from '../../db/database';
+import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
 import { getWeekDays, aggregateAndAddToShopping } from '../../services/plannerService';
 import { cleanShoppingIngredientText, splitShoppingItemDisplay } from '../../utils/servingsScaler';
 import {
@@ -51,7 +51,6 @@ interface DepartmentSection {
   isAllChecked: boolean;
 }
 
-const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
@@ -259,9 +258,7 @@ export default function ShoppingScreen() {
       }
 
       const map: Record<string, Recipe> = {};
-      rawRecipes.forEach(r => { map[r.id] = r; });
-      const custom = await getCustomRecipes();
-      custom.forEach(r => { map[r.id] = r; });
+      [...catalogRecipes, ...catalogVariants].forEach(r => { map[r.id] = r; });
 
       const count = await aggregateAndAddToShopping(weekPlans, map);
       await loadItems();

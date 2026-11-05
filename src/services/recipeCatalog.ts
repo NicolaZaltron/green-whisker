@@ -1,25 +1,49 @@
 import { Recipe } from '../types/recipe';
+import { getCatalogRecipes, getKV, initCatalog, setKV, upsertCatalogRecipes } from '../db/database';
+import { normalizeImported } from './catalogFormat';
+
+// Ricalcolo una tantum di dieta e tag sulle ricette già presenti (le versioni precedenti non lo facevano)
+const DIET_RULES_KEY = 'catalog_diet_rules_v3';
 import { initializeSearchIndex } from './searchService';
 
-// Metro restituisce lo stesso oggetto a ogni require del JSON: tutte le schermate che lo importano
-// vedono questo array. Aggiornandone il contenuto sul posto, modifiche e ricette personali valgono
-// ovunque senza ricaricare l'app.
-export const catalogRecipes = require('../../assets/ricette.json') as Recipe[];
+// Stessi array per tutte le schermate: si aggiornano sul posto, quindi chi li ha importati vede i cambiamenti.
+export const catalogRecipes: Recipe[] = []; // ricette originali: ricerca, planner, spesa, preferiti
+export const catalogVariants: Recipe[] = []; // varianti: visibili solo nella scheda della ricetta
 
-// Ricette così come sono nell'APK, prima di qualsiasi modifica
-const bundledRecipes = [...catalogRecipes];
+let version = 0;
+const listeners = new Set<() => void>();
 
-/**
- * Ricalcola il catalogo e l'indice di ricerca: le ricette salvate sul dispositivo sostituiscono
- * quelle del file con lo stesso id, le altre vengono aggiunte in fondo.
- */
-export function syncRecipeCatalog(customRecipes: Recipe[]): void {
-  const overrides = new Map(customRecipes.map(r => [r.id, r]));
-  const bundledIds = new Set(bundledRecipes.map(r => r.id));
-  const merged = [
-    ...bundledRecipes.map(r => overrides.get(r.id) ?? r),
-    ...customRecipes.filter(r => !bundledIds.has(r.id)),
-  ];
-  catalogRecipes.splice(0, catalogRecipes.length, ...merged);
-  initializeSearchIndex(catalogRecipes);
+export function getCatalogVersion(): number {
+  return version;
 }
+
+export function subscribeCatalog(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function setCatalog(all: Recipe[]): void {
+  // Una variante senza originale nel catalogo viene mostrata come ricetta normale, finché l'originale non arriva
+  const originalIds = new Set(all.filter(r => !r.variant_of).map(r => r.id));
+  catalogRecipes.splice(0, catalogRecipes.length, ...all.filter(r => !r.variant_of || !originalIds.has(r.variant_of)));
+  catalogVariants.splice(0, catalogVariants.length, ...all.filter(r => r.variant_of && originalIds.has(r.variant_of)));
+  initializeSearchIndex(catalogRecipes);
+  version++;
+  listeners.forEach(listener => listener());
+}
+
+/** Carica il catalogo dal database (con la migrazione una tantum). Chiamare dopo initDatabase. */
+export async function loadCatalog(): Promise<void> {
+  await initCatalog();
+  if ((await getKV(DIET_RULES_KEY)) !== '1') {
+    const now = Date.now();
+    await upsertCatalogRecipes((await getCatalogRecipes()).map(r => normalizeImported(r, now)), 'overwrite');
+    await setKV(DIET_RULES_KEY, '1');
+  }
+  setCatalog(await getCatalogRecipes());
+}
+
+/** Da chiamare dopo ogni modifica al database: ricarica il catalogo condiviso */
+export const refreshCatalog = loadCatalog;

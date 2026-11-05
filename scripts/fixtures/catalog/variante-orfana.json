@@ -1,0 +1,126 @@
+[
+  {
+    "id": "polpette-di-manzo-al-pomodoro--vegetariana",
+    "title": "Polpette di lenticchie al pomodoro (vegetariana)",
+    "source": "Green Whisker",
+    "url": "",
+    "image": "",
+    "macro_category": "MACRO_PROTEINE_E_SECONDI",
+    "category": "CAT_SECONDI_PIATTI",
+    "subcategory": "CAT_SECONDI_PIATTI",
+    "difficulty": "easy",
+    "servings": 4,
+    "servings_text": "4 porzioni",
+    "times": {
+      "total_minutes": 40,
+      "prep_time": "15 minuti",
+      "cook_time": "25 minuti",
+      "display_time": "Prep: 15 min, Cottura: 25 min"
+    },
+    "recommended_slot": "pranzo_cena",
+    "food_groups": [
+      "cibi_proteici",
+      "verdura"
+    ],
+    "protein_group": "legumi_interi",
+    "carb_family": "none",
+    "veggie_color": "red_orange",
+    "is_complete_plate": false,
+    "seasons": [
+      "autunno",
+      "inverno"
+    ],
+    "tags": [
+      "Vegetariana",
+      "Proteico"
+    ],
+    "ingredients": [
+      "250 g di lenticchie rosse cotte",
+      "1 uovo",
+      "50 g di pangrattato",
+      "1 spicchio di aglio",
+      "400 g di passata di pomodoro",
+      "2 cucchiai di olio extravergine d'oliva",
+      "sale e pepe q.b."
+    ],
+    "ingredients_by_section": [
+      {
+        "section": "Principale",
+        "ingredients": [
+          "250 g di lenticchie rosse cotte",
+          "1 uovo",
+          "50 g di pangrattato",
+          "1 spicchio di aglio",
+          "400 g di passata di pomodoro",
+          "2 cucchiai di olio extravergine d'oliva",
+          "sale e pepe q.b."
+        ]
+      }
+    ],
+    "detailed_ingredients": [
+      {
+        "section": "Principale",
+        "text": "250 g di lenticchie rosse cotte",
+        "amount": null,
+        "unit": "",
+        "ingredient": "250 g di lenticchie rosse cotte"
+      },
+      {
+        "section": "Principale",
+        "text": "1 uovo",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 uovo"
+      },
+      {
+        "section": "Principale",
+        "text": "50 g di pangrattato",
+        "amount": null,
+        "unit": "",
+        "ingredient": "50 g di pangrattato"
+      },
+      {
+        "section": "Principale",
+        "text": "1 spicchio di aglio",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 spicchio di aglio"
+      },
+      {
+        "section": "Principale",
+        "text": "400 g di passata di pomodoro",
+        "amount": null,
+        "unit": "",
+        "ingredient": "400 g di passata di pomodoro"
+      },
+      {
+        "section": "Principale",
+        "text": "2 cucchiai di olio extravergine d'oliva",
+        "amount": null,
+        "unit": "",
+        "ingredient": "2 cucchiai di olio extravergine d'oliva"
+      },
+      {
+        "section": "Principale",
+        "text": "sale e pepe q.b.",
+        "amount": null,
+        "unit": "",
+        "ingredient": "sale e pepe q.b."
+      }
+    ],
+    "instructions": [
+      "Frullare grossolanamente le lenticchie e impastarle con uovo, pangrattato, aglio tritato, sale e pepe.",
+      "Formare le polpette e rosolarle nell'olio.",
+      "Aggiungere la passata di pomodoro e cuocere per 15 minuti."
+    ],
+    "tips": [
+      "Servire con insalata fresca."
+    ],
+    "diet": "vegetarian",
+    "diet_source": "auto",
+    "origin": "ai",
+    "modified": false,
+    "variant_of": "polpette-di-manzo-al-pomodoro",
+    "needs_review": false
+  }
+]

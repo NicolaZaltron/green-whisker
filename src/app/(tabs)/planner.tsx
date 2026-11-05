@@ -25,7 +25,6 @@ import {
   updateMealPlanSideRecipe,
   updateMealPlanRecipe,
   addShoppingItems,
-  getCustomRecipes,
 } from '../../db/database';
 import { scaleIngredient } from '../../utils/servingsScaler';
 import {
@@ -47,8 +46,9 @@ import { RecipeModal } from '../../components/RecipeModal';
 import { PlannerRegenModal } from '../../components/planner/PlannerRegenModal';
 import { PlannerPreferencesModal } from '../../components/planner/PlannerPreferencesModal';
 import { RecipePickerModal } from '../../components/planner/RecipePickerModal';
+import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
+import { useCatalogVersion } from '../../hooks/useCatalog';
 
-const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 // ─── Week offset navigation ───────────────────────────────────────────────────
 const WEEK_OFFSETS = [-1, 0, 1];
@@ -60,15 +60,17 @@ export default function PlannerScreen() {
   const weekDays = weekResult.days;
   const weekLabel = weekResult.weekLabel;
 
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>(rawRecipes);
+  const catalogVersion = useCatalogVersion();
+  // Copia nuova a ogni modifica del catalogo, così il selettore si aggiorna
+  const pickerRecipes = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
 
   const recipeMap = useMemo(() => {
     const map: Record<string, Recipe> = {};
-    allRecipes.forEach(r => {
+    [...catalogRecipes, ...catalogVariants].forEach(r => {
       map[r.id] = r;
     });
     return map;
-  }, [allRecipes]);
+  }, [catalogVersion]);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
@@ -119,21 +121,12 @@ export default function PlannerScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [list, p, customs] = await Promise.all([
+        const [list, p] = await Promise.all([
           loadPlans(),
           getPlannerPreferences(),
-          getCustomRecipes(),
         ]);
         if (!active) return;
         setPrefs(p);
-        if (customs && customs.length > 0) {
-          const map = new Map<string, Recipe>();
-          rawRecipes.forEach(r => map.set(r.id, r));
-          customs.forEach(r => map.set(r.id, r));
-          setAllRecipes(Array.from(map.values()));
-        } else {
-          setAllRecipes(rawRecipes);
-        }
 
         // Auto-generate on Monday
         const result = await checkAndAutoGeneratePlan(list);
@@ -525,7 +518,7 @@ export default function PlannerScreen() {
           visible={pickerVisible}
           targetSlot={targetSlot}
           targetType={pickerTargetType}
-          allRecipes={allRecipes}
+          allRecipes={pickerRecipes}
           onSelect={handleSelectRecipeForSlot}
           onClose={() => setPickerVisible(false)}
         />

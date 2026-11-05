@@ -14,11 +14,11 @@ import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
-import { getCustomRecipes } from '../../db/database';
+import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
+import { useCatalogVersion } from '../../hooks/useCatalog';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
 
-const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
 
 export default function FavoritesScreen() {
   const { t } = useTranslation();
@@ -26,22 +26,19 @@ export default function FavoritesScreen() {
   const { favoriteIds, toggleFavorite, refreshFavorites } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+  const catalogVersion = useCatalogVersion();
 
-  // Synchronize favorites and custom recipes on screen focus
+  // Sincronizza i preferiti alla messa a fuoco della schermata
   useFocusEffect(
     useCallback(() => {
       refreshFavorites();
-      getCustomRecipes().then(setCustomRecipes).catch(() => {});
     }, [refreshFavorites])
   );
 
-  // Combined recipe map containing both static raw recipes and user-created custom recipes
+  // Mappa di tutte le ricette del catalogo, originali e varianti
   const fullRecipeMap = useMemo(() => {
-    const map = new Map<string, Recipe>(rawRecipes.map(r => [r.id, r]));
-    customRecipes.forEach(r => map.set(r.id, r));
-    return map;
-  }, [customRecipes]);
+    return new Map<string, Recipe>([...catalogRecipes, ...catalogVariants].map(r => [r.id, r]));
+  }, [catalogVersion]);
 
   const favoriteRecipes = useMemo(() => {
     const list: Recipe[] = [];

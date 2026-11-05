@@ -11,10 +11,12 @@ import {
   TextInput,
   Platform,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
@@ -25,6 +27,8 @@ import {
 } from '../db/database';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getWeekDays, MealSlot } from '../services/plannerService';
+import { VariantDiet, availableVariantDiets } from '../services/catalogFormat';
+import { classifyDiet } from '../utils/dietClassifier';
 import { scaleIngredient, getScalableIngredients } from '../utils/servingsScaler';
 import {
   formatRecipeShareText,
@@ -36,22 +40,53 @@ import {
 import { useTranslation } from 'react-i18next';
 
 interface RecipeModalProps {
+  // Ricetta originale: le varianti vengono mostrate con le schede
   recipe: Recipe | null;
+  variants?: Recipe[];
   visible: boolean;
   onClose: () => void;
   onFavoriteChange?: (isFav: boolean) => void;
   onEdit?: (recipe: Recipe) => void;
+  onGenerateVariant?: (source: Recipe, diet: VariantDiet) => void;
+  // Dieta della variante in generazione: mostra lo spinner sul suo pulsante
+  generatingDiet?: VariantDiet | null;
+  onRegenerateVariant?: (variant: Recipe) => void;
+  onDeleteVariant?: (variant: Recipe) => void;
 }
 
-export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClose, onFavoriteChange, onEdit }) => {
+const VERSION_LABELS: Record<VariantDiet, string> = { vegetarian: 'Vegetariana', vegan: 'Vegana' };
+
+export const RecipeModal: React.FC<RecipeModalProps> = ({
+  recipe: baseRecipe,
+  variants = [],
+  visible,
+  onClose,
+  onFavoriteChange,
+  onEdit,
+  onGenerateVariant,
+  generatingDiet,
+  onRegenerateVariant,
+  onDeleteVariant,
+}) => {
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
+  // La versione scelta vale solo per la ricetta aperta: cambiando ricetta si torna all'originale
+  const [versionChoice, setVersionChoice] = useState<{ baseId?: string; version: 'original' | VariantDiet }>({ version: 'original' });
+  const version = versionChoice.baseId === baseRecipe?.id ? versionChoice.version : 'original';
+  const activeVariant = version === 'original' ? undefined : variants.find(v => v.diet === version);
+  // Tutto ciò che segue (ingredienti, planner, spesa, condivisione, note) usa la versione attiva
+  const recipe = activeVariant ?? baseRecipe;
+  const missingDiets = baseRecipe ? availableVariantDiets(baseRecipe, variants) : [];
+  // L'originale è già di quella dieta, o più restrittiva (una vegana è anche vegetariana)
+  const originalDiet = baseRecipe ? (baseRecipe.diet ?? classifyDiet(baseRecipe)) : 'omnivore';
+  const originalSatisfies = (diet: VariantDiet) =>
+    diet === 'vegetarian' ? originalDiet !== 'omnivore' : originalDiet === 'vegan';
   const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
-  // Synchronous favorite state from global context
+  // Synchronous favorite state from global context: il cuore vale per tutto il gruppo (originale e varianti)
   const favContext = useFavoritesSafe();
-  const favorite = recipe ? (favContext?.isFavorite(recipe.id) ?? false) : false;
+  const favorite = baseRecipe ? (favContext?.isFavorite(baseRecipe.id) ?? false) : false;
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
@@ -66,6 +101,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
   // Sharing & Personal Notes State
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showJson, setShowJson] = useState(false);
+  const [jsonCopied, setJsonCopied] = useState(false);
   const [includeNotesInShare, setIncludeNotesInShare] = useState(true);
   const [userNote, setUserNote] = useState('');
   const [savedNoteStatus, setSavedNoteStatus] = useState<string | null>(null);
@@ -110,6 +147,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const scale = currentServings / baseServings;
   const scalableIngredients = getScalableIngredients(recipe);
   const hasExternalLink = /^https?:\/\//i.test(recipe.url ?? '');
+  // Badge in base alla dieta della ricetta (non più fisso): onnivora, nessun badge
+  const recipeDiet = recipe.diet ?? classifyDiet(recipe);
+  const dietBadge = recipeDiet === 'vegan' ? '100% Vegetale' : recipeDiet === 'vegetarian' ? 'Vegetariana' : null;
 
   const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const selectedDayLabel = selectedDayObj ? `${selectedDayObj.dayName.slice(0, 3)} ${selectedDayObj.dayNumber}` : '';
@@ -130,8 +170,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const handleToggleFavorite = async () => {
-    if (!recipe || !favContext) return;
-    const newFav = await favContext.toggleFavorite(recipe.id);
+    if (!baseRecipe || !favContext) return;
+    const newFav = await favContext.toggleFavorite(baseRecipe.id);
     if (onFavoriteChange) onFavoriteChange(newFav);
     showToast(newFav ? 'Aggiunta ai Preferiti' : 'Rimossa dai Preferiti');
   };
@@ -293,6 +333,17 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             </Animated.Text>
 
             <View style={styles.navActions}>
+              <TouchableOpacity
+                style={[styles.navBtn, { marginRight: 8 }]}
+                onPress={() => {
+                  setJsonCopied(false);
+                  setShowJson(true);
+                }}
+                activeOpacity={0.7}
+                accessibilityLabel="Mostra JSON della ricetta"
+              >
+                <Ionicons name="code-slash-outline" size={19} color="#4A6B53" />
+              </TouchableOpacity>
               {onEdit && (
                 <TouchableOpacity
                   style={styles.navBtn}
@@ -336,6 +387,75 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             </View>
           </View>
 
+          {/* Schede delle versioni: appaiono quando la ricetta ha varianti o se ne possono generare */}
+          {recipe && baseRecipe && (variants.length > 0 || missingDiets.length > 0) && (
+            <View style={styles.versionBar}>
+              <View style={styles.versionTabs}>
+                {(['original', ...variants.map(v => v.diet as VariantDiet)] as const).map(value => {
+                  const active = value === version;
+                  const label = value === 'original' ? 'Originale' : VERSION_LABELS[value as VariantDiet];
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[styles.versionTab, active && styles.versionTabActive]}
+                      onPress={() => setVersionChoice({ baseId: baseRecipe.id, version: value })}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.versionTabText, active && styles.versionTabTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {version === 'original' ? (
+                // Entrambi i pulsanti sempre visibili: disabilitati se la variante esiste già (o non serve)
+                <View style={styles.generateRow}>
+                  {(['vegetarian', 'vegan'] as const).map(diet => {
+                    const available = missingDiets.includes(diet);
+                    const disabled = !available || !!generatingDiet;
+                    const isGenerating = generatingDiet === diet;
+                    // Già presente: come variante, oppure perché l'originale è già di quella dieta (o più restrittiva)
+                    const exists = variants.some(v => v.diet === diet) || originalSatisfies(diet);
+                    return (
+                      <TouchableOpacity
+                        key={diet}
+                        style={[styles.generateBtn, disabled && styles.versionActionBtnDisabled]}
+                        onPress={() => onGenerateVariant?.(baseRecipe, diet)}
+                        disabled={disabled}
+                        activeOpacity={0.8}
+                        accessibilityState={{ busy: isGenerating, disabled }}
+                      >
+                        {isGenerating ? (
+                          <ActivityIndicator size="small" color="#34523C" />
+                        ) : (
+                          <Ionicons name={exists ? 'checkmark-circle' : 'sparkles-outline'} size={14} color="#34523C" />
+                        )}
+                        <Text style={styles.versionActionText} numberOfLines={1}>
+                          {isGenerating
+                            ? 'Generazione…'
+                            : exists
+                              ? (diet === 'vegan' ? 'Vegana già presente' : 'Vegetariana già presente')
+                              : diet === 'vegan' ? 'Rendi vegana' : 'Rendi vegetariana'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              ) : activeVariant ? (
+                <View style={styles.generateRow}>
+                  <TouchableOpacity style={styles.generateBtn} onPress={() => onRegenerateVariant?.(activeVariant)} activeOpacity={0.8}>
+                    <Ionicons name="refresh" size={14} color="#34523C" />
+                    <Text style={styles.versionActionText} numberOfLines={1}>Rigenera variante (AI)</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.generateBtn} onPress={() => onDeleteVariant?.(activeVariant)} activeOpacity={0.8}>
+                    <Ionicons name="trash-outline" size={14} color="#D9534F" />
+                    <Text style={[styles.versionActionText, { color: '#D9534F' }]} numberOfLines={1}>Elimina variante</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
+          )}
+
           {/* Feedback Toast */}
           {feedbackMessage && (
             <View style={styles.toastBanner}>
@@ -364,10 +484,12 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                   transition={250}
                   cachePolicy="disk"
                 />
-                <View style={styles.plantBadge}>
-                  <Ionicons name="leaf" size={13} color="#4A6B53" style={{ marginRight: 4 }} />
-                  <Text style={styles.plantBadgeText}>100% Vegetale</Text>
-                </View>
+                {dietBadge && (
+                  <View style={styles.plantBadge}>
+                    <Ionicons name="leaf" size={13} color="#4A6B53" style={{ marginRight: 4 }} />
+                    <Text style={styles.plantBadgeText}>{dietBadge}</Text>
+                  </View>
+                )}
               </View>
             ) : (
               <View style={[styles.imageContainer, styles.imagePlaceholder]}>
@@ -729,6 +851,39 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
         </View>
 
         {/* Share Modal Dialog */}
+        <Modal visible={showJson} animationType="fade" transparent onRequestClose={() => setShowJson(false)}>
+          <View style={styles.jsonBackdrop}>
+            <View style={styles.jsonCard}>
+              <View style={styles.jsonHeader}>
+                <Text style={styles.jsonTitle}>JSON della ricetta</Text>
+                <TouchableOpacity onPress={() => setShowJson(false)} hitSlop={12} accessibilityLabel="Chiudi">
+                  <Ionicons name="close" size={22} color="#2B332B" />
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={styles.jsonText}
+                value={JSON.stringify(recipe, null, 2)}
+                editable={false}
+                multiline
+                selectTextOnFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.jsonCopyBtn}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(JSON.stringify(recipe, null, 2));
+                  setJsonCopied(true);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name={jsonCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
+                <Text style={styles.jsonCopyText}>{jsonCopied ? 'Copiato' : 'Copia negli appunti'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         <Modal
           visible={showShareModal}
           animationType="fade"
@@ -852,6 +1007,65 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 };
 
 const styles = StyleSheet.create({
+  jsonBackdrop: { flex: 1, backgroundColor: 'rgba(26, 46, 31, 0.5)', justifyContent: 'center', padding: 16 },
+  jsonCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: '85%' },
+  jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  jsonTitle: { fontSize: 16, fontWeight: '800', color: '#1A2E1F' },
+  jsonText: {
+    flexGrow: 0,
+    minHeight: 280,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+    fontSize: 11,
+    color: '#1A2E1F',
+    backgroundColor: '#F7F9F6',
+    borderRadius: 10,
+    padding: 10,
+    textAlignVertical: 'top',
+  },
+  jsonCopyBtn: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#34523C',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  jsonCopyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  versionBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
+  versionTabs: { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: '#EAF0EB' },
+  versionTab: { flex: 1, paddingVertical: 7, borderRadius: 11, alignItems: 'center' },
+  versionTabActive: { backgroundColor: '#FFFFFF' },
+  versionTabText: { fontSize: 13, fontWeight: '700', color: '#5E6D60' },
+  versionTabTextActive: { color: '#34523C' },
+  versionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  versionActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  versionActionText: { fontSize: 12, fontWeight: '700', color: '#34523C' },
+  versionActionBtnDisabled: { opacity: 0.45 },
+  generateRow: { flexDirection: 'row', gap: 8 },
+  generateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#FBF9F5',

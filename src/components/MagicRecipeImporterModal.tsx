@@ -19,18 +19,32 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
-import { Recipe, SlotConsigliato } from '../types/recipe';
-import { parseRecipeWithAI, RecipeDiet } from '../services/aiService';
+import { Recipe, RecipeDiet, SlotConsigliato } from '../types/recipe';
+import { parseRecipeWithAI } from '../services/aiService';
+import { VariantDiet } from '../services/catalogFormat';
 import { ingredientItemFromText } from '../utils/servingsScaler';
-import { saveCustomRecipe } from '../db/database';
+import { classifyDiet } from '../utils/dietClassifier';
+import { upsertCatalogRecipes } from '../db/database';
+import { refreshCatalog } from '../services/recipeCatalog';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 import { useTranslation } from 'react-i18next';
+
+// Revisione di una ricetta generata (es. una variante): il form è lo stesso dell'import AI
+export interface ReviewRequest {
+  recipe: Recipe;
+  title: string;
+  onConfirm: (recipe: Recipe) => Promise<void>;
+  onDiscard: () => void;
+  onRetry: (instructions: string) => Promise<void>;
+}
 
 interface MagicRecipeImporterModalProps {
   visible: boolean;
   onClose: () => void;
-  onRecipeSaved: (recipe: Recipe) => void;
+  // Riceve l'originale salvata e le varianti da generare (vuoto se non richieste)
+  onRecipeSaved: (recipe: Recipe, variantDiets?: VariantDiet[]) => void;
   editingRecipe?: Recipe | null;
+  review?: ReviewRequest | null;
 }
 
 const CATEGORIES = [...MACRO_CATEGORIES];
@@ -47,10 +61,11 @@ interface CapturedPage {
   mimeType: string;
 }
 
-const DIET_SUMMARY: Record<RecipeDiet, string> = {
-  original: 'Importata così com\'è, con gli ingredienti originali.',
-  vegetarian: 'Carne e pesce verranno sostituiti. Uova e latticini restano.',
-  vegan: 'Uova, latte, burro e altri ingredienti animali verranno sostituiti.',
+const VARIANT_SUMMARY: Record<'none' | 'vegetarian' | 'vegan' | 'both', string> = {
+  none: 'Verrà salvata solo la ricetta originale, così com\'è.',
+  vegetarian: 'Originale più una versione vegetariana, da verificare prima del salvataggio.',
+  vegan: 'Originale più una versione vegana, da verificare prima del salvataggio.',
+  both: 'Originale più versione vegetariana e vegana, da verificare una alla volta.',
 };
 
 export function MagicRecipeImporterModal({
@@ -58,6 +73,7 @@ export function MagicRecipeImporterModal({
   onClose,
   onRecipeSaved,
   editingRecipe,
+  review,
 }: MagicRecipeImporterModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'text' | 'photo'>('text');
@@ -65,19 +81,14 @@ export function MagicRecipeImporterModal({
   // Input states
   const [inputText, setInputText] = useState('');
   const [capturedPages, setCapturedPages] = useState<CapturedPage[]>([]);
-  const [vegetarian, setVegetarian] = useState(false);
-  const [vegan, setVegan] = useState(false);
-  const diet: RecipeDiet = vegan ? 'vegan' : vegetarian ? 'vegetarian' : 'original';
-
-  // La dieta vegana include quella vegetariana: attivare la vegana attiva anche la vegetariana
-  const setVegetarianOption = (value: boolean) => {
-    setVegetarian(value);
-    if (!value) setVegan(false);
-  };
-  const setVeganOption = (value: boolean) => {
-    setVegan(value);
-    if (value) setVegetarian(true);
-  };
+  // Varianti da generare dopo il salvataggio dell'originale: indipendenti tra loro
+  const [wantVegetarian, setWantVegetarian] = useState(false);
+  const [wantVegan, setWantVegan] = useState(false);
+  const wantedVariants: VariantDiet[] = [
+    ...(wantVegetarian ? ['vegetarian' as const] : []),
+    ...(wantVegan ? ['vegan' as const] : []),
+  ];
+  const variantSummaryKey = wantVegetarian && wantVegan ? 'both' : wantVegan ? 'vegan' : wantVegetarian ? 'vegetarian' : 'none';
 
   // Parsing & Loading state
   const [loading, setLoading] = useState(false);
@@ -98,6 +109,13 @@ export function MagicRecipeImporterModal({
   const [editIngredients, setEditIngredients] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
   const [editTips, setEditTips] = useState('');
+  const [editDiet, setEditDiet] = useState<RecipeDiet>('omnivore');
+  const [retryInstructions, setRetryInstructions] = useState('');
+  const [retrying, setRetrying] = useState(false);
+  // true se l'utente ha scelto la dieta a mano: da quel momento non viene più ricalcolata
+  const [dietChosenByHand, setDietChosenByHand] = useState(false);
+  // Ingredienti sostituiti dall'AI (adattamento vegetariano/vegano): solo per la verifica, non vengono salvati
+  const [substitutions, setSubstitutions] = useState<{ from: string; to: string }[]>([]);
 
   // Nessuna API: si apre Google Immagini nel browser, l'utente copia l'indirizzo della foto e lo incolla qui
   function openGoogleImageSearch() {
@@ -213,7 +231,6 @@ export function MagicRecipeImporterModal({
       }
 
       const recipe = await parseRecipeWithAI({
-        diet,
         text: activeTab === 'text' && !isUrl ? inputText : undefined,
         url: activeTab === 'text' && isUrl ? inputText.trim() : undefined,
         images: activeTab === 'photo' && capturedPages.length > 0
@@ -247,6 +264,12 @@ export function MagicRecipeImporterModal({
     setEditIngredients((recipe.ingredients || []).join('\n'));
     setEditInstructions((recipe.instructions || []).join('\n'));
     setEditTips((recipe.tips || []).join('\n'));
+    setEditDiet(recipe.diet_source === 'manual' && recipe.diet ? recipe.diet : classifyDiet(recipe));
+    setDietChosenByHand(recipe.diet_source === 'manual');
+    setSubstitutions(
+      ((recipe as Recipe & { substitutions?: { from: string; to: string }[] }).substitutions ?? [])
+        .filter(s => typeof s.from === 'string' && typeof s.to === 'string')
+    );
   }
 
   async function handleSaveRecipe() {
@@ -309,7 +332,9 @@ export function MagicRecipeImporterModal({
       instructions: steps,
       tips: tips,
       // Mantiene i tag della ricetta, sostituendo quello della categoria (es. dopo un cambio di categoria)
-      tags: [...(parsedRecipe?.tags ?? []).filter(tag => !tag.startsWith('CAT_')), chosenCat],
+      tags: [...(parsedRecipe?.tags ?? []).filter(tag => tag !== '100% Vegetale' && !tag.startsWith('CAT_')), ...(editDiet === 'vegan' ? ['100% Vegetale'] : []), chosenCat],
+      diet: editDiet,
+      diet_source: dietChosenByHand ? 'manual' : 'auto',
       protein_group: parsedRecipe?.protein_group || 'legumi_interi',
       carb_family: parsedRecipe?.carb_family || 'pasta',
       veggie_color: parsedRecipe?.veggie_color || 'green',
@@ -318,13 +343,48 @@ export function MagicRecipeImporterModal({
     };
 
     try {
-      await saveCustomRecipe(finalRecipe);
-      onRecipeSaved(finalRecipe);
+      if (review) {
+        await review.onConfirm({ ...finalRecipe, origin: 'ai', modified: false });
+        handleReset();
+        onClose();
+        return;
+      }
+      // Una modifica di una ricetta esistente conserva origine e data di creazione
+      const now = Date.now();
+      await upsertCatalogRecipes([{
+        ...finalRecipe,
+        origin: editingRecipe?.origin ?? 'ai',
+        modified: !!editingRecipe,
+        created_at: editingRecipe?.created_at ?? now,
+        updated_at: now,
+      }]);
+      await refreshCatalog();
+      // Prima chiudo, poi comunico: così chi riceve può aprire la revisione delle varianti
       handleReset();
       onClose();
+      onRecipeSaved(finalRecipe, editingRecipe ? [] : wantedVariants);
     } catch (e: any) {
       Alert.alert('Errore di salvataggio', e.message);
     }
+  }
+
+  async function handleRetry() {
+    if (!review) return;
+    setRetrying(true);
+    try {
+      await review.onRetry(retryInstructions.trim());
+      setRetryInstructions('');
+    } catch (e: any) {
+      Alert.alert('Errore', e.message || 'Impossibile generare di nuovo la ricetta.');
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  function discardReview() {
+    review?.onDiscard();
+    handleReset();
+    onClose();
   }
 
   function handleReset() {
@@ -336,11 +396,12 @@ export function MagicRecipeImporterModal({
     setErrorMsg(null);
   }
 
-  // Modalità modifica: precompila il form con la ricetta esistente (una volta per ricetta)
-  const [loadedRecipeId, setLoadedRecipeId] = useState<string | null>(null);
-  if (editingRecipe && editingRecipe.id !== loadedRecipeId) {
-    setLoadedRecipeId(editingRecipe.id);
-    loadRecipeIntoForm(editingRecipe);
+  // Modifica o revisione: precompila il form con la ricetta ricevuta (una volta per oggetto)
+  const formSource = review?.recipe ?? editingRecipe ?? null;
+  const [loadedSource, setLoadedSource] = useState<Recipe | null>(null);
+  if (formSource && formSource !== loadedSource) {
+    setLoadedSource(formSource);
+    loadRecipeIntoForm(formSource);
   }
 
   return (
@@ -357,9 +418,13 @@ export function MagicRecipeImporterModal({
                 <Ionicons name="sparkles" size={18} color="#34523C" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>{editingRecipe ? 'Modifica ricetta' : 'Magic Importer AI'}</Text>
+                <Text style={styles.headerTitle}>
+                  {review ? review.title : editingRecipe ? 'Modifica ricetta' : 'Magic Importer AI'}
+                </Text>
                 <Text style={styles.headerSubtitle}>
-                  {editingRecipe ? 'Le modifiche sostituiscono la versione salvata' : 'Importa da link web, testo o foto'}
+                  {review
+                    ? 'Verifica la ricetta prima di salvarla'
+                    : editingRecipe ? 'Le modifiche sostituiscono la versione salvata' : 'Importa da link web, testo o foto'}
                 </Text>
               </View>
             </View>
@@ -538,28 +603,28 @@ export function MagicRecipeImporterModal({
                 </View>
               )}
 
-              {/* DIETA: la vegana attiva anche la vegetariana */}
+              {/* VARIANTI: scegli quali versioni generare dopo l'originale */}
               <View style={styles.dietCard}>
                 <DietSwitchRow
-                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={vegetarian ? '#FFFFFF' : '#34523C'} />}
-                  title="Vegetariana"
+                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? '#FFFFFF' : '#34523C'} />}
+                  title="Versione vegetariana"
                   hint="Niente carne né pesce"
-                  value={vegetarian}
+                  value={wantVegetarian}
                   disabled={loading}
-                  onValueChange={setVegetarianOption}
+                  onValueChange={setWantVegetarian}
                 />
                 <View style={styles.dietDivider} />
                 <DietSwitchRow
-                  icon={<Ionicons name="leaf" size={18} color={vegan ? '#FFFFFF' : '#34523C'} />}
-                  title="Vegana"
+                  icon={<Ionicons name="leaf" size={18} color={wantVegan ? '#FFFFFF' : '#34523C'} />}
+                  title="Versione vegana"
                   hint="Nessun ingrediente animale"
-                  value={vegan}
+                  value={wantVegan}
                   disabled={loading}
-                  onValueChange={setVeganOption}
+                  onValueChange={setWantVegan}
                 />
                 <View style={styles.dietSummary}>
                   <Ionicons name="information-circle-outline" size={16} color="#34523C" />
-                  <Text style={styles.dietSummaryText}>{DIET_SUMMARY[diet]}</Text>
+                  <Text style={styles.dietSummaryText}>{VARIANT_SUMMARY[variantSummaryKey]}</Text>
                 </View>
               </View>
 
@@ -650,19 +715,29 @@ export function MagicRecipeImporterModal({
               {/* Slot Planner */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>Slot Consigliato nel Planner</Text>
-                <View style={styles.slotsRow}>
-                  {SLOTS.map(s => (
-                    <TouchableOpacity
-                      key={s.value}
-                      style={[styles.slotButton, editSlot === s.value && styles.slotButtonActive]}
-                      onPress={() => setEditSlot(s.value)}
-                    >
-                      <Text style={[styles.slotButtonText, editSlot === s.value && styles.slotButtonTextActive]}>
-                        {s.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                <SegmentedSelector options={SLOTS} value={editSlot} onChange={setEditSlot} />
+              </View>
+
+              {/* Dieta: calcolata dagli ingredienti, correggibile a mano */}
+              <View style={styles.fieldGroup}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Dieta</Text>
+                  {dietChosenByHand ? (
+                    <Text style={{ fontSize: 11, color: '#5E6D60' }}>Scelta a mano: non verrà ricalcolata.</Text>
+                  ) : null}
                 </View>
+                <SegmentedSelector
+                  options={[
+                    { value: 'omnivore' as RecipeDiet, label: 'Onnivora' },
+                    { value: 'vegetarian' as RecipeDiet, label: 'Vegetariana' },
+                    { value: 'vegan' as RecipeDiet, label: 'Vegana' },
+                  ]}
+                  value={editDiet}
+                  onChange={value => {
+                    setEditDiet(value);
+                    setDietChosenByHand(true);
+                  }}
+                />
               </View>
 
               {/* Row: Porzioni, Tempo, Difficoltà */}
@@ -687,21 +762,28 @@ export function MagicRecipeImporterModal({
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
                   <Text style={styles.fieldLabel}>Difficoltà</Text>
-                  <View style={styles.diffSelector}>
-                    {(['Facile', 'Media', 'Difficile'] as const).map(d => (
-                      <TouchableOpacity
-                        key={d}
-                        style={[styles.diffItem, editDifficulty === d && styles.diffItemActive]}
-                        onPress={() => setEditDifficulty(d)}
-                      >
-                        <Text style={[styles.diffItemText, editDifficulty === d && styles.diffItemTextActive]}>
-                          {d[0]}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <SegmentedSelector
+                    options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ value: d, label: d[0] }))}
+                    value={editDifficulty}
+                    onChange={setEditDifficulty}
+                  />
                 </View>
               </View>
+
+              {/* Sostituzioni fatte dall'AI: solo lettura, per controllarle */}
+              {substitutions.length > 0 && (
+                <View style={styles.substitutionsCard}>
+                  <Text style={styles.substitutionsTitle}>Sostituzioni</Text>
+                  <Text style={styles.substitutionsNote}>Ingredienti sostituiti dall&apos;AI: controllali.</Text>
+                  {substitutions.map((s, index) => (
+                    <View key={`${s.from}-${index}`} style={styles.substitutionRow}>
+                      <Text style={styles.substitutionFrom}>{s.from}</Text>
+                      <Ionicons name="arrow-forward" size={14} color="#34523C" />
+                      <Text style={styles.substitutionTo}>{s.to}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               {/* Immagine URL */}
               <View style={styles.fieldGroup}>
@@ -798,9 +880,42 @@ export function MagicRecipeImporterModal({
                 />
               </View>
 
+              {review && (
+                <View style={styles.fieldGroup}>
+                  {review.recipe.needs_review ? (
+                    <Text style={styles.reviewWarning}>
+                      Gli ingredienti contengono ancora elementi non compatibili con questa dieta: controllali.
+                    </Text>
+                  ) : null}
+                  <Text style={styles.fieldLabel}>Istruzioni per riprovare (opzionale)</Text>
+                  <TextInput
+                    style={styles.singleLineInput}
+                    placeholder="Es. non usare il tofu"
+                    placeholderTextColor="#94a3b8"
+                    value={retryInstructions}
+                    onChangeText={setRetryInstructions}
+                    autoCapitalize="sentences"
+                  />
+                  <TouchableOpacity
+                    style={[styles.imageActionBtn, styles.retryBtn, retrying && styles.disabledBtn]}
+                    onPress={handleRetry}
+                    disabled={retrying}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="refresh" size={14} color="#34523C" />
+                    <Text style={styles.imageActionText}>{retrying ? 'Generazione in corso…' : 'Riprova'}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Actions Footer */}
               <View style={styles.actionsFooter}>
-                {!editingRecipe && (
+                {review ? (
+                  <TouchableOpacity style={styles.resetButton} onPress={discardReview} activeOpacity={0.75}>
+                    <Ionicons name="trash-outline" size={18} color="#556459" />
+                    <Text style={styles.resetButtonText}>Scarta</Text>
+                  </TouchableOpacity>
+                ) : !editingRecipe && (
                   <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
                     <Ionicons name="arrow-back" size={18} color="#556459" />
                     <Text style={styles.resetButtonText}>Ricomincia</Text>
@@ -809,7 +924,9 @@ export function MagicRecipeImporterModal({
 
                 <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
                   <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
-                  <Text style={styles.saveRecipeBtnText}>Salva nel Ricettario</Text>
+                  <Text style={styles.saveRecipeBtnText}>
+                    {review ? 'Salva variante' : wantedVariants.length > 0 && !editingRecipe ? 'Salva e verifica le varianti' : 'Salva nel Ricettario'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -952,6 +1069,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 14,
   },
+  dietHintText: { fontSize: 12, color: '#5E6D60', marginTop: 6 },
+  reviewWarning: { fontSize: 13, fontWeight: '600', color: '#B45309', backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginBottom: 12, lineHeight: 18 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 8 },
+  disabledBtn: { opacity: 0.5 },
   imageActionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   imageActionBtn: {
     flexDirection: 'row',
@@ -1214,6 +1335,46 @@ const styles = StyleSheet.create({
     color: '#34523C',
     lineHeight: 17,
   },
+  substitutionsCard: {
+    marginBottom: 15,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E3EAE4',
+  },
+  substitutionsTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A2E1F',
+  },
+  substitutionsNote: {
+    fontSize: 12,
+    color: '#5E6D60',
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  substitutionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: 6,
+    borderRadius: 12,
+    backgroundColor: '#F1F6F2',
+  },
+  substitutionFrom: {
+    flex: 1,
+    fontSize: 13,
+    color: '#5E6D60',
+  },
+  substitutionTo: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A2E1F',
+  },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1275,32 +1436,6 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: '#ffffff',
-    fontWeight: '700',
-  },
-  slotsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  slotButton: {
-    flex: 1,
-    backgroundColor: '#FAF8F5',
-    paddingVertical: 11,
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E3DCD2',
-  },
-  slotButtonActive: {
-    backgroundColor: '#EAF0EB',
-    borderColor: '#34523C',
-  },
-  slotButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6E7E72',
-  },
-  slotButtonTextActive: {
-    color: '#34523C',
     fontWeight: '700',
   },
   rowThree: {
@@ -1375,6 +1510,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 });
+
+// Selettore a segmenti: stile unico per slot, difficoltà e dieta
+function SegmentedSelector<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View style={styles.diffSelector}>
+      {options.map(option => {
+        const active = option.value === value;
+        return (
+          <TouchableOpacity
+            key={option.value}
+            style={[styles.diffItem, active && styles.diffItemActive]}
+            onPress={() => onChange(option.value)}
+          >
+            <Text style={[styles.diffItemText, active && styles.diffItemTextActive]}>{option.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
 
 function DietSwitchRow({
   icon,

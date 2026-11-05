@@ -10,6 +10,16 @@ import { AISettings, ProviderSettings, loadAISettings, saveAISettings } from '..
 const PROVIDER_IDS = Object.keys(PROVIDER_DEFAULTS) as AIProvider[];
 const AI_STUDIO_KEYS_URL = 'https://aistudio.google.com/api-keys';
 const AI_STUDIO_KEY_NAME = 'Green-Whisker';
+const GEMINI_SIMPLE_MODEL = 'gemini-flash-lite-latest';
+const GEMINI_COMPLEX_MODEL = 'gemini-flash-latest';
+const GEMINI_MODEL_PRESETS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
+
+// Modelli predefiniti per le due famiglie di operazioni di un provider
+function defaultModels(id: AIProvider): { simple: string; complex: string } {
+  if (id === 'gemini') return { simple: GEMINI_SIMPLE_MODEL, complex: GEMINI_COMPLEX_MODEL };
+  const model = getEnvAIConfig(id).model;
+  return { simple: model, complex: model };
+}
 
 interface AISettingsModalProps {
   visible: boolean;
@@ -26,13 +36,20 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
 
   const defaults = PROVIDER_DEFAULTS[provider];
   const envConfig = getEnvAIConfig(provider);
+  const modelDefaults = defaultModels(provider);
   const savedKey = settings.providers[provider]?.apiKey;
 
-  // Il campo modello mostra sempre un valore: quello salvato, altrimenti quello predefinito
+  // I campi modello mostrano sempre un valore: quello salvato, altrimenti quello predefinito.
+  // Il vecchio campo "model" fa da ripiego per le operazioni semplici (compatibilità con dati già salvati).
   const showProvider = (id: AIProvider, source: AISettings) => {
     const saved = source.providers[id] ?? {};
+    const modelDef = defaultModels(id);
     setProvider(id);
-    setFields({ ...saved, model: saved.model ?? getEnvAIConfig(id).model });
+    setFields({
+      ...saved,
+      simpleModel: saved.simpleModel ?? saved.model ?? modelDef.simple,
+      complexModel: saved.complexModel ?? modelDef.complex,
+    });
   };
 
   const close = () => {
@@ -52,7 +69,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
 
   // Si salvano solo i valori diversi dai predefiniti, così un futuro cambio di default si applica da solo
   const persist = async (providerFields: ProviderSettings) => {
-    const model = providerFields.model?.trim();
+    const simpleModel = providerFields.simpleModel?.trim();
+    const complexModel = providerFields.complexModel?.trim();
     const baseUrl = providerFields.baseUrl?.trim();
     const next: AISettings = {
       ...settings,
@@ -61,7 +79,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
         ...settings.providers,
         [provider]: {
           apiKey: providerFields.apiKey?.trim() || undefined,
-          model: model && model !== envConfig.model ? model : undefined,
+          simpleModel: simpleModel && simpleModel !== modelDefaults.simple ? simpleModel : undefined,
+          complexModel: complexModel && complexModel !== modelDefaults.complex ? complexModel : undefined,
           baseUrl: baseUrl && baseUrl !== envConfig.baseUrl ? baseUrl : undefined,
         },
       },
@@ -154,32 +173,41 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           </View>
           <Text style={styles.hint}>{keyStatus}</Text>
 
-          <Text style={styles.label}>{t('aiSettings.model')}</Text>
+          <Text style={styles.label}>{t('aiSettings.simpleOps')}</Text>
           <TextInput
             style={styles.input}
-            value={fields.model ?? ''}
-            onChangeText={model => setFields(f => ({ ...f, model }))}
-            placeholder={envConfig.model}
+            value={fields.simpleModel ?? ''}
+            onChangeText={simpleModel => setFields(f => ({ ...f, simpleModel }))}
+            placeholder={modelDefaults.simple}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {defaults.modelPresets && (
-            <View style={[styles.chips, styles.presetChips]}>
-              {defaults.modelPresets.map(preset => {
-                const active = fields.model === preset;
-                return (
-                  <TouchableOpacity
-                    key={preset}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setFields(f => ({ ...f, model: preset }))}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{preset}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          {provider === 'gemini' && (
+            <ModelPresetChips
+              presets={GEMINI_MODEL_PRESETS}
+              selected={fields.simpleModel}
+              onSelect={preset => setFields(f => ({ ...f, simpleModel: preset }))}
+            />
           )}
+          <Text style={styles.hint}>{t('aiSettings.simpleOpsHint')}</Text>
+
+          <Text style={styles.label}>{t('aiSettings.complexOps')}</Text>
+          <TextInput
+            style={styles.input}
+            value={fields.complexModel ?? ''}
+            onChangeText={complexModel => setFields(f => ({ ...f, complexModel }))}
+            placeholder={modelDefaults.complex}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {provider === 'gemini' && (
+            <ModelPresetChips
+              presets={GEMINI_MODEL_PRESETS}
+              selected={fields.complexModel}
+              onSelect={preset => setFields(f => ({ ...f, complexModel: preset }))}
+            />
+          )}
+          <Text style={styles.hint}>{t('aiSettings.complexOpsHint')}</Text>
 
           {defaults.baseUrlEditable && (
             <>
@@ -211,6 +239,34 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
         </ScrollView>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+function ModelPresetChips({
+  presets,
+  selected,
+  onSelect,
+}: {
+  presets: string[];
+  selected?: string;
+  onSelect: (preset: string) => void;
+}) {
+  return (
+    <View style={[styles.chips, styles.presetChips]}>
+      {presets.map(preset => {
+        const active = selected === preset;
+        return (
+          <TouchableOpacity
+            key={preset}
+            style={[styles.chip, active && styles.chipActive]}
+            onPress={() => onSelect(preset)}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.chipText, active && styles.chipTextActive]}>{preset}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 }
 

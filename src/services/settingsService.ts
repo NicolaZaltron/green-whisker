@@ -6,7 +6,12 @@ const AI_SETTINGS_KEY = 'gw_ai_settings';
 
 export interface ProviderSettings {
   apiKey?: string;
+  // Legacy: singolo modello, sostituito da simpleModel/complexModel (ancora letto per compatibilità)
   model?: string;
+  // Modello per le operazioni semplici (es. import da testo)
+  simpleModel?: string;
+  // Modello per le operazioni complesse (immagini, generazione varianti)
+  complexModel?: string;
   baseUrl?: string;
 }
 

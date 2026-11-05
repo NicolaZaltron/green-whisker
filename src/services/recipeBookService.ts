@@ -3,33 +3,69 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Recipe } from '../types/recipe';
-import { getCustomRecipes, saveCustomRecipe } from '../db/database';
-import { catalogRecipes, syncRecipeCatalog } from './recipeCatalog';
+import { deleteCatalogRecipes, removeRecipeReferences, upsertCatalogRecipes } from '../db/database';
+import { refreshCatalog } from './recipeCatalog';
+import { ExportFilter, ParsedCatalogFile, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
 
-const REQUIRED_STRING_FIELDS = ['id', 'title', 'category'] as const;
-const REQUIRED_ARRAY_FIELDS = ['ingredients', 'instructions', 'tags'] as const;
+export type ImportMode = 'overwrite' | 'keep';
 
 export interface ImportResult {
   imported: number;
   updated: number;
+  skipped: number;
   invalid: number;
-}
-
-function isValidRecipe(value: unknown): value is Recipe {
-  if (!value || typeof value !== 'object') return false;
-  const r = value as Record<string, unknown>;
-  return REQUIRED_STRING_FIELDS.every(f => typeof r[f] === 'string' && (r[f] as string).trim() !== '')
-    && REQUIRED_ARRAY_FIELDS.every(f => Array.isArray(r[f]))
-    && typeof r.times === 'object' && r.times !== null;
+  duplicates: number;
 }
 
 /**
- * Esporta le ricette indicate come file JSON
+ * Chiede un file JSON al telefono e lo legge. Restituisce null se l'utente annulla.
  */
-export async function exportRecipeBook(recipes: Recipe[]): Promise<number> {
+export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
+  const picked = await DocumentPicker.getDocumentAsync({
+    type: ['application/json', 'text/plain'],
+    copyToCacheDirectory: true,
+  });
+  if (picked.canceled) return null;
 
+  const asset = picked.assets[0];
+  const text = Platform.OS === 'web' && asset.file
+    ? await asset.file.text()
+    : await new File(asset.uri).text();
+  return parseCatalogText(text);
+}
+
+/**
+ * Importa le ricette lette da un file. Con mode 'keep' le ricette già presenti restano invariate.
+ */
+export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: ImportMode): Promise<ImportResult> {
+  const now = Date.now();
+  const write = await upsertCatalogRecipes(parsed.recipes.map(r => normalizeImported(r, now)), mode);
+  await refreshCatalog();
+  return {
+    imported: write.inserted,
+    updated: write.updated,
+    skipped: write.skipped,
+    invalid: parsed.invalid,
+    duplicates: parsed.duplicates,
+  };
+}
+
+/**
+ * Elimina le ricette dal catalogo, con le loro varianti, e ripulisce planner, preferiti e note.
+ */
+export async function deleteRecipes(ids: string[]): Promise<number> {
+  const deleted = await deleteCatalogRecipes(ids);
+  await removeRecipeReferences(deleted);
+  await refreshCatalog();
+  return deleted.length;
+}
+
+/**
+ * Esporta le ricette indicate come file JSON, con il nome che descrive il filtro usato
+ */
+export async function exportRecipeBook(recipes: Recipe[], filter: ExportFilter): Promise<number> {
   const json = JSON.stringify(recipes, null, 2);
-  const fileName = `green-whisker-ricettario-${new Date().toISOString().slice(0, 10)}.json`;
+  const fileName = exportFileName(filter, new Date().toISOString().slice(0, 10));
 
   if (Platform.OS === 'web') {
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
@@ -46,41 +82,4 @@ export async function exportRecipeBook(recipes: Recipe[]): Promise<number> {
   file.write(json);
   await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json' });
   return recipes.length;
-}
-
-/**
- * Apre il selettore file e importa le ricette del JSON scelto. Le ricette con un id già presente
- * vengono aggiornate. Restituisce null se l'utente annulla. Lancia un errore se il file non è valido.
- */
-export async function importRecipeBook(): Promise<ImportResult | null> {
-  const picked = await DocumentPicker.getDocumentAsync({
-    type: ['application/json', 'text/plain'],
-    copyToCacheDirectory: true,
-  });
-  if (picked.canceled) return null;
-
-  const asset = picked.assets[0];
-  const text = Platform.OS === 'web' && asset.file
-    ? await asset.file.text()
-    : await new File(asset.uri).text();
-
-  const parsed: unknown = JSON.parse(text);
-  if (!Array.isArray(parsed)) throw new Error('Il file non contiene un elenco di ricette');
-
-  const existingIds = new Set(catalogRecipes.map(r => r.id));
-  const result: ImportResult = { imported: 0, updated: 0, invalid: 0 };
-  for (const item of parsed) {
-    if (!isValidRecipe(item)) {
-      result.invalid++;
-      continue;
-    }
-    await saveCustomRecipe(item);
-    if (existingIds.has(item.id)) {
-      result.updated++;
-    } else {
-      result.imported++;
-    }
-  }
-  syncRecipeCatalog(await getCustomRecipes());
-  return result;
 }

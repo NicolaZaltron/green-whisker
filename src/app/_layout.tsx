@@ -5,15 +5,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../db/database';
-import { initializeSearchIndex } from '../services/searchService';
-import { Recipe } from '../types/recipe';
+import { loadCatalog } from '../services/recipeCatalog';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
 import '../i18n';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const rawRecipes = require('../../assets/ricette.json') as Recipe[];
 
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
   return (
@@ -44,8 +42,8 @@ export default function RootLayout() {
         // 1. Inizializza SQLite Database (attende la creazione di tabelle e indici)
         await initDatabase();
 
-        // 2. Inizializza l'indice di ricerca Fuse.js
-        initializeSearchIndex(rawRecipes);
+        // 2. Carica il catalogo (e l'indice di ricerca) dal database
+        await loadCatalog();
       } catch (err) {
         console.warn('Errore durante l\'inizializzazione dell\'app:', err);
       } finally {

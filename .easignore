@@ -30,7 +30,8 @@ yarn-error.*
 
 # Backups
 assets/ricette.backup.json
-# Note: assets/ricette.json MUST be bundled in the APK!
+# assets/ricette.json: non si carica sui server EAS e non entra nell'APK (il catalogo nasce vuoto)
+assets/ricette.json
 
 # Local APK / DB drops (not committed, not uploaded to EAS)
 /builds

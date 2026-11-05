@@ -1,123 +1,247 @@
 [
   {
-    "id": "hummus-classico-ceci",
-    "titolo": "Hummus Classico di Ceci e Tahina",
-    "fonte": "Green Whisker",
-    "url": "https://example.com/hummus",
-    "immagine": "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?w=800&auto=format&fit=crop",
-    "categoria": "Secondi piatti",
-    "difficolta": "Facile",
-    "porzioni": 4,
-    "porzioni_testo": "4 porzioni",
-    "tempi": {
-      "tempo_totale_minuti": 15,
-      "tempo_preparazione": "15 minuti",
-      "tempo_cottura": "0 minuti",
-      "tempi_display": "Prep: 15 min"
+    "id": "polpette-di-manzo-al-pomodoro",
+    "title": "Polpette di manzo al pomodoro",
+    "source": "Green Whisker",
+    "url": "",
+    "image": "",
+    "macro_category": "MACRO_PROTEINE_E_SECONDI",
+    "category": "CAT_SECONDI_PIATTI",
+    "subcategory": "CAT_SECONDI_PIATTI",
+    "difficulty": "easy",
+    "servings": 4,
+    "servings_text": "4 porzioni",
+    "times": {
+      "total_minutes": 40,
+      "prep_time": "15 minuti",
+      "cook_time": "25 minuti",
+      "display_time": "Prep: 15 min, Cottura: 25 min"
     },
-    "slot_consigliato": "pranzo_cena",
-    "gruppi_alimentari": [
+    "recommended_slot": "pranzo_cena",
+    "food_groups": [
       "cibi_proteici",
-      "grassi"
+      "verdura"
+    ],
+    "protein_group": "legumi_interi",
+    "carb_family": "none",
+    "veggie_color": "red_orange",
+    "is_complete_plate": false,
+    "seasons": [
+      "autunno",
+      "inverno"
     ],
     "tags": [
-      "100% Vegetale",
-      "Senza Glutine",
-      "Veloce",
       "Proteico"
     ],
-    "ingredienti": [
-      "400 g di ceci cotti",
-      "2 cucchiai di tahina (pasta di sesamo)",
-      "1 spicchio d'aglio",
-      "1 limone (succo spremuto)",
+    "ingredients": [
+      "500 g di carne di manzo macinata",
+      "1 uovo",
+      "50 g di pangrattato",
+      "1 spicchio di aglio",
+      "400 g di passata di pomodoro",
       "2 cucchiai di olio extravergine d'oliva",
-      "1 cucchiaino di cumino in polvere",
-      "1 pizzico di sale fino",
-      "30 ml di acqua fredda o ghiaccio"
+      "sale e pepe q.b."
     ],
-    "ingredienti_per_sezione": [
+    "ingredients_by_section": [
       {
-        "sezione": "Principale",
-        "ingredienti": [
-          "400 g di ceci cotti",
-          "2 cucchiai di tahina (pasta di sesamo)",
-          "1 spicchio d'aglio",
-          "1 limone (succo spremuto)",
+        "section": "Principale",
+        "ingredients": [
+          "500 g di carne di manzo macinata",
+          "1 uovo",
+          "50 g di pangrattato",
+          "1 spicchio di aglio",
+          "400 g di passata di pomodoro",
           "2 cucchiai di olio extravergine d'oliva",
-          "1 cucchiaino di cumino in polvere",
-          "1 pizzico di sale fino",
-          "30 ml di acqua fredda o ghiaccio"
+          "sale e pepe q.b."
         ]
       }
     ],
-    "ingredienti_dettagliati": [
+    "detailed_ingredients": [
       {
-        "sezione": "Principale",
-        "testo": "400 g di ceci cotti",
-        "quantita": 400,
-        "unita": "g",
-        "ingrediente": "ceci cotti"
+        "section": "Principale",
+        "text": "500 g di carne di manzo macinata",
+        "amount": null,
+        "unit": "",
+        "ingredient": "500 g di carne di manzo macinata"
       },
       {
-        "sezione": "Principale",
-        "testo": "2 cucchiai di tahina (pasta di sesamo)",
-        "quantita": 2,
-        "unita": "cucchiai",
-        "ingrediente": "tahina"
+        "section": "Principale",
+        "text": "1 uovo",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 uovo"
       },
       {
-        "sezione": "Principale",
-        "testo": "1 spicchio d'aglio",
-        "quantita": 1,
-        "unita": "spicchio",
-        "ingrediente": "aglio"
+        "section": "Principale",
+        "text": "50 g di pangrattato",
+        "amount": null,
+        "unit": "",
+        "ingredient": "50 g di pangrattato"
       },
       {
-        "sezione": "Principale",
-        "testo": "1 limone (succo spremuto)",
-        "quantita": 1,
-        "unita": "limone",
-        "ingrediente": "succo di limone"
+        "section": "Principale",
+        "text": "1 spicchio di aglio",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 spicchio di aglio"
       },
       {
-        "sezione": "Principale",
-        "testo": "2 cucchiai di olio extravergine d'oliva",
-        "quantita": 2,
-        "unita": "cucchiai",
-        "ingrediente": "olio extravergine d'oliva"
+        "section": "Principale",
+        "text": "400 g di passata di pomodoro",
+        "amount": null,
+        "unit": "",
+        "ingredient": "400 g di passata di pomodoro"
       },
       {
-        "sezione": "Principale",
-        "testo": "1 cucchiaino di cumino in polvere",
-        "quantita": 1,
-        "unita": "cucchiaino",
-        "ingrediente": "cumino in polvere"
+        "section": "Principale",
+        "text": "2 cucchiai di olio extravergine d'oliva",
+        "amount": null,
+        "unit": "",
+        "ingredient": "2 cucchiai di olio extravergine d'oliva"
       },
       {
-        "sezione": "Principale",
-        "testo": "1 pizzico di sale fino",
-        "quantita": 1,
-        "unita": "pizzico",
-        "ingrediente": "sale fino"
-      },
-      {
-        "sezione": "Principale",
-        "testo": "30 ml di acqua fredda o ghiaccio",
-        "quantita": 30,
-        "unita": "ml",
-        "ingrediente": "acqua fredda"
+        "section": "Principale",
+        "text": "sale e pepe q.b.",
+        "amount": null,
+        "unit": "",
+        "ingredient": "sale e pepe q.b."
       }
     ],
-    "istruzioni": [
-      "Sciacquare e scolare i ceci cotti.",
-      "Inserire nel boccale del frullatore i ceci, la tahina, lo spicchio d'aglio privato dell'anima, il succo di limone, il sale e il cumino.",
-      "Frullare alla massima potenza aggiungendo l'olio a filo e l'acqua fredda o un cubetto di ghiaccio per ottenere una consistenza spumosa e vellutata.",
-      "Servire in una ciotola guarnendo con un filo d'olio a crudo, paprika dolce e semi di sesamo tostato a piacere."
+    "instructions": [
+      "Impastare la carne con uovo, pangrattato, aglio tritato, sale e pepe.",
+      "Formare le polpette e rosolarle nell'olio.",
+      "Aggiungere la passata di pomodoro e cuocere per 15 minuti."
     ],
-    "suggerimenti": [
-      "Per un hummus ancora più cremoso, rimuovere le pellicine esterne dei ceci prima di frullarli.",
-      "Si conserva perfettamente in frigorifero in un contenitore ermetico per 3-4 giorni."
-    ]
+    "tips": [
+      "Servire con insalata fresca."
+    ],
+    "diet": "omnivore",
+    "diet_source": "manual",
+    "origin": "ai",
+    "modified": false
+  },
+  {
+    "id": "polpette-di-manzo-al-pomodoro--vegetariana",
+    "title": "Polpette di lenticchie al pomodoro (vegetariana)",
+    "source": "Green Whisker",
+    "url": "",
+    "image": "",
+    "macro_category": "MACRO_PROTEINE_E_SECONDI",
+    "category": "CAT_SECONDI_PIATTI",
+    "subcategory": "CAT_SECONDI_PIATTI",
+    "difficulty": "easy",
+    "servings": 4,
+    "servings_text": "4 porzioni",
+    "times": {
+      "total_minutes": 40,
+      "prep_time": "15 minuti",
+      "cook_time": "25 minuti",
+      "display_time": "Prep: 15 min, Cottura: 25 min"
+    },
+    "recommended_slot": "pranzo_cena",
+    "food_groups": [
+      "cibi_proteici",
+      "verdura"
+    ],
+    "protein_group": "legumi_interi",
+    "carb_family": "none",
+    "veggie_color": "red_orange",
+    "is_complete_plate": false,
+    "seasons": [
+      "autunno",
+      "inverno"
+    ],
+    "tags": [
+      "Vegetariana",
+      "Proteico"
+    ],
+    "ingredients": [
+      "250 g di lenticchie rosse cotte",
+      "1 uovo",
+      "50 g di pangrattato",
+      "1 spicchio di aglio",
+      "400 g di passata di pomodoro",
+      "2 cucchiai di olio extravergine d'oliva",
+      "sale e pepe q.b."
+    ],
+    "ingredients_by_section": [
+      {
+        "section": "Principale",
+        "ingredients": [
+          "250 g di lenticchie rosse cotte",
+          "1 uovo",
+          "50 g di pangrattato",
+          "1 spicchio di aglio",
+          "400 g di passata di pomodoro",
+          "2 cucchiai di olio extravergine d'oliva",
+          "sale e pepe q.b."
+        ]
+      }
+    ],
+    "detailed_ingredients": [
+      {
+        "section": "Principale",
+        "text": "250 g di lenticchie rosse cotte",
+        "amount": null,
+        "unit": "",
+        "ingredient": "250 g di lenticchie rosse cotte"
+      },
+      {
+        "section": "Principale",
+        "text": "1 uovo",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 uovo"
+      },
+      {
+        "section": "Principale",
+        "text": "50 g di pangrattato",
+        "amount": null,
+        "unit": "",
+        "ingredient": "50 g di pangrattato"
+      },
+      {
+        "section": "Principale",
+        "text": "1 spicchio di aglio",
+        "amount": null,
+        "unit": "",
+        "ingredient": "1 spicchio di aglio"
+      },
+      {
+        "section": "Principale",
+        "text": "400 g di passata di pomodoro",
+        "amount": null,
+        "unit": "",
+        "ingredient": "400 g di passata di pomodoro"
+      },
+      {
+        "section": "Principale",
+        "text": "2 cucchiai di olio extravergine d'oliva",
+        "amount": null,
+        "unit": "",
+        "ingredient": "2 cucchiai di olio extravergine d'oliva"
+      },
+      {
+        "section": "Principale",
+        "text": "sale e pepe q.b.",
+        "amount": null,
+        "unit": "",
+        "ingredient": "sale e pepe q.b."
+      }
+    ],
+    "instructions": [
+      "Frullare grossolanamente le lenticchie e impastarle con uovo, pangrattato, aglio tritato, sale e pepe.",
+      "Formare le polpette e rosolarle nell'olio.",
+      "Aggiungere la passata di pomodoro e cuocere per 15 minuti."
+    ],
+    "tips": [
+      "Servire con insalata fresca."
+    ],
+    "diet": "vegetarian",
+    "diet_source": "auto",
+    "origin": "ai",
+    "modified": false,
+    "variant_of": "polpette-di-manzo-al-pomodoro",
+    "needs_review": false
   }
 ]

@@ -1,8 +1,7 @@
 import { Recipe, MealPlanEntry, IngredientItem } from '../types/recipe';
 import { addShoppingItems, saveMealPlanEntriesBulk, getKV, setKV } from '../db/database';
 import { scaleIngredient } from '../utils/servingsScaler';
-
-const rawRecipes = require('../../assets/ricette.json') as Recipe[];
+import { catalogRecipes } from './recipeCatalog';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERFACES
@@ -211,13 +210,13 @@ export const SLOT_COLORS: Record<MealSlot, { color: string; bgColor: string }> =
  */
 export function getRecipesForSlot(slot: MealSlot): Recipe[] {
   if (slot === 'colazione') {
-    return rawRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
+    return catalogRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
   }
   if (slot === 'spuntino_mattina' || slot === 'spuntino_pomeriggio') {
-    return rawRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
+    return catalogRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
   }
   // Pranzo e Cena: Piatti unici, Primi, Secondi e Contorni
-  return rawRecipes.filter(r =>
+  return catalogRecipes.filter(r =>
     PIATTO_UNICO_CATEGORIES.has(r.category) ||
     PRIMI_CATEGORIES.has(r.category) ||
     SECONDI_CATEGORIES.has(r.category) ||
@@ -234,7 +233,7 @@ export function isAuthenticSideDish(r: Recipe): boolean {
   );
 }
 
-export function getSideRecipes(recipes: Recipe[] = rawRecipes): Recipe[] {
+export function getSideRecipes(recipes: Recipe[] = catalogRecipes): Recipe[] {
   return recipes.filter(isAuthenticSideDish);
 }
 
@@ -471,16 +470,16 @@ export function generateBalancedWeekPlan(
   const currentSeason = getCurrentSeason();
 
   // ── Pre-processing dei pool per categoria univoca (CAT_...) ──────────────────
-  const breakfastPool   = rawRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
-  const snackPool       = rawRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
-  const piattoUnicoPool = rawRecipes.filter(r => PIATTO_UNICO_CATEGORIES.has(r.category));
-  const primiPool       = rawRecipes.filter(r => PRIMI_CATEGORIES.has(r.category));
-  const secondiPool     = rawRecipes.filter(r => SECONDI_CATEGORIES.has(r.category));
-  const sidePool        = rawRecipes.filter(r => CONTORNI_CATEGORIES.has(r.category));
+  const breakfastPool   = catalogRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
+  const snackPool       = catalogRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
+  const piattoUnicoPool = catalogRecipes.filter(r => PIATTO_UNICO_CATEGORIES.has(r.category));
+  const primiPool       = catalogRecipes.filter(r => PRIMI_CATEGORIES.has(r.category));
+  const secondiPool     = catalogRecipes.filter(r => SECONDI_CATEGORIES.has(r.category));
+  const sidePool        = catalogRecipes.filter(r => CONTORNI_CATEGORIES.has(r.category));
 
   // Pre-classificazione nutrizionale completa con Regola del Piatto Bilanciato
   const nutritionIndex = new Map<string, HealthyPlateClassification>();
-  for (const r of rawRecipes) {
+  for (const r of catalogRecipes) {
     nutritionIndex.set(r.id, classifyHealthyPlate(r, currentSeason));
   }
 
@@ -506,7 +505,7 @@ export function generateBalancedWeekPlan(
   // Pre-popola statistiche dai pasti già esistenti nel piano
   existingPlans.forEach(p => {
     if (p.slot === 'pranzo' || p.slot === 'cena') {
-      const r = rawRecipes.find(x => x.id === p.recipe_id);
+      const r = catalogRecipes.find(x => x.id === p.recipe_id);
       if (r) {
         recentCategories.push(r.category);
         if (SECONDI_CATEGORIES.has(r.category)) recentProteinCategories.push(getProteinSubgroup(r.category));
@@ -552,7 +551,7 @@ export function generateBalancedWeekPlan(
 
     if (options.onlyEmptySlots && existingMap[key]) {
       const existing = existingMap[key];
-      const r = rawRecipes.find(x => x.id === existing.recipe_id);
+      const r = catalogRecipes.find(x => x.id === existing.recipe_id);
       const ni = nutritionIndex.get(existing.recipe_id);
       if (slotInfo.isMeal && r && ni) {
         recentCategories.push(r.category);

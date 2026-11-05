@@ -1,8 +1,6 @@
 import Fuse from 'fuse.js';
 import { Recipe } from '../types/recipe';
 
-const defaultRecipes = require('../../assets/ricette.json') as Recipe[];
-
 export interface AdvancedFilterOptions {
   maxMinutes?: number | null; // e.g. 20, 35, 50
   difficolta?: 'Facile' | 'Media' | 'Difficile' | null;
@@ -24,7 +22,7 @@ function createFuse(recipes: Recipe[]): Fuse<Recipe> {
   });
 }
 
-let currentDataset: Recipe[] = defaultRecipes;
+let currentDataset: Recipe[] = [];
 let fuseInstance: Fuse<Recipe> | null = null;
 
 function getFuseInstance(): Fuse<Recipe> {

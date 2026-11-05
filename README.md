@@ -113,15 +113,11 @@ The engine uses sliding-window tracking and score penalties to prevent repetitio
    npm install
    ```
 
-3. **Initialize the Recipe Dataset (BYOR):**
+3. **Recipes (BYOR):**
    > [!NOTE]
-   > For copyright and licensing reasons, proprietary/curated recipe datasets are **not included** in the public repository (`assets/ricette.json` is gitignored). 
-   > 
-   > To start with a starter sample recipe, copy the provided example template:
-   ```bash
-   cp assets/ricette.example.json assets/ricette.json
-   ```
-   *(Or create an empty catalog `echo "[]" > assets/ricette.json` and populate it using the AI Magic Importer).*
+   > For copyright and licensing reasons, recipe datasets are **not included** in the app. The app starts with an empty catalog.
+   >
+   > Open the menu (chef hat, top right) → **Recipe book** → **Import JSON recipe book** and choose a JSON file from your phone. A template with the expected format is in `assets/ricette.example.json`.
 
 4. **Configure Environment Variables:**
    Create your local `.env` file from the example template:

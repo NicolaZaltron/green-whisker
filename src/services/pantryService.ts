@@ -1,6 +1,5 @@
 import { Recipe } from '../types/recipe';
-
-const defaultRecipes = require('../../assets/ricette.json') as Recipe[];
+import { catalogRecipes, getCatalogVersion } from './recipeCatalog';
 
 export interface PantryMatchResult {
   recipe: Recipe;
@@ -58,14 +57,17 @@ interface NormalizedIngredientItem {
 }
 
 let cachedNormalizedIngredients: NormalizedIngredientItem[] | null = null;
+let cachedCatalogVersion = -1;
 
 /**
  * Lazily extracts and caches unique ingredient terms to avoid blocking JS thread during app boot.
  */
 function getNormalizedIngredients(): NormalizedIngredientItem[] {
-  if (cachedNormalizedIngredients !== null) {
+  // La cache si rigenera quando il catalogo cambia
+  if (cachedNormalizedIngredients !== null && cachedCatalogVersion === getCatalogVersion()) {
     return cachedNormalizedIngredients;
   }
+  cachedCatalogVersion = getCatalogVersion();
 
   const set = new Set<string>();
   const stopWords = new Set([
@@ -81,7 +83,7 @@ function getNormalizedIngredients(): NormalizedIngredientItem[] {
 
   POPULAR_PANTRY_ITEMS.forEach(item => set.add(item));
 
-  for (const recipe of defaultRecipes) {
+  for (const recipe of catalogRecipes) {
     const ingList = recipe.ingredients || [];
     if (ingList.length === 0) continue;
     for (const raw of ingList) {
@@ -151,7 +153,7 @@ export function searchPantryRecipes(
 
   const results: PantryMatchResult[] = [];
 
-  for (const recipe of defaultRecipes) {
+  for (const recipe of catalogRecipes) {
     let requiredCount = 0;
     let matchedCount = 0;
     const matched: string[] = [];

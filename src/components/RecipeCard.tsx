@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, GestureResponderEvent } from 
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Recipe } from '../types/recipe';
+import { VariantDiet } from '../services/catalogFormat';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +16,8 @@ export interface PantryMatchInfo {
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
+  // Versioni vegetariane/vegane disponibili per questa ricetta
+  variantDiets?: VariantDiet[];
   isFavorite?: boolean;
   onToggleFavorite?: (recipeId: string) => void;
   onFavoriteChange?: (isFav: boolean) => void;
@@ -26,6 +29,7 @@ interface RecipeCardProps {
 export const RecipeCard = React.memo<RecipeCardProps>(({
   recipe,
   onPress,
+  variantDiets,
   isFavorite: isFavProp,
   onToggleFavorite,
   onFavoriteChange,
@@ -85,6 +89,12 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
             color={favorite ? '#D9534F' : '#4A6B53'}
           />
         </TouchableOpacity>
+
+        {variantDiets && variantDiets.length > 0 && (
+          <View style={styles.variantButton} accessibilityLabel={t('recipeCard.hasVariants')}>
+            <Ionicons name="layers-outline" size={18} color="#4A6B53" />
+          </View>
+        )}
 
         {recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 && (
           <View style={styles.fastPill}>
@@ -206,6 +216,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#4A6B53',
     textTransform: 'uppercase',
+  },
+  variantButton: {
+    position: 'absolute',
+    top: 52,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   favButton: {
     position: 'absolute',

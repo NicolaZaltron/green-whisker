@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Keyboard,
-  Modal
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,11 +21,14 @@ import { RecipeModal } from '../../components/RecipeModal';
 import { PantryView } from '../../components/PantryView';
 import { MagicRecipeImporterModal } from '../../components/MagicRecipeImporterModal';
 import { HeaderMenu } from '../../components/HeaderMenu';
-import { syncRecipeCatalog } from '../../services/recipeCatalog';
+import { useCatalogVersion } from '../../hooks/useCatalog';
+import { catalogRecipes, catalogVariants, refreshCatalog } from '../../services/recipeCatalog';
+import { DietFilter, VariantDiet, availableVariantDiets, matchesDiet } from '../../services/catalogFormat';
+import { generateVariant, saveVariant, deleteVariant } from '../../services/variantService';
+import { ReviewRequest } from '../../components/MagicRecipeImporterModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
 import { searchRecipes, AdvancedFilterOptions } from '../../services/searchService';
-import { getCustomRecipes } from '../../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
@@ -41,24 +46,25 @@ export default function ExploreScreen() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showMagicImporter, setShowMagicImporter] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
+  const [reviewRequest, setReviewRequest] = useState<ReviewRequest | null>(null);
+  const [variantBusy, setVariantBusy] = useState(false);
+  // Variante in generazione: il pulsante nella scheda mostra lo spinner
+  const [generating, setGenerating] = useState<{ baseId: string; diet: VariantDiet } | null>(null);
+  const [dietFilter, setDietFilter] = useState<DietFilter>('all');
+  // Il catalogo è condiviso con le altre schermate: cambia versione a ogni modifica
+  const catalogVersion = useCatalogVersion();
 
-  // Ricette personali: aggiornano il catalogo condiviso e l'indice di ricerca
-  const applyCustomRecipes = (customs: Recipe[]) => {
-    setCustomRecipes(customs);
-    syncRecipeCatalog(customs);
-  };
+  // Varianti raggruppate per ricetta originale, e dieta disponibili per la card
+  const variantsByBase = useMemo(() => {
+    const map = new Map<string, Recipe[]>();
+    catalogVariants.forEach(v => {
+      const list = map.get(v.variant_of!) ?? [];
+      list.push(v);
+      map.set(v.variant_of!, list);
+    });
+    return map;
+  }, [catalogVersion]);
 
-  const loadCustomRecipes = () => getCustomRecipes().then(applyCustomRecipes);
-
-  useEffect(() => {
-    loadCustomRecipes();
-  }, []);
-
-  const handleRecipeSaved = (newRecipe: Recipe) => {
-    applyCustomRecipes([newRecipe, ...customRecipes.filter(r => r.id !== newRecipe.id)]);
-    setSelectedRecipe(newRecipe);
-  };
 
   // Advanced Filters State
   const [showFilterSheet, setShowFilterSheet] = useState(false);
@@ -76,8 +82,9 @@ export default function ExploreScreen() {
     if (filters.tag) count++;
     if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') count++;
     if (selectedSubCategory !== 'Tutte') count++;
+    if (dietFilter !== 'all') count++;
     return count;
-  }, [filters, selectedSubCategory]);
+  }, [filters, selectedSubCategory, dietFilter]);
 
   const handleResetFilters = () => {
     setFilters({
@@ -87,6 +94,7 @@ export default function ExploreScreen() {
       sottocategoria: null,
     });
     setSelectedSubCategory('Tutte');
+    setDietFilter('all');
   };
 
   const handleSelectCategory = (cat: string) => {
@@ -110,8 +118,9 @@ export default function ExploreScreen() {
       ...filters,
       sottocategoria: selectedSubCategory !== 'Tutte' ? selectedSubCategory : (filters.sottocategoria || null)
     };
-    return searchRecipes(debouncedQuery, selectedCategory, combinedFilters);
-  }, [debouncedQuery, selectedCategory, selectedSubCategory, filters, customRecipes]);
+    return searchRecipes(debouncedQuery, selectedCategory, combinedFilters)
+      .filter(r => matchesDiet(r, variantsByBase.get(r.id) ?? [], dietFilter));
+  }, [debouncedQuery, selectedCategory, selectedSubCategory, filters, dietFilter, catalogVersion, variantsByBase]);
 
   // Responsive column count calculation
   const numColumns = useMemo(() => {
@@ -126,14 +135,107 @@ export default function ExploreScreen() {
       <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
         <RecipeCard
           recipe={item}
+          variantDiets={variantsByBase.get(item.id)?.map(v => v.diet as VariantDiet)}
           isFavorite={isFavorite(item.id)}
           onToggleFavorite={toggleFavorite}
           onPress={() => setSelectedRecipe(item)}
         />
       </View>
     ),
-    [numColumns, isFavorite, toggleFavorite]
+    [numColumns, isFavorite, toggleFavorite, variantsByBase]
   );
+
+  // Revisione di una variante generata: il form è quello dell'importer. Confermando o scartando
+  // si passa a `next`, cioè alla variante successiva o alla scheda dell'originale.
+  const openVariantReview = (source: Recipe, diet: VariantDiet, generated: Recipe, rest: VariantDiet[]) => {
+    let settled = false;
+    const finish = (action: () => void) => {
+      if (settled) return;
+      settled = true;
+      action();
+    };
+    const next = () => (rest.length > 0 ? runVariantQueue(source, rest) : setSelectedRecipe(source));
+
+    setSelectedRecipe(null);
+    setEditingRecipe(null);
+    setReviewRequest({
+      recipe: generated,
+      title: diet === 'vegan' ? 'Variante vegana' : 'Variante vegetariana',
+      onConfirm: async variant => {
+        if (settled) return;
+        await saveVariant(variant);
+        finish(() => {
+          setReviewRequest(null);
+          next();
+        });
+      },
+      onDiscard: () => finish(() => {
+        setReviewRequest(null);
+        next();
+      }),
+      onRetry: async instructions => {
+        openVariantReview(source, diet, await generateVariant(source, diet, instructions), rest);
+      },
+    });
+    setShowMagicImporter(true);
+  };
+
+  // Genera le varianti richieste una alla volta, ognuna in revisione
+  const runVariantQueue = (source: Recipe, diets: VariantDiet[]) => {
+    const [diet, ...rest] = diets;
+    if (!diet) {
+      setSelectedRecipe(source);
+      return;
+    }
+    setVariantBusy(true);
+    setGenerating({ baseId: source.id, diet });
+    generateVariant(source, diet)
+      .then(generated => openVariantReview(source, diet, generated, rest))
+      .catch((e: any) => {
+        Alert.alert('Variante non generata', e.message || 'Errore durante la generazione.');
+        runVariantQueue(source, rest);
+      })
+      .finally(() => {
+        setVariantBusy(false);
+        setGenerating(null);
+      });
+  };
+
+  // Dopo il salvataggio dell'originale: si generano le varianti scelte che non esistono ancora
+  const handleRecipeSaved = (newRecipe: Recipe, variantDiets: VariantDiet[] = []) => {
+    const missing = availableVariantDiets(newRecipe, catalogVariants).filter(d => variantDiets.includes(d));
+    if (missing.length === 0) {
+      setSelectedRecipe(newRecipe);
+      return;
+    }
+    runVariantQueue(newRecipe, missing);
+  };
+
+  // Genera una variante dalla scheda: stessa revisione, nessuna coda
+  const handleGenerateVariant = (source: Recipe, diet: VariantDiet) => {
+    runVariantQueue(source, [diet]);
+  };
+
+  const handleRegenerateVariant = async (variant: Recipe) => {
+    const source = catalogRecipes.find(r => r.id === variant.variant_of);
+    if (!source || !variant.diet || variant.diet === 'omnivore') return;
+    handleGenerateVariant(source, variant.diet);
+  };
+
+  const handleDeleteVariant = (variant: Recipe) => {
+    const source = catalogRecipes.find(r => r.id === variant.variant_of);
+    Alert.alert('Eliminare la variante?', `"${variant.title}" verrà eliminata. La ricetta originale resta.`, [
+      { text: 'Annulla', style: 'cancel' },
+      {
+        text: 'Elimina',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteVariant(variant);
+          setSelectedRecipe(source ?? null);
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -154,7 +256,7 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            <HeaderMenu onRecipesChanged={loadCustomRecipes} />
+            <HeaderMenu onRecipesChanged={refreshCatalog} />
           </View>
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
@@ -332,9 +434,11 @@ export default function ExploreScreen() {
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="search-outline" size={48} color="#A3B2A6" />
-                  <Text style={styles.emptyTitle}>{t('explore.noRecipesTitle')}</Text>
+                  <Text style={styles.emptyTitle}>
+                    {catalogRecipes.length === 0 ? t('explore.emptyCatalogTitle') : t('explore.noRecipesTitle')}
+                  </Text>
                   <Text style={styles.emptySubtitle}>
-                    {t('explore.noRecipesSub')}
+                    {catalogRecipes.length === 0 ? t('explore.emptyCatalogSub') : t('explore.noRecipesSub')}
                   </Text>
                 </View>
               }
@@ -347,8 +451,13 @@ export default function ExploreScreen() {
         {/* Modal Dettaglio Ricetta */}
         <RecipeModal
           recipe={selectedRecipe}
+          variants={selectedRecipe ? variantsByBase.get(selectedRecipe.id) ?? [] : []}
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+          onGenerateVariant={handleGenerateVariant}
+          generatingDiet={selectedRecipe && generating?.baseId === selectedRecipe.id ? generating.diet : null}
+          onRegenerateVariant={handleRegenerateVariant}
+          onDeleteVariant={handleDeleteVariant}
           onEdit={recipe => {
             setSelectedRecipe(null);
             setEditingRecipe(recipe);
@@ -447,6 +556,33 @@ export default function ExploreScreen() {
                   </View>
                 </View>
 
+                {/* Dieta: include le ricette che hanno una variante compatibile */}
+                <View style={styles.sheetSection}>
+                  <View style={styles.sectionLabelRow}>
+                    <Ionicons name="nutrition-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Text style={styles.sheetSectionTitle}>Dieta</Text>
+                  </View>
+                  <View style={styles.sheetChipsRow}>
+                    {([
+                      { label: 'Tutte', value: 'all' },
+                      { label: 'Vegetariane', value: 'vegetarian' },
+                      { label: 'Vegane', value: 'vegan' },
+                    ] as const).map(opt => {
+                      const isSel = dietFilter === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
+                          onPress={() => setDietFilter(opt.value)}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{opt.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
                 {/* Caratteristiche */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
@@ -521,21 +657,41 @@ export default function ExploreScreen() {
 
         {/* Magic Recipe Importer AI Modal */}
         <MagicRecipeImporterModal
-          key={editingRecipe?.id ?? 'new'}
+          key={reviewRequest ? `review-${reviewRequest.recipe.updated_at}` : editingRecipe?.id ?? 'new'}
           visible={showMagicImporter}
           editingRecipe={editingRecipe}
+          review={reviewRequest}
           onClose={() => {
+            // Chiudere una revisione senza confermare la scarta
+            if (reviewRequest) reviewRequest.onDiscard();
             setShowMagicImporter(false);
+            // Chiudendo una modifica si torna alla ricetta, non alla home
+            if (editingRecipe) setSelectedRecipe(editingRecipe);
             setEditingRecipe(null);
           }}
           onRecipeSaved={handleRecipeSaved}
         />
+
+        {variantBusy && (
+          <View style={styles.busyOverlay} pointerEvents="none">
+            <ActivityIndicator size="large" color="#34523C" />
+            <Text style={styles.busyText}>Generazione della variante…</Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  busyOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(247, 249, 246, 0.7)',
+    gap: 12,
+  },
+  busyText: { fontSize: 14, fontWeight: '700', color: '#34523C' },
   container: {
     flex: 1,
     backgroundColor: '#FBF9F5',

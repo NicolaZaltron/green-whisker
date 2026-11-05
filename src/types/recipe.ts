@@ -54,7 +54,20 @@ export interface Recipe {
   veggie_color: VeggieColor;
   seasons: Season[];
   is_complete_plate: boolean;
+
+  // Campi del catalogo (opzionali: i file vecchi non li hanno)
+  diet?: RecipeDiet;
+  diet_source?: 'auto' | 'manual';
+  origin?: RecipeOrigin;
+  modified?: boolean;
+  variant_of?: string;
+  needs_review?: boolean;
+  created_at?: number;
+  updated_at?: number;
 }
+
+export type RecipeDiet = 'omnivore' | 'vegetarian' | 'vegan';
+export type RecipeOrigin = 'file' | 'ai' | 'manual';
 
 export interface ShoppingItem {
   id: string;

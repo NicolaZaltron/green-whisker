@@ -38,7 +38,9 @@
     "viewModes": {
       "recipes": "Ricette",
       "pantry": "Svuotafrigo"
-    }
+    },
+    "emptyCatalogTitle": "Il ricettario è vuoto",
+    "emptyCatalogSub": "Apri il menu (cappello in alto a destra), poi Ricettario, per importare un file JSON di ricette."
   },
   "favorites": {
     "title": "I Tuoi Preferiti",
@@ -169,7 +171,6 @@
     "MACRO_PANIFICATI_E_PIATTI_UNICI": "Panificati e Piatti Unici",
     "MACRO_VERDURE_E_CONTORNI": "Verdure e Contorni",
     "MACRO_COLAZIONI_DOLCI": "Dolci, Colazioni e Snack",
-
     "CAT_PRIMI_PIATTI": "Primi piatti",
     "CAT_RISOTTI": "Risotti",
     "CAT_GNOCCHI": "Gnocchi",
@@ -178,7 +179,6 @@
     "CAT_BOWL": "Bowl",
     "CAT_PORRIDGE_E_OVERNIGHT_OATS": "Porridge & Overnight Oats",
     "CAT_INSALATE_DI_CEREALI": "Insalate di cereali",
-
     "CAT_SECONDI_PIATTI": "Secondi piatti",
     "CAT_PIATTI_A_BASE_DI_LEGUMI": "Piatti a base di legumi",
     "CAT_INSALATE_DI_LEGUMI": "Insalate di legumi",
@@ -189,19 +189,16 @@
     "CAT_FARINATE_E_FRITTATE": "Farinate e Frittate",
     "CAT_POLPETTE_E_BURGER": "Polpette e Burger",
     "CAT_COTOLETTE": "Cotolette",
-
     "CAT_PIADINE_E_WRAPS": "Piadine e Wraps",
     "CAT_PANINI_E_BRUSCHETTE": "Panini e Bruschette",
     "CAT_PIZZE_E_FOCACCIE": "Pizze e Focacce",
     "CAT_TORTE_SALATE": "Torte salate",
-
     "CAT_CONTORNI": "Contorni",
     "CAT_VERDURE_AL_FORNO": "Verdure al forno",
     "CAT_VERDURE_IN_PADELLA": "Verdure in padella",
     "CAT_VERDURE_BOLLITE_E_A_VAPORE": "Verdure bollite e a vapore",
     "CAT_ZUPPE_E_VELLUTATE": "Zuppe e Vellutate",
     "CAT_SALSE_E_CONDIMENTI": "Salse e condimenti",
-
     "CAT_MERENDE_E_COLAZIONI_DOLCI": "Colazioni e merende dolci",
     "CAT_MERENDE_E_COLAZIONI_SALATE": "Colazioni e merende salate",
     "CAT_BISCOTTI": "Biscotti",
@@ -237,24 +234,52 @@
   },
   "recipeBook": {
     "title": "Ricettario",
-    "description": "Scegli quali ricette esportare in un file JSON, oppure importa un ricettario.",
-    "import": "Importa ricettario JSON",
-    "exported": "{{count}} ricette esportate.",
-    "imported": "Importate {{imported}} ricette nuove, aggiornate {{updated}}. {{invalid}} non valide.",
-    "invalidFile": "File non valido: serve un ricettario JSON (un elenco di ricette).",
-    "scopeAll": "Intero catalogo",
-    "scopePersonal": "Solo importate o modificate",
+    "description": "Scegli cosa esportare in un file JSON, oppure importa un ricettario.",
+    "filterScope": "Ambito",
+    "filterKind": "Tipo",
+    "filterDiet": "Dieta",
+    "filterOrigin": "Origine",
+    "optAll": "Tutte",
+    "scopeAll": "Tutto il catalogo",
+    "scopePersonal": "Solo personali",
+    "kindOriginals": "Originali",
+    "kindVariants": "Varianti",
+    "dietShort": {
+      "omnivore": "Onnivore",
+      "vegetarian": "Vegetariane",
+      "vegan": "Vegane"
+    },
+    "originFile": "File",
+    "originAi": "AI",
+    "originManual": "A mano",
+    "selectedCount": "{{selected}} di {{total}} selezionate",
     "selectAll": "Seleziona tutte",
     "deselectAll": "Deseleziona tutte",
-    "selectedCount": "{{selected}} di {{total}} selezionate",
+    "noMatches": "Nessuna ricetta con questi filtri.",
+    "includeVariants": "Includi le varianti delle ricette scelte",
     "exportSelected": "Esporta {{count}} ricette",
-    "noPersonal": "Non hai ancora ricette importate o modificate."
+    "exported": "{{count}} ricette esportate.",
+    "import": "Importa ricettario JSON",
+    "imported": "Importate {{imported}} ricette nuove, aggiornate {{updated}}, saltate {{skipped}}. Non valide: {{invalid}}.",
+    "invalidFile": "File non valido: serve un ricettario JSON (un elenco di ricette).",
+    "conflictTitle": "Ricette già presenti",
+    "conflictMessage": "{{count}} ricette del file hanno già un id nel ricettario. Cosa vuoi fare?",
+    "overwriteAll": "Sovrascrivi tutte",
+    "keepMine": "Mantieni le mie",
+    "deleteTitle": "Eliminare le ricette?",
+    "deleteMessage": "Eliminare {{count}} ricette? Vengono eliminate anche le loro varianti e tolte da planner, preferiti e note. Non si può annullare.",
+    "deleteSelected": "Elimina {{count}} selezionate",
+    "deleted": "{{count}} ricette eliminate."
   },
   "aiSettings": {
     "title": "Impostazioni AI",
     "provider": "Provider",
     "apiKey": "Chiave API",
     "model": "Modello",
+    "simpleOps": "Operazioni semplici",
+    "complexOps": "Operazioni complesse",
+    "simpleOpsHint": "Usato per importare ricette da testo e per le operazioni ordinarie.",
+    "complexOpsHint": "Usato per le immagini e per generare le varianti.",
     "baseUrl": "Indirizzo server",
     "keySavedInApp": "Chiave salvata in questa app.",
     "keyFromEnv": "Nessuna chiave salvata: uso quella del file .env.",
@@ -273,5 +298,8 @@
       "step4": "Copia la chiave generata e incollala nel campo qui sotto.",
       "copied": "Nome copiato negli appunti."
     }
+  },
+  "recipeCard": {
+    "hasVariants": "Ha versioni vegetariane o vegane"
   }
 }

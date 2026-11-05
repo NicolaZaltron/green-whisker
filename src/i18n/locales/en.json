@@ -38,7 +38,9 @@
     "viewModes": {
       "recipes": "Recipes",
       "pantry": "Pantry"
-    }
+    },
+    "emptyCatalogTitle": "The recipe book is empty",
+    "emptyCatalogSub": "Open the menu (chef hat, top right), then Recipe book, to import a JSON file of recipes."
   },
   "favorites": {
     "title": "Your Favorites",
@@ -169,7 +171,6 @@
     "MACRO_PANIFICATI_E_PIATTI_UNICI": "Breads & Single Dishes",
     "MACRO_VERDURE_E_CONTORNI": "Vegetables & Sides",
     "MACRO_COLAZIONI_DOLCI": "Breakfast, Sweets & Snacks",
-
     "CAT_PRIMI_PIATTI": "Pasta & First Courses",
     "CAT_RISOTTI": "Risottos",
     "CAT_GNOCCHI": "Gnocchi",
@@ -178,7 +179,6 @@
     "CAT_BOWL": "Bowls",
     "CAT_PORRIDGE_E_OVERNIGHT_OATS": "Porridge & Overnight Oats",
     "CAT_INSALATE_DI_CEREALI": "Grain Salads",
-
     "CAT_SECONDI_PIATTI": "Main Dishes",
     "CAT_PIATTI_A_BASE_DI_LEGUMI": "Legume Dishes",
     "CAT_INSALATE_DI_LEGUMI": "Legume Salads",
@@ -189,19 +189,16 @@
     "CAT_FARINATE_E_FRITTATE": "Chickpea Omelettes & Frittatas",
     "CAT_POLPETTE_E_BURGER": "Patties & Veggie Burgers",
     "CAT_COTOLETTE": "Cutlets",
-
     "CAT_PIADINE_E_WRAPS": "Flatbreads & Wraps",
     "CAT_PANINI_E_BRUSCHETTE": "Sandwiches & Bruschettas",
     "CAT_PIZZE_E_FOCACCIE": "Pizzas & Focaccias",
     "CAT_TORTE_SALATE": "Savory Pies & Quiches",
-
     "CAT_CONTORNI": "Side Dishes",
     "CAT_VERDURE_AL_FORNO": "Baked Vegetables",
     "CAT_VERDURE_IN_PADELLA": "Pan-Fried Vegetables",
     "CAT_VERDURE_BOLLITE_E_A_VAPORE": "Steamed & Boiled Vegetables",
     "CAT_ZUPPE_E_VELLUTATE": "Soups & Creamy Stews",
     "CAT_SALSE_E_CONDIMENTI": "Sauces & Condiments",
-
     "CAT_MERENDE_E_COLAZIONI_DOLCI": "Sweet Breakfasts & Snacks",
     "CAT_MERENDE_E_COLAZIONI_SALATE": "Savory Breakfasts & Snacks",
     "CAT_BISCOTTI": "Cookies & Biscuits",
@@ -237,24 +234,52 @@
   },
   "recipeBook": {
     "title": "Recipe book",
-    "description": "Choose which recipes to export to a JSON file, or import a recipe book.",
-    "import": "Import JSON recipe book",
-    "exported": "{{count}} recipes exported.",
-    "imported": "Imported {{imported}} new recipes, updated {{updated}}. {{invalid}} invalid.",
-    "invalidFile": "Invalid file: a JSON recipe book (a list of recipes) is required.",
+    "description": "Choose what to export to a JSON file, or import a recipe book.",
+    "filterScope": "Scope",
+    "filterKind": "Type",
+    "filterDiet": "Diet",
+    "filterOrigin": "Origin",
+    "optAll": "All",
     "scopeAll": "Full catalog",
-    "scopePersonal": "Only imported or edited",
+    "scopePersonal": "Only personal",
+    "kindOriginals": "Originals",
+    "kindVariants": "Variants",
+    "dietShort": {
+      "omnivore": "Omnivore",
+      "vegetarian": "Vegetarian",
+      "vegan": "Vegan"
+    },
+    "originFile": "File",
+    "originAi": "AI",
+    "originManual": "By hand",
+    "selectedCount": "{{selected}} of {{total}} selected",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
-    "selectedCount": "{{selected}} of {{total}} selected",
+    "noMatches": "No recipes match these filters.",
+    "includeVariants": "Include variants of the selected recipes",
     "exportSelected": "Export {{count}} recipes",
-    "noPersonal": "You have no imported or edited recipes yet."
+    "exported": "{{count}} recipes exported.",
+    "import": "Import JSON recipe book",
+    "imported": "Imported {{imported}} new recipes, updated {{updated}}, skipped {{skipped}}. Invalid: {{invalid}}.",
+    "invalidFile": "Invalid file: a JSON recipe book (a list of recipes) is required.",
+    "conflictTitle": "Recipes already present",
+    "conflictMessage": "{{count}} recipes in the file already have an id in the recipe book. What do you want to do?",
+    "overwriteAll": "Overwrite all",
+    "keepMine": "Keep mine",
+    "deleteTitle": "Delete recipes?",
+    "deleteMessage": "Delete {{count}} recipes? Their variants are deleted too, and they are removed from planner, favorites and notes. This cannot be undone.",
+    "deleteSelected": "Delete {{count}} selected",
+    "deleted": "{{count}} recipes deleted."
   },
   "aiSettings": {
     "title": "AI settings",
     "provider": "Provider",
     "apiKey": "API key",
     "model": "Model",
+    "simpleOps": "Simple operations",
+    "complexOps": "Complex operations",
+    "simpleOpsHint": "Used for importing recipes from text and for everyday operations.",
+    "complexOpsHint": "Used for images and for generating variants.",
     "baseUrl": "Server address",
     "keySavedInApp": "Key saved in this app.",
     "keyFromEnv": "No saved key: using the one from the .env file.",
@@ -273,5 +298,8 @@
       "step4": "Copy the generated key and paste it in the field below.",
       "copied": "Name copied to the clipboard."
     }
+  },
+  "recipeCard": {
+    "hasVariants": "Has vegetarian or vegan versions"
   }
 }
