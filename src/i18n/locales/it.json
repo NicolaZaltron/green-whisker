@@ -118,7 +118,8 @@
       "all": "Tutte ({{count}})",
       "searchSidePlaceholder": "Cerca contorno o insalata...",
       "searchSlotPlaceholder": "Cerca per {{slot}}..."
-    }
+    },
+    "addMeal": "Aggiungi pasto"
   },
   "shopping": {
     "title": "Lista della Spesa",
@@ -227,5 +228,50 @@
     "CAT_SHOPPING_FRUTTA_SECCA_E_SEMI_OLEOSI": "Frutta secca e semi",
     "CAT_SHOPPING_DOLCIFICANTI": "Dolcificanti",
     "CAT_SHOPPING_VARIE": "Varie"
+  },
+  "menu": {
+    "open": "Menu",
+    "language": "Lingua",
+    "recipeBook": "Ricettario",
+    "aiSettings": "Impostazioni AI"
+  },
+  "recipeBook": {
+    "title": "Ricettario",
+    "description": "Scegli quali ricette esportare in un file JSON, oppure importa un ricettario.",
+    "import": "Importa ricettario JSON",
+    "exported": "{{count}} ricette esportate.",
+    "imported": "Importate {{imported}} ricette nuove, aggiornate {{updated}}. {{invalid}} non valide.",
+    "invalidFile": "File non valido: serve un ricettario JSON (un elenco di ricette).",
+    "scopeAll": "Intero catalogo",
+    "scopePersonal": "Solo importate o modificate",
+    "selectAll": "Seleziona tutte",
+    "deselectAll": "Deseleziona tutte",
+    "selectedCount": "{{selected}} di {{total}} selezionate",
+    "exportSelected": "Esporta {{count}} ricette",
+    "noPersonal": "Non hai ancora ricette importate o modificate."
+  },
+  "aiSettings": {
+    "title": "Impostazioni AI",
+    "provider": "Provider",
+    "apiKey": "Chiave API",
+    "model": "Modello",
+    "baseUrl": "Indirizzo server",
+    "keySavedInApp": "Chiave salvata in questa app.",
+    "keyFromEnv": "Nessuna chiave salvata: uso quella del file .env.",
+    "noKey": "Nessuna chiave configurata per questo provider.",
+    "save": "Salva",
+    "removeKey": "Rimuovi chiave salvata",
+    "saved": "Impostazioni salvate.",
+    "privacy": "La chiave resta sul dispositivo e non viene inclusa nell'APK. Non condividerla con altri.",
+    "guide": {
+      "title": "Come ottenere la chiave gratuita",
+      "open": "Apri Google AI Studio",
+      "step1": "Accedi con il tuo account Google.",
+      "step2": "Premi \"Create API key\" (o \"Crea chiave API\").",
+      "step3": "Dai un nome alla chiave: ti consigliamo Green-Whisker.",
+      "copyName": "Copia \"{{name}}\"",
+      "step4": "Copia la chiave generata e incollala nel campo qui sotto.",
+      "copied": "Nome copiato negli appunti."
+    }
   }
 }

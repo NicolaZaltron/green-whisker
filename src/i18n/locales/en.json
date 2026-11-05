@@ -118,7 +118,8 @@
       "all": "All ({{count}})",
       "searchSidePlaceholder": "Search side dish or salad...",
       "searchSlotPlaceholder": "Search for {{slot}}..."
-    }
+    },
+    "addMeal": "Add meal"
   },
   "shopping": {
     "title": "Shopping List",
@@ -227,5 +228,50 @@
     "CAT_SHOPPING_FRUTTA_SECCA_E_SEMI_OLEOSI": "Nuts & Seeds",
     "CAT_SHOPPING_DOLCIFICANTI": "Sweeteners",
     "CAT_SHOPPING_VARIE": "Miscellaneous"
+  },
+  "menu": {
+    "open": "Menu",
+    "language": "Language",
+    "recipeBook": "Recipe book",
+    "aiSettings": "AI settings"
+  },
+  "recipeBook": {
+    "title": "Recipe book",
+    "description": "Choose which recipes to export to a JSON file, or import a recipe book.",
+    "import": "Import JSON recipe book",
+    "exported": "{{count}} recipes exported.",
+    "imported": "Imported {{imported}} new recipes, updated {{updated}}. {{invalid}} invalid.",
+    "invalidFile": "Invalid file: a JSON recipe book (a list of recipes) is required.",
+    "scopeAll": "Full catalog",
+    "scopePersonal": "Only imported or edited",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectedCount": "{{selected}} of {{total}} selected",
+    "exportSelected": "Export {{count}} recipes",
+    "noPersonal": "You have no imported or edited recipes yet."
+  },
+  "aiSettings": {
+    "title": "AI settings",
+    "provider": "Provider",
+    "apiKey": "API key",
+    "model": "Model",
+    "baseUrl": "Server address",
+    "keySavedInApp": "Key saved in this app.",
+    "keyFromEnv": "No saved key: using the one from the .env file.",
+    "noKey": "No key configured for this provider.",
+    "save": "Save",
+    "removeKey": "Remove saved key",
+    "saved": "Settings saved.",
+    "privacy": "The key stays on this device and is not included in the APK. Do not share it with others.",
+    "guide": {
+      "title": "How to get a free key",
+      "open": "Open Google AI Studio",
+      "step1": "Sign in with your Google account.",
+      "step2": "Press \"Create API key\".",
+      "step3": "Give the key a name: we suggest Green-Whisker.",
+      "copyName": "Copy \"{{name}}\"",
+      "step4": "Copy the generated key and paste it in the field below.",
+      "copied": "Name copied to the clipboard."
+    }
   }
 }

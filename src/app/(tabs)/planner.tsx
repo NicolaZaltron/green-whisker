@@ -23,6 +23,7 @@ import {
   deleteMealPlanEntry,
   clearMealPlans,
   updateMealPlanSideRecipe,
+  updateMealPlanRecipe,
   addShoppingItems,
   getCustomRecipes,
 } from '../../db/database';
@@ -73,7 +74,6 @@ export default function PlannerScreen() {
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [plans, setPlans] = useState<MealPlanEntry[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [autoBanner, setAutoBanner] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmRegen, setShowConfirmRegen] = useState(false);
   const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
@@ -86,8 +86,9 @@ export default function PlannerScreen() {
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
   const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<Recipe | null>(null);
 
-  // Banner animation
-  const bannerAnim = useRef(new Animated.Value(0)).current;
+  // Toast animation (valore tenuto in state per non essere trattato come ref in render) e timer di auto-chiusura
+  const [toastAnim] = useState(() => new Animated.Value(0));
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadPlans = async () => {
     const list = await getMealPlans();
@@ -95,14 +96,24 @@ export default function PlannerScreen() {
     return list;
   };
 
-  const showAutoBanner = (msg: string) => {
-    setAutoBanner(msg);
-    Animated.sequence([
-      Animated.timing(bannerAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
-      Animated.delay(4000),
-      Animated.timing(bannerAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
-    ]).start(() => setAutoBanner(null));
+  // Toast flottante in basso (sopra la tab bar): un nuovo messaggio sostituisce il precedente e resetta il timer
+  const showToast = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastAnim.stopAnimation();
+    setToastMessage(msg);
+    Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    toastTimer.current = setTimeout(() => {
+      toastTimer.current = null;
+      Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(({ finished }) => {
+        if (finished) setToastMessage(null);
+      });
+    }, 3500);
   };
+
+  // Pulisce il timer del toast allo smontaggio
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -128,7 +139,7 @@ export default function PlannerScreen() {
         const result = await checkAndAutoGeneratePlan(list);
         if (result.generated && active) {
           await loadPlans();
-          showAutoBanner(t('planner.autoBanner', { count: result.entriesCount }));
+          showToast(t('planner.autoBanner', { count: result.entriesCount }));
         }
       })();
       return () => { active = false; };
@@ -141,18 +152,20 @@ export default function PlannerScreen() {
     setSelectedDate(found ? todayStr : weekDays[0]?.dateString ?? todayStr);
   }, [weekOffset]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 2800);
-  };
-
-  const dayPlans = useMemo(() => {
-    const result: Partial<Record<MealSlot, MealPlanEntry>> = {};
+  const dayItems = useMemo(() => {
+    const result: Partial<Record<MealSlot, DayMealItem[]>> = {};
     SLOT_ORDER.forEach(slot => {
-      result[slot] = plans.find(p => p.date === selectedDate && p.slot === slot);
+      result[slot] = plans
+        .filter(p => p.date === selectedDate && p.slot === slot)
+        .sort((a, b) => a.created_at - b.created_at)
+        .map(entry => ({
+          entry,
+          recipe: recipeMap[entry.recipe_id] ?? null,
+          sideRecipe: entry.side_recipe_id ? recipeMap[entry.side_recipe_id] ?? null : null,
+        }));
     });
     return result;
-  }, [plans, selectedDate]);
+  }, [plans, selectedDate, recipeMap]);
 
   const handleOpenPicker = (slot: MealSlot) => {
     setPickerTargetType('main');
@@ -163,6 +176,13 @@ export default function PlannerScreen() {
 
   const handleOpenSidePicker = (slot: MealSlot, entryId: string) => {
     setPickerTargetType('side');
+    setTargetEntryId(entryId);
+    setTargetSlot(slot);
+    setPickerVisible(true);
+  };
+
+  const handleOpenSwapPicker = (slot: MealSlot, entryId: string) => {
+    setPickerTargetType('main');
     setTargetEntryId(entryId);
     setTargetSlot(slot);
     setPickerVisible(true);
@@ -215,12 +235,16 @@ export default function PlannerScreen() {
         }
       }
 
-      await saveMealPlanEntry({
-        date: selectedDate,
-        slot: targetSlot,
-        recipeId: recipe.id,
-        servings: currentServings,
-      });
+      if (pickerTargetType === 'main' && targetEntryId) {
+        await updateMealPlanRecipe(targetEntryId, recipe.id);
+      } else {
+        await saveMealPlanEntry({
+          date: selectedDate,
+          slot: targetSlot,
+          recipeId: recipe.id,
+          servings: currentServings,
+        });
+      }
 
       if (itemsToAdd.length > 0) {
         await addShoppingItems(itemsToAdd);
@@ -284,14 +308,6 @@ export default function PlannerScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
 
-        {/* ─── Auto-Generated Banner ─── */}
-        {autoBanner && (
-          <Animated.View style={[styles.autoBanner, { opacity: bannerAnim }]}>
-            <Ionicons name="checkmark-circle" size={17} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.autoBannerText}>{autoBanner}</Text>
-          </Animated.View>
-        )}
-
         {/* ─── Header ─── */}
         <View style={styles.header}>
           <View style={styles.titleRow}>
@@ -333,14 +349,6 @@ export default function PlannerScreen() {
             <Text style={styles.progressLabel}>{t('planner.mealsCount', { count: weekPlansCount, max: maxMeals })}</Text>
           </View>
         </View>
-
-        {/* ─── Toast ─── */}
-        {toastMessage && (
-          <View style={styles.toastBanner}>
-            <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 6 }} />
-            <Text style={styles.toastText}>{toastMessage}</Text>
-          </View>
-        )}
 
         {/* ─── Week Navigation ─── */}
         <View style={styles.weekNav}>
@@ -474,7 +482,6 @@ export default function PlannerScreen() {
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
             const colors = SLOT_COLORS[slot];
-            const currentEntry = dayPlans[slot];
             return (
               <MealSlotCard
                 key={slot}
@@ -483,14 +490,13 @@ export default function PlannerScreen() {
                 icon={SLOT_ICONS[slot]}
                 color={colors.color}
                 bgColor={colors.bgColor}
-                entry={currentEntry}
-                recipe={currentEntry ? recipeMap[currentEntry.recipe_id] : null}
-                sideRecipe={currentEntry?.side_recipe_id ? recipeMap[currentEntry.side_recipe_id] : null}
+                items={dayItems[slot] ?? []}
                 onAdd={() => handleOpenPicker(slot)}
+                onSwap={entryId => handleOpenSwapPicker(slot, entryId)}
                 onDelete={(id) => handleDeleteSlot(id)}
                 onView={(r) => setSelectedDetailRecipe(r)}
-                onSwapSide={currentEntry ? () => handleOpenSidePicker(slot, currentEntry.id) : undefined}
-                onDeleteSide={currentEntry ? () => handleDeleteSide(currentEntry.id) : undefined}
+                onSwapSide={entryId => handleOpenSidePicker(slot, entryId)}
+                onDeleteSide={entryId => handleDeleteSide(entryId)}
               />
             );
           })}
@@ -531,25 +537,47 @@ export default function PlannerScreen() {
           onClose={() => setSelectedDetailRecipe(null)}
         />
       </View>
+
+      {/* ─── Toast (overlay in basso, sopra la tab bar; non sposta il layout) ─── */}
+      {toastMessage && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.toastBanner,
+            {
+              opacity: toastAnim,
+              transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+            },
+          ]}
+        >
+          <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 6 }} />
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
 
 // ─── MealSlotCard Component ───────────────────────────────────────────────────
+interface DayMealItem {
+  entry: MealPlanEntry;
+  recipe: Recipe | null;
+  sideRecipe: Recipe | null;
+}
+
 interface MealSlotCardProps {
   slot: MealSlot;
   label: string;
   icon: string;
   color: string;
   bgColor: string;
-  entry: MealPlanEntry | undefined;
-  recipe?: Recipe | null;
-  sideRecipe?: Recipe | null;
+  items: DayMealItem[];
   onAdd: () => void;
+  onSwap: (entryId: string) => void;
   onDelete: (id: string) => void;
   onView: (r: Recipe) => void;
-  onSwapSide?: () => void;
-  onDeleteSide?: (id: string) => void;
+  onSwapSide: (entryId: string) => void;
+  onDeleteSide: (entryId: string) => void;
 }
 
 const EMPTY_SLOT_TEXTS: Record<MealSlot, string> = {
@@ -566,104 +594,74 @@ const MealSlotCard = React.memo(function MealSlotCard({
   icon,
   color,
   bgColor,
-  entry,
-  recipe,
-  sideRecipe,
+  items,
   onAdd,
+  onSwap,
   onDelete,
   onView,
   onSwapSide,
   onDeleteSide,
 }: MealSlotCardProps) {
   const { t } = useTranslation();
+  const visibleItems = items.filter((item): item is DayMealItem & { recipe: Recipe } => item.recipe !== null);
 
   return (
     <View style={styles.slotContainer}>
-      <View style={styles.slotHeader}>
+      <View style={[styles.slotHeader, styles.slotHeaderRow]}>
         <View style={[styles.slotBadge, { backgroundColor: bgColor }]}>
           <Ionicons name={icon as any} size={16} color={color} />
           <Text style={[styles.slotBadgeText, { color }]}>{label}</Text>
         </View>
+        {visibleItems.length > 0 && (
+          <TouchableOpacity
+            style={[styles.slotAddBtn, { backgroundColor: bgColor }]}
+            onPress={onAdd}
+            activeOpacity={0.7}
+            accessibilityLabel={t('planner.addMeal')}
+          >
+            <Ionicons name="add" size={18} color={color} />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {entry && recipe ? (
+      {visibleItems.length > 0 ? (
         <View style={styles.slotCardsGroup}>
-          <View style={styles.mealCard}>
-            {recipe.image ? (
-              <Image source={{ uri: recipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
-            ) : (
-              <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-                <Ionicons name="restaurant-outline" size={24} color="#A3B2A6" />
-              </View>
-            )}
-            <View style={styles.mealInfo}>
-              <Text style={[styles.mealCategory, { color }]}>
-                {t('categories.' + recipe.category, { defaultValue: recipe.category })}
-              </Text>
-              <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
-              <View style={styles.mealMeta}>
-                <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                <Text style={styles.mealMetaText}>{recipe.times.total_minutes} min</Text>
-                <Text style={styles.mealMetaDivider}>·</Text>
-                <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>
-              </View>
-            </View>
-
-            <View style={styles.mealActions}>
-              <TouchableOpacity style={styles.viewMealBtn} onPress={() => onView(recipe)} activeOpacity={0.7}>
-                <Ionicons name="book-outline" size={17} color="#4A6B53" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.swapMealBtn} onPress={onAdd} activeOpacity={0.7}>
-                <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteMealBtn} onPress={() => onDelete(entry.id)} activeOpacity={0.7}>
-                <Ionicons name="trash-outline" size={17} color="#D9534F" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {sideRecipe && (
-            <View style={styles.sideMealCard}>
-              {sideRecipe.image ? (
-                <Image source={{ uri: sideRecipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
-              ) : (
-                <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-                  <Ionicons name="leaf-outline" size={24} color="#3A8C7E" />
-                </View>
+          {visibleItems.map(({ entry, recipe, sideRecipe }) => (
+            <View key={entry.id} style={styles.entryBlock}>
+              <MealRow
+                recipe={recipe}
+                servings={entry.servings}
+                categoryLabel={
+                  <Text style={[styles.mealCategory, { color }]}>
+                    {t('categories.' + recipe.category, { defaultValue: recipe.category })}
+                  </Text>
+                }
+                placeholderIcon="restaurant-outline"
+                placeholderColor="#A3B2A6"
+                onView={() => onView(recipe)}
+                onSwap={() => onSwap(entry.id)}
+                onDelete={() => onDelete(entry.id)}
+              />
+              {sideRecipe && (
+                <MealRow
+                  side
+                  recipe={sideRecipe}
+                  servings={entry.servings}
+                  categoryLabel={
+                    <View style={styles.sideBadgeRow}>
+                      <Ionicons name="leaf" size={11} color="#3A8C7E" />
+                      <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
+                    </View>
+                  }
+                  placeholderIcon="leaf-outline"
+                  placeholderColor="#3A8C7E"
+                  onView={() => onView(sideRecipe)}
+                  onSwap={() => onSwapSide(entry.id)}
+                  onDelete={() => onDeleteSide(entry.id)}
+                />
               )}
-              <View style={styles.mealInfo}>
-                <View style={styles.sideBadgeRow}>
-                  <Ionicons name="leaf" size={11} color="#3A8C7E" />
-                  <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
-                </View>
-                <Text style={styles.mealTitle} numberOfLines={2}>{sideRecipe.title}</Text>
-                <View style={styles.mealMeta}>
-                  <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                  <Text style={styles.mealMetaText}>{sideRecipe.times.total_minutes} min</Text>
-                  <Text style={styles.mealMetaDivider}>·</Text>
-                  <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-                  <Text style={styles.mealMetaText}>{t('common.servings', { count: entry.servings })}</Text>
-                </View>
-              </View>
-
-              <View style={styles.mealActions}>
-                <TouchableOpacity style={styles.viewMealBtn} onPress={() => onView(sideRecipe)} activeOpacity={0.7}>
-                  <Ionicons name="book-outline" size={17} color="#4A6B53" />
-                </TouchableOpacity>
-                {onSwapSide && (
-                  <TouchableOpacity style={styles.swapMealBtn} onPress={onSwapSide} activeOpacity={0.7}>
-                    <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
-                  </TouchableOpacity>
-                )}
-                {onDeleteSide && (
-                  <TouchableOpacity style={styles.deleteMealBtn} onPress={() => onDeleteSide(entry.id)} activeOpacity={0.7}>
-                    <Ionicons name="trash-outline" size={17} color="#D9534F" />
-                  </TouchableOpacity>
-                )}
-              </View>
             </View>
-          )}
+          ))}
         </View>
       ) : (
         <TouchableOpacity style={styles.emptySlot} onPress={onAdd} activeOpacity={0.8}>
@@ -679,19 +677,70 @@ const MealSlotCard = React.memo(function MealSlotCard({
   );
 });
 
+// Riga di una ricetta pianificata (piatto principale o contorno)
+function MealRow({
+  side = false,
+  recipe,
+  servings,
+  categoryLabel,
+  placeholderIcon,
+  placeholderColor,
+  onView,
+  onSwap,
+  onDelete,
+}: {
+  side?: boolean;
+  recipe: Recipe;
+  servings: number;
+  categoryLabel: React.ReactNode;
+  placeholderIcon: React.ComponentProps<typeof Ionicons>['name'];
+  placeholderColor: string;
+  onView: () => void;
+  onSwap: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <View style={side ? styles.sideMealCard : styles.mealCard}>
+      {recipe.image ? (
+        <Image source={{ uri: recipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+      ) : (
+        <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+          <Ionicons name={placeholderIcon} size={24} color={placeholderColor} />
+        </View>
+      )}
+      <View style={styles.mealInfo}>
+        {categoryLabel}
+        <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
+        <View style={styles.mealMeta}>
+          <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+          <Text style={styles.mealMetaText}>{recipe.times.total_minutes} min</Text>
+          <Text style={styles.mealMetaDivider}>·</Text>
+          <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+          <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
+        </View>
+      </View>
+
+      <View style={styles.mealActions}>
+        <TouchableOpacity style={styles.viewMealBtn} onPress={onView} activeOpacity={0.7}>
+          <Ionicons name="book-outline" size={17} color="#4A6B53" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.swapMealBtn} onPress={onSwap} activeOpacity={0.7}>
+          <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={17} color="#D9534F" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FBF9F5' },
   mainWrapper: { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
-
-  autoBanner: {
-    backgroundColor: '#2E6B42',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  autoBannerText: { color: '#FFF', fontSize: 13, fontWeight: '600', flex: 1 },
 
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -722,10 +771,13 @@ const styles = StyleSheet.create({
   progressLabel: { fontSize: 11, color: '#7E8B80', fontWeight: '600' },
 
   toastBanner: {
+    position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 100, elevation: 6,
     backgroundColor: '#3E5C46', flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16,
+    justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16,
+    borderRadius: 14,
+    shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
   },
-  toastText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  toastText: { color: '#FFF', fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
 
   weekNav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -782,7 +834,10 @@ const styles = StyleSheet.create({
   regenBtnText: { color: '#4A6B53', fontSize: 13, fontWeight: '700' },
 
   slotContainer: { marginBottom: 16 },
-  slotCardsGroup: { gap: 8 },
+  slotCardsGroup: { gap: 16 },
+  entryBlock: { gap: 8 },
+  slotHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  slotAddBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   slotHeader: { marginBottom: 8 },
   slotBadge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',

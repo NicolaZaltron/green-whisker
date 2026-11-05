@@ -840,8 +840,10 @@ export async function checkAndAutoGeneratePlan(
     const weekDates = new Set(days.map(d => d.dateString));
     const weekPlans = existingPlans.filter(p => weekDates.has(p.date));
 
+    // Un pasto può contenere più ricette: si contano i pasti occupati, non le voci
     const maxSlots = days.length * SLOT_ORDER.length;
-    if (weekPlans.length >= maxSlots) {
+    const filledSlots = new Set(weekPlans.map(p => `${p.date}-${p.slot}`)).size;
+    if (filledSlots >= maxSlots) {
       await setKV('gw_planner_last_gen', mondayStr);
       return { generated: false, entriesCount: 0 };
     }

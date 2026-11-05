@@ -18,20 +18,20 @@ import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { PantryView } from '../../components/PantryView';
 import { MagicRecipeImporterModal } from '../../components/MagicRecipeImporterModal';
+import { HeaderMenu } from '../../components/HeaderMenu';
+import { syncRecipeCatalog } from '../../services/recipeCatalog';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
-import { searchRecipes, initializeSearchIndex, AdvancedFilterOptions } from '../../services/searchService';
+import { searchRecipes, AdvancedFilterOptions } from '../../services/searchService';
 import { getCustomRecipes } from '../../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
 
-const rawRecipes = require('../../../assets/ricette.json') as Recipe[];
-
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
 export default function ExploreScreen() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
@@ -40,34 +40,23 @@ export default function ExploreScreen() {
   const [selectedSubCategory, setSelectedSubCategory] = useState('Tutte');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showMagicImporter, setShowMagicImporter] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
 
-  const toggleLanguage = () => {
-    const nextLang = i18n.language?.startsWith('en') ? 'it' : 'en';
-    i18n.changeLanguage(nextLang);
+  // Ricette personali: aggiornano il catalogo condiviso e l'indice di ricerca
+  const applyCustomRecipes = (customs: Recipe[]) => {
+    setCustomRecipes(customs);
+    syncRecipeCatalog(customs);
   };
 
-  // Load custom user recipes and index them
+  const loadCustomRecipes = () => getCustomRecipes().then(applyCustomRecipes);
+
   useEffect(() => {
     loadCustomRecipes();
   }, []);
 
-  const loadCustomRecipes = async () => {
-    try {
-      const customs = await getCustomRecipes();
-      setCustomRecipes(customs);
-      initializeSearchIndex([...customs, ...rawRecipes]);
-    } catch {
-      initializeSearchIndex(rawRecipes);
-    }
-  };
-
   const handleRecipeSaved = (newRecipe: Recipe) => {
-    setCustomRecipes(prev => {
-      const updated = [newRecipe, ...prev.filter(r => r.id !== newRecipe.id)];
-      initializeSearchIndex([...updated, ...rawRecipes]);
-      return updated;
-    });
+    applyCustomRecipes([newRecipe, ...customRecipes.filter(r => r.id !== newRecipe.id)]);
     setSelectedRecipe(newRecipe);
   };
 
@@ -165,15 +154,7 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.langToggleBtn}
-              onPress={toggleLanguage}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.langToggleText}>
-                {i18n.language?.startsWith('en') ? '🇬🇧 EN' : '🇮🇹 IT'}
-              </Text>
-            </TouchableOpacity>
+            <HeaderMenu onRecipesChanged={loadCustomRecipes} />
           </View>
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
@@ -368,6 +349,11 @@ export default function ExploreScreen() {
           recipe={selectedRecipe}
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+          onEdit={recipe => {
+            setSelectedRecipe(null);
+            setEditingRecipe(recipe);
+            setShowMagicImporter(true);
+          }}
         />
 
         {/* Modal Filtri Avanzati (Bottom Sheet) */}
@@ -535,8 +521,13 @@ export default function ExploreScreen() {
 
         {/* Magic Recipe Importer AI Modal */}
         <MagicRecipeImporterModal
+          key={editingRecipe?.id ?? 'new'}
           visible={showMagicImporter}
-          onClose={() => setShowMagicImporter(false)}
+          editingRecipe={editingRecipe}
+          onClose={() => {
+            setShowMagicImporter(false);
+            setEditingRecipe(null);
+          }}
           onRecipeSaved={handleRecipeSaved}
         />
       </View>
@@ -565,19 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
-  },
-  langToggleBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: '#EAF0EB',
-    borderWidth: 1,
-    borderColor: '#D4DDD6',
-  },
-  langToggleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#34523C',
   },
   brandInfo: {
     flexDirection: 'row',

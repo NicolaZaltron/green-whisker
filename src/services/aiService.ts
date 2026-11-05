@@ -1,7 +1,11 @@
 import { Recipe, SlotConsigliato, GruppoAlimentare } from '../types/recipe';
 import { RECIPE_TAXONOMY, MacroCategory, MACRO_CATEGORIES } from '../constants/categories';
+import { loadAISettings } from './settingsService';
+import { ingredientItemFromText } from '../utils/servingsScaler';
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom';
+
+export type RecipeDiet = 'original' | 'vegetarian' | 'vegan';
 
 export interface AIConfig {
   provider: AIProvider;
@@ -10,50 +14,70 @@ export interface AIConfig {
   baseUrl?: string;
 }
 
-export function getAIConfig(): AIConfig {
-  // Expo requires direct static member access on process.env.EXPO_PUBLIC_* for Metro AST inlining
-  const provider = ((process.env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase()) as AIProvider;
-  
-  if (provider === 'openai') {
-    return {
-      provider: 'openai',
-      apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY || '',
-      model: process.env.EXPO_PUBLIC_AI_MODEL || 'gpt-4o-mini',
-      baseUrl: process.env.EXPO_PUBLIC_AI_BASE_URL || 'https://api.openai.com/v1'
-    };
-  }
+interface ProviderDefaults {
+  label: string;
+  model: string;
+  modelPresets?: string[];
+  baseUrl?: string;
+  // Indirizzo modificabile dall'utente (server compatibili OpenAI, modelli locali)
+  baseUrlEditable?: boolean;
+}
 
-  if (provider === 'claude') {
-    return {
-      provider: 'claude',
-      apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '',
-      model: process.env.EXPO_PUBLIC_AI_MODEL || 'claude-3-5-sonnet-20241022'
-    };
-  }
+/**
+ * Valori predefiniti per provider, usati quando né le impostazioni dell'app né il .env indicano altro
+ */
+export const PROVIDER_DEFAULTS: Record<AIProvider, ProviderDefaults> = {
+  gemini: {
+    label: 'Gemini',
+    model: 'gemini-flash-lite-latest',
+    modelPresets: ['gemini-flash-latest', 'gemini-flash-lite-latest'],
+  },
+  openai: { label: 'OpenAI', model: 'gpt-4o-mini', baseUrl: 'https://api.openai.com/v1', baseUrlEditable: true },
+  claude: { label: 'Claude', model: 'claude-3-5-sonnet-20241022' },
+  openrouter: { label: 'OpenRouter', model: 'deepseek/deepseek-chat', baseUrl: 'https://openrouter.ai/api/v1' },
+  custom: { label: 'Custom', model: 'llama3.2', baseUrl: 'http://localhost:11434/v1', baseUrlEditable: true },
+};
 
-  if (provider === 'openrouter') {
-    return {
-      provider: 'openrouter',
-      apiKey: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '',
-      model: process.env.EXPO_PUBLIC_AI_MODEL || 'deepseek/deepseek-chat',
-      baseUrl: 'https://openrouter.ai/api/v1'
-    };
+// Expo requires direct static member access on process.env.EXPO_PUBLIC_* for Metro AST inlining
+function getEnvApiKey(provider: AIProvider): string {
+  switch (provider) {
+    case 'openai': return process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
+    case 'claude': return process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '';
+    case 'openrouter': return process.env.EXPO_PUBLIC_OPENROUTER_API_KEY || '';
+    case 'custom': return process.env.EXPO_PUBLIC_AI_API_KEY || '';
+    default: return process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
   }
+}
 
-  if (provider === 'custom') {
-    return {
-      provider: 'custom',
-      apiKey: process.env.EXPO_PUBLIC_AI_API_KEY || '',
-      model: process.env.EXPO_PUBLIC_AI_MODEL || 'llama3.2',
-      baseUrl: process.env.EXPO_PUBLIC_AI_BASE_URL || 'http://localhost:11434/v1'
-    };
-  }
+/**
+ * Configurazione da file .env (inclusa nell'APK solo se impostata al momento della build)
+ */
+export function getEnvAIConfig(providerOverride?: AIProvider): AIConfig {
+  const envProvider = (process.env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
+  const provider = providerOverride ?? (envProvider in PROVIDER_DEFAULTS ? envProvider : 'gemini');
+  const defaults = PROVIDER_DEFAULTS[provider];
 
-  // Default: Gemini
   return {
-    provider: 'gemini',
-    apiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY || '',
-    model: process.env.EXPO_PUBLIC_AI_MODEL || 'gemini-3.5-flash'
+    provider,
+    apiKey: getEnvApiKey(provider),
+    model: process.env.EXPO_PUBLIC_AI_MODEL || defaults.model,
+    baseUrl: defaults.baseUrlEditable ? process.env.EXPO_PUBLIC_AI_BASE_URL || defaults.baseUrl : defaults.baseUrl,
+  };
+}
+
+/**
+ * Configurazione del provider attivo: le impostazioni salvate nell'app hanno la precedenza sul .env
+ */
+export async function getAIConfig(): Promise<AIConfig> {
+  const settings = await loadAISettings();
+  const envConfig = getEnvAIConfig(settings.provider);
+  const saved = settings.providers[envConfig.provider] ?? {};
+
+  return {
+    ...envConfig,
+    apiKey: saved.apiKey || envConfig.apiKey,
+    model: saved.model || envConfig.model,
+    baseUrl: saved.baseUrl || envConfig.baseUrl,
   };
 }
 
@@ -153,10 +177,28 @@ const LEGACY_CAT_MAP: Record<string, string> = {
   'a base di yogurt vegetale': 'CAT_A_BASE_DI_YOGURT_VEGETALE',
 };
 
-const RECIPE_PROMPT_SYSTEM = `
+const RECIPE_TASK_VEGAN = `
 You are an expert plant-based chef and culinary AI for the Italian vegan recipe app 'Green Whisker'.
 Your task is to parse, extract, or format a complete 100% plant-based/vegan recipe from the provided text, URL, or image, and return EXCLUSIVELY a valid JSON object matching the required schema.
+`;
 
+const RECIPE_TASK_ORIGINAL = `
+You are an expert chef and culinary AI for the Italian recipe app 'Green Whisker'.
+Your task is to parse, extract, or format the recipe from the provided text, URL, or image EXACTLY as written: keep every ingredient, quantity and step of the original.
+Do NOT substitute or remove animal-derived ingredients (eggs, milk, butter, cheese, meat, fish, honey, etc.) and do NOT add plant-based alternatives.
+Add the tag "100% Vegetale" only if the final recipe contains no animal-derived ingredients.
+Return EXCLUSIVELY a valid JSON object matching the required schema.
+`;
+
+const RECIPE_TASK_VEGETARIAN = `
+You are an expert vegetarian chef and culinary AI for the Italian recipe app 'Green Whisker'.
+Your task is to parse, extract, or format the recipe from the provided text, URL, or image as a VEGETARIAN recipe, and return EXCLUSIVELY a valid JSON object matching the required schema.
+Replace all meat, poultry and fish (and derivatives such as broth or anchovies) with vegetarian alternatives, adjusting quantities and steps accordingly.
+Eggs and dairy may be kept. Keep every other ingredient and step as close as possible to the original.
+Do not add the tag "100% Vegetale"; add the tag "Vegetariana" instead.
+`;
+
+const RECIPE_PROMPT_RULES = `
 IMPORTANT LANGUAGE INSTRUCTION:
 - All generated recipe fields (title, ingredients, instructions, tips, etc.) MUST be written in natural, fluent Italian.
 
@@ -212,6 +254,16 @@ STRICT SCHEMA & PARSING RULES:
 Respond ONLY with the JSON object, without any additional markdown explanation or surrounding commentary.
 `;
 
+const RECIPE_TASKS: Record<RecipeDiet, string> = {
+  original: RECIPE_TASK_ORIGINAL,
+  vegetarian: RECIPE_TASK_VEGETARIAN,
+  vegan: RECIPE_TASK_VEGAN,
+};
+
+function buildRecipePrompt(diet: RecipeDiet = 'original'): string {
+  return RECIPE_TASKS[diet] + RECIPE_PROMPT_RULES;
+}
+
 export interface RecipeImageInput {
   base64: string;
   mimeType?: string;
@@ -224,13 +276,15 @@ export interface ParseRecipeInput {
   imageBase64?: string;
   imageMimeType?: string;
   images?: RecipeImageInput[];
+  // Dieta a cui adattare la ricetta; 'original' la estrae senza sostituire gli ingredienti
+  diet?: RecipeDiet;
 }
 
 export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe> {
-  const config = getAIConfig();
-  
+  const config = await getAIConfig();
+
   if (!config.apiKey && config.provider !== 'custom') {
-    throw new Error(`Chiave API mancante per ${config.provider.toUpperCase()}. Configura EXPO_PUBLIC_GEMINI_API_KEY nel file .env.`);
+    throw new Error(`Chiave API mancante per ${PROVIDER_DEFAULTS[config.provider].label}. Inseriscila dal menu, in Impostazioni AI.`);
   }
 
   const effectiveInput: ParseRecipeInput = { ...input };
@@ -270,14 +324,15 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
 export const parseRecipeWithGemini = parseRecipeWithAI;
 
 async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promise<Recipe> {
-  const candidateModels = [
-    config.model || 'gemini-3.5-flash',
+  // Modello scelto, poi alternative in caso di errore (senza ripetere quello già provato)
+  const candidateModels = Array.from(new Set([
+    config.model,
     'gemini-3.1-flash-lite',
     'gemini-flash-latest'
-  ];
+  ]));
 
   const contentsParts: any[] = [
-    { text: RECIPE_PROMPT_SYSTEM }
+    { text: buildRecipePrompt(input.diet) }
   ];
 
   const allImages: RecipeImageInput[] = input.images && input.images.length > 0
@@ -363,7 +418,7 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
 }
 
 async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConfig): Promise<Recipe> {
-  let baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+  let baseUrl = config.baseUrl || PROVIDER_DEFAULTS.openai.baseUrl!;
   let defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${config.apiKey}`
@@ -420,9 +475,9 @@ async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConf
   }
 
   const payload = {
-    model: config.model || (config.provider === 'openrouter' ? 'deepseek/deepseek-chat' : 'gpt-4o-mini'),
+    model: config.model,
     messages: [
-      { role: 'system', content: RECIPE_PROMPT_SYSTEM },
+      { role: 'system', content: buildRecipePrompt(input.diet) },
       { role: 'user', content: userContentParts.length === 1 && userContentParts[0].type === 'text' ? userContentParts[0].text : userContentParts }
     ],
     temperature: 0.2,
@@ -494,9 +549,9 @@ async function parseWithClaude(input: ParseRecipeInput, config: AIConfig): Promi
   userContent.push({ type: 'text', text: textPrompt });
 
   const payload = {
-    model: config.model || 'claude-3-5-sonnet-20241022',
+    model: config.model,
     max_tokens: 2500,
-    system: RECIPE_PROMPT_SYSTEM,
+    system: buildRecipePrompt(input.diet),
     messages: [
       { role: 'user', content: userContent }
     ]
@@ -622,16 +677,10 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
           unit: i.unit || i.unita || '',
           ingredient: i.ingredient || i.ingrediente || i.text || i.testo || ''
         }))
-      : (Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : []).map((t: string) => ({
-          section: 'Principale',
-          text: t,
-          amount: null,
-          unit: '',
-          ingredient: t
-        })),
+      : (Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : []).map((t: string) => ingredientItemFromText(t)),
     instructions: Array.isArray(parsed.instructions || parsed.istruzioni) ? (parsed.instructions || parsed.istruzioni) : [],
     tips: Array.isArray(parsed.tips || parsed.suggerimenti) ? (parsed.tips || parsed.suggerimenti) : [],
-    tags: Array.isArray(parsed.tags) && parsed.tags.length > 0 ? parsed.tags : ['100% Vegetale', resolvedCat],
+    tags: Array.isArray(parsed.tags) && parsed.tags.length > 0 ? parsed.tags : [resolvedCat],
     recommended_slot: slot,
     food_groups: Array.isArray(parsed.food_groups || parsed.gruppi_alimentari) ? (parsed.food_groups || parsed.gruppi_alimentari) : ['verdura', 'cibi_proteici'],
     protein_group: parsed.protein_group || 'legumi_interi',

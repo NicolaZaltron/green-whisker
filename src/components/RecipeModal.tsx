@@ -25,7 +25,7 @@ import {
 } from '../db/database';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getWeekDays, MealSlot } from '../services/plannerService';
-import { scaleIngredient } from '../utils/servingsScaler';
+import { scaleIngredient, getScalableIngredients } from '../utils/servingsScaler';
 import {
   formatRecipeShareText,
   shareToTelegram,
@@ -40,9 +40,10 @@ interface RecipeModalProps {
   visible: boolean;
   onClose: () => void;
   onFavoriteChange?: (isFav: boolean) => void;
+  onEdit?: (recipe: Recipe) => void;
 }
 
-export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClose, onFavoriteChange }) => {
+export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClose, onFavoriteChange, onEdit }) => {
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
@@ -107,6 +108,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
 
   const baseServings = recipe.servings || 4;
   const scale = currentServings / baseServings;
+  const scalableIngredients = getScalableIngredients(recipe);
+  const hasExternalLink = /^https?:\/\//i.test(recipe.url ?? '');
 
   const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const selectedDayLabel = selectedDayObj ? `${selectedDayObj.dayName.slice(0, 3)} ${selectedDayObj.dayNumber}` : '';
@@ -162,42 +165,19 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
     });
 
     // 2. Aggiunge contestualmente gli ingredienti scalati alla lista della spesa
-    const itemsToAdd: Array<{
-      recipeId: string;
-      recipeTitle: string;
-      ingredientText: string;
-      name: string;
-      amount?: number | null;
-      unit?: string;
-      category?: string;
-    }> = [];
-
     const titleWithServings = `${recipe.title} (${currentServings} porz.)`;
-
-    if (recipe.detailed_ingredients && recipe.detailed_ingredients.length > 0) {
-      for (const item of recipe.detailed_ingredients) {
-        const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
-        itemsToAdd.push({
-          recipeId: recipe.id,
-          recipeTitle: titleWithServings,
-          ingredientText: scaled.formattedText,
-          name: scaled.name,
-          amount: scaled.scaledAmount,
-          unit: scaled.unit,
-          category: item.section || 'Generale'
-        });
-      }
-    } else {
-      for (const ing of (recipe.ingredients || [])) {
-        itemsToAdd.push({
-          recipeId: recipe.id,
-          recipeTitle: titleWithServings,
-          ingredientText: ing,
-          name: ing,
-          category: 'Generale'
-        });
-      }
-    }
+    const itemsToAdd = scalableIngredients.map(item => {
+      const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
+      return {
+        recipeId: recipe.id,
+        recipeTitle: titleWithServings,
+        ingredientText: scaled.formattedText,
+        name: scaled.name,
+        amount: scaled.scaledAmount,
+        unit: scaled.unit,
+        category: item.section || 'Generale'
+      };
+    });
 
     if (itemsToAdd.length > 0) {
       await addShoppingItems(itemsToAdd);
@@ -224,7 +204,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   };
 
   const getShareText = () => {
-    const scaledList = (recipe.detailed_ingredients || []).map(item => {
+    const scaledList = scalableIngredients.map(item => {
       const sc = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
       return {
         ...item,
@@ -277,7 +257,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
   const sections: { title: string; items: IngredientItem[] }[] = [];
   const secMap: Record<string, IngredientItem[]> = {};
 
-  (recipe.detailed_ingredients || []).forEach(item => {
+  scalableIngredients.forEach(item => {
     const sec = item.section || 'Ingredienti';
     if (!secMap[sec]) {
       secMap[sec] = [];
@@ -313,8 +293,18 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
             </Animated.Text>
 
             <View style={styles.navActions}>
+              {onEdit && (
+                <TouchableOpacity
+                  style={styles.navBtn}
+                  onPress={() => onEdit(recipe)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Modifica ricetta"
+                >
+                  <Ionicons name="create-outline" size={19} color="#4A6B53" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
-                style={styles.navBtn}
+                style={[styles.navBtn, onEdit && { marginLeft: 8 }]}
                 onPress={() => setShowShareModal(true)}
                 activeOpacity={0.7}
                 accessibilityLabel="Condividi ricetta"
@@ -333,14 +323,16 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, visible, onClo
                   color={favorite ? '#D9534F' : '#4A6B53'}
                 />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.navBtn, { marginLeft: 8 }]}
-                onPress={() => Linking.openURL(recipe.url)}
-                activeOpacity={0.7}
-                accessibilityLabel="Apri sul web"
-              >
-                <Ionicons name="open-outline" size={19} color="#4A6B53" />
-              </TouchableOpacity>
+              {hasExternalLink && (
+                <TouchableOpacity
+                  style={[styles.navBtn, { marginLeft: 8 }]}
+                  onPress={() => Linking.openURL(recipe.url)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Apri sul web"
+                >
+                  <Ionicons name="open-outline" size={19} color="#4A6B53" />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 

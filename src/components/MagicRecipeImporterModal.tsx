@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
+  Switch,
   Text,
   View,
   TextInput,
@@ -10,15 +11,17 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { Recipe, SlotConsigliato } from '../types/recipe';
-import { parseRecipeWithAI } from '../services/aiService';
+import { parseRecipeWithAI, RecipeDiet } from '../services/aiService';
+import { ingredientItemFromText } from '../utils/servingsScaler';
 import { saveCustomRecipe } from '../db/database';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +30,7 @@ interface MagicRecipeImporterModalProps {
   visible: boolean;
   onClose: () => void;
   onRecipeSaved: (recipe: Recipe) => void;
+  editingRecipe?: Recipe | null;
 }
 
 const CATEGORIES = [...MACRO_CATEGORIES];
@@ -43,10 +47,17 @@ interface CapturedPage {
   mimeType: string;
 }
 
+const DIET_SUMMARY: Record<RecipeDiet, string> = {
+  original: 'Importata così com\'è, con gli ingredienti originali.',
+  vegetarian: 'Carne e pesce verranno sostituiti. Uova e latticini restano.',
+  vegan: 'Uova, latte, burro e altri ingredienti animali verranno sostituiti.',
+};
+
 export function MagicRecipeImporterModal({
   visible,
   onClose,
   onRecipeSaved,
+  editingRecipe,
 }: MagicRecipeImporterModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'text' | 'photo'>('text');
@@ -54,6 +65,19 @@ export function MagicRecipeImporterModal({
   // Input states
   const [inputText, setInputText] = useState('');
   const [capturedPages, setCapturedPages] = useState<CapturedPage[]>([]);
+  const [vegetarian, setVegetarian] = useState(false);
+  const [vegan, setVegan] = useState(false);
+  const diet: RecipeDiet = vegan ? 'vegan' : vegetarian ? 'vegetarian' : 'original';
+
+  // La dieta vegana include quella vegetariana: attivare la vegana attiva anche la vegetariana
+  const setVegetarianOption = (value: boolean) => {
+    setVegetarian(value);
+    if (!value) setVegan(false);
+  };
+  const setVeganOption = (value: boolean) => {
+    setVegan(value);
+    if (value) setVegetarian(true);
+  };
 
   // Parsing & Loading state
   const [loading, setLoading] = useState(false);
@@ -74,6 +98,19 @@ export function MagicRecipeImporterModal({
   const [editIngredients, setEditIngredients] = useState('');
   const [editInstructions, setEditInstructions] = useState('');
   const [editTips, setEditTips] = useState('');
+
+  // Nessuna API: si apre Google Immagini nel browser, l'utente copia l'indirizzo della foto e lo incolla qui
+  function openGoogleImageSearch() {
+    const query = `${editTitle.trim()} ricetta`;
+    Linking.openURL(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`);
+  }
+
+  async function handlePasteImageUrl() {
+    const text = (await Clipboard.getStringAsync()).trim();
+    if (!text) return;
+    setEditImageUrl(text);
+    setImageLoadError(false);
+  }
 
   async function handlePasteFromClipboard() {
     try {
@@ -176,6 +213,7 @@ export function MagicRecipeImporterModal({
       }
 
       const recipe = await parseRecipeWithAI({
+        diet,
         text: activeTab === 'text' && !isUrl ? inputText : undefined,
         url: activeTab === 'text' && isUrl ? inputText.trim() : undefined,
         images: activeTab === 'photo' && capturedPages.length > 0
@@ -187,26 +225,28 @@ export function MagicRecipeImporterModal({
           : undefined,
       });
 
-      const initialImg = recipe.image || (activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
-
-      setParsedRecipe(recipe);
-      setEditTitle(recipe.title);
-      setEditCategory(recipe.macro_category || 'MACRO_PRIMI_E_CEREALI');
-      setEditSubCategory(recipe.subcategory || recipe.category || '');
-      setEditSlot((recipe.recommended_slot as any) || 'pranzo_cena');
-      setEditServings(String(recipe.servings || 4));
-      setEditTotalTime(String(recipe.times?.total_minutes || 30));
-      setEditDifficulty(recipe.difficulty === 'hard' || recipe.difficulty === 'Difficile' ? 'Difficile' : recipe.difficulty === 'medium' || recipe.difficulty === 'Media' ? 'Media' : 'Facile');
-      setEditImageUrl(initialImg);
-      setImageLoadError(false);
-      setEditIngredients((recipe.ingredients || []).join('\n'));
-      setEditInstructions((recipe.instructions || []).join('\n'));
-      setEditTips((recipe.tips || []).join('\n'));
+      loadRecipeIntoForm(recipe, activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
     } catch (e: any) {
       setErrorMsg(e.message || 'Errore durante l\'estrazione della ricetta.');
     } finally {
       setLoading(false);
     }
+  }
+
+  function loadRecipeIntoForm(recipe: Recipe, fallbackImage = '') {
+    setParsedRecipe(recipe);
+    setEditTitle(recipe.title);
+    setEditCategory(recipe.macro_category || 'MACRO_PRIMI_E_CEREALI');
+    setEditSubCategory(recipe.subcategory || recipe.category || '');
+    setEditSlot((recipe.recommended_slot as any) || 'pranzo_cena');
+    setEditServings(String(recipe.servings || 4));
+    setEditTotalTime(String(recipe.times?.total_minutes || 30));
+    setEditDifficulty(recipe.difficulty === 'hard' || recipe.difficulty === 'Difficile' ? 'Difficile' : recipe.difficulty === 'medium' || recipe.difficulty === 'Media' ? 'Media' : 'Facile');
+    setEditImageUrl(recipe.image || fallbackImage);
+    setImageLoadError(false);
+    setEditIngredients((recipe.ingredients || []).join('\n'));
+    setEditInstructions((recipe.instructions || []).join('\n'));
+    setEditTips((recipe.tips || []).join('\n'));
   }
 
   async function handleSaveRecipe() {
@@ -265,16 +305,11 @@ export function MagicRecipeImporterModal({
           ingredients: ings
         }
       ],
-      detailed_ingredients: ings.map(item => ({
-        section: 'Principale',
-        text: item,
-        amount: null,
-        unit: '',
-        ingredient: item
-      })),
+      detailed_ingredients: ings.map(item => ingredientItemFromText(item)),
       instructions: steps,
       tips: tips,
-      tags: ['100% Vegetale', chosenCat],
+      // Mantiene i tag della ricetta, sostituendo quello della categoria (es. dopo un cambio di categoria)
+      tags: [...(parsedRecipe?.tags ?? []).filter(tag => !tag.startsWith('CAT_')), chosenCat],
       protein_group: parsedRecipe?.protein_group || 'legumi_interi',
       carb_family: parsedRecipe?.carb_family || 'pasta',
       veggie_color: parsedRecipe?.veggie_color || 'green',
@@ -301,6 +336,13 @@ export function MagicRecipeImporterModal({
     setErrorMsg(null);
   }
 
+  // Modalità modifica: precompila il form con la ricetta esistente (una volta per ricetta)
+  const [loadedRecipeId, setLoadedRecipeId] = useState<string | null>(null);
+  if (editingRecipe && editingRecipe.id !== loadedRecipeId) {
+    setLoadedRecipeId(editingRecipe.id);
+    loadRecipeIntoForm(editingRecipe);
+  }
+
   return (
     <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
@@ -315,8 +357,10 @@ export function MagicRecipeImporterModal({
                 <Ionicons name="sparkles" size={18} color="#34523C" />
               </View>
               <View>
-                <Text style={styles.headerTitle}>Magic Importer AI</Text>
-                <Text style={styles.headerSubtitle}>Importa da link web, testo o foto</Text>
+                <Text style={styles.headerTitle}>{editingRecipe ? 'Modifica ricetta' : 'Magic Importer AI'}</Text>
+                <Text style={styles.headerSubtitle}>
+                  {editingRecipe ? 'Le modifiche sostituiscono la versione salvata' : 'Importa da link web, testo o foto'}
+                </Text>
               </View>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.7}>
@@ -494,6 +538,31 @@ export function MagicRecipeImporterModal({
                 </View>
               )}
 
+              {/* DIETA: la vegana attiva anche la vegetariana */}
+              <View style={styles.dietCard}>
+                <DietSwitchRow
+                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={vegetarian ? '#FFFFFF' : '#34523C'} />}
+                  title="Vegetariana"
+                  hint="Niente carne né pesce"
+                  value={vegetarian}
+                  disabled={loading}
+                  onValueChange={setVegetarianOption}
+                />
+                <View style={styles.dietDivider} />
+                <DietSwitchRow
+                  icon={<Ionicons name="leaf" size={18} color={vegan ? '#FFFFFF' : '#34523C'} />}
+                  title="Vegana"
+                  hint="Nessun ingrediente animale"
+                  value={vegan}
+                  disabled={loading}
+                  onValueChange={setVeganOption}
+                />
+                <View style={styles.dietSummary}>
+                  <Ionicons name="information-circle-outline" size={16} color="#34523C" />
+                  <Text style={styles.dietSummaryText}>{DIET_SUMMARY[diet]}</Text>
+                </View>
+              </View>
+
               {/* SUBMIT BUTTON */}
               <TouchableOpacity
                 style={[styles.parseButton, loading && styles.parseButtonDisabled]}
@@ -662,6 +731,16 @@ export function MagicRecipeImporterModal({
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
+                <View style={styles.imageActionsRow}>
+                  <TouchableOpacity style={styles.imageActionBtn} onPress={openGoogleImageSearch} activeOpacity={0.75}>
+                    <Ionicons name="search-outline" size={14} color="#34523C" />
+                    <Text style={styles.imageActionText}>Cerca su Google Immagini</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.imageActionBtn} onPress={handlePasteImageUrl} activeOpacity={0.75}>
+                    <Ionicons name="clipboard-outline" size={14} color="#34523C" />
+                    <Text style={styles.imageActionText}>Incolla link</Text>
+                  </TouchableOpacity>
+                </View>
                 {editImageUrl && !imageLoadError ? (
                   <View style={{ marginTop: 8, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}>
                     <ExpoImage
@@ -721,10 +800,12 @@ export function MagicRecipeImporterModal({
 
               {/* Actions Footer */}
               <View style={styles.actionsFooter}>
-                <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
-                  <Ionicons name="arrow-back" size={18} color="#556459" />
-                  <Text style={styles.resetButtonText}>Ricomincia</Text>
-                </TouchableOpacity>
+                {!editingRecipe && (
+                  <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
+                    <Ionicons name="arrow-back" size={18} color="#556459" />
+                    <Text style={styles.resetButtonText}>Ricomincia</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
                   <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
@@ -871,6 +952,19 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 14,
   },
+  imageActionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  imageActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  imageActionText: { fontSize: 12, fontWeight: '700', color: '#34523C' },
   pasteButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1056,6 +1150,70 @@ const styles = StyleSheet.create({
   parseButtonDisabled: {
     opacity: 0.7,
   },
+  dietCard: {
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E3EAE4',
+    shadowColor: '#1A2E1F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  dietRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dietDivider: {
+    height: 1,
+    backgroundColor: '#EEF3EF',
+    marginVertical: 12,
+  },
+  dietIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EAF0EB',
+  },
+  dietIconCircleActive: {
+    backgroundColor: '#34523C',
+  },
+  dietTextBox: {
+    flex: 1,
+  },
+  dietTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A2E1F',
+  },
+  dietHint: {
+    fontSize: 12,
+    color: '#5E6D60',
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  dietSummary: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 14,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#F1F6F2',
+  },
+  dietSummaryText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#34523C',
+    lineHeight: 17,
+  },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1217,3 +1375,37 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 });
+
+function DietSwitchRow({
+  icon,
+  title,
+  hint,
+  value,
+  disabled,
+  onValueChange,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+  value: boolean;
+  disabled: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={styles.dietRow}>
+      <View style={[styles.dietIconCircle, value && styles.dietIconCircleActive]}>{icon}</View>
+      <View style={styles.dietTextBox}>
+        <Text style={styles.dietTitle}>{title}</Text>
+        <Text style={styles.dietHint}>{hint}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: '#D4DDD6', true: '#7FA186' }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor="#D4DDD6"
+      />
+    </View>
+  );
+}

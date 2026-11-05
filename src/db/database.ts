@@ -557,7 +557,7 @@ export async function saveMealPlanEntry(entry: {
   notes?: string;
 }): Promise<MealPlanEntry> {
   const newEntry: MealPlanEntry = {
-    id: `plan-${entry.date}-${entry.slot}-${Date.now().toString(36)}`,
+    id: `plan-${entry.date}-${entry.slot}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     date: entry.date,
     slot: entry.slot,
     recipe_id: entry.recipeId,
@@ -567,18 +567,14 @@ export async function saveMealPlanEntry(entry: {
     created_at: Date.now()
   };
 
+  // Più ricette possono coesistere nello stesso pasto: si aggiunge sempre una nuova entry
   if (isWebFallback || !dbInstance) {
     const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
-    // Replace if same date and slot
-    const filtered = existing.filter(p => !(p.date === entry.date && p.slot === entry.slot));
-    const updated = [...filtered, newEntry];
-    setWebData(WEB_STORAGE_KEYS.PLANNER, updated);
+    setWebData(WEB_STORAGE_KEYS.PLANNER, [...existing, newEntry]);
     return newEntry;
   }
 
   try {
-    // Delete existing slot entry if any
-    await dbInstance.runAsync('DELETE FROM meal_plan WHERE date = ? AND slot = ?', [entry.date, entry.slot]);
     await dbInstance.runAsync(`
       INSERT INTO meal_plan (id, date, slot, recipe_id, side_recipe_id, servings, notes, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -612,6 +608,21 @@ export async function updateMealPlanServings(id: string, delta: number): Promise
     }
   } catch (e) {
     console.error('updateMealPlanServings error', e);
+  }
+}
+
+export async function updateMealPlanRecipe(id: string, recipeId: string): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    const updated = existing.map(p => p.id === id ? { ...p, recipe_id: recipeId } : p);
+    setWebData(WEB_STORAGE_KEYS.PLANNER, updated);
+    return;
+  }
+
+  try {
+    await dbInstance.runAsync('UPDATE meal_plan SET recipe_id = ? WHERE id = ?', [recipeId, id]);
+  } catch (e) {
+    console.error('updateMealPlanRecipe error', e);
   }
 }
 

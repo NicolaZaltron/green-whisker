@@ -1,3 +1,5 @@
+import type { Recipe, IngredientItem } from '../types/recipe';
+
 export interface ScaledIngredientResult {
   formattedText: string;
   scaledAmount: number | null;
@@ -239,3 +241,61 @@ export function splitShoppingItemDisplay(
   };
 }
 
+// Unità riconosciute nel testo: quelle con plurale gestito sopra più le unità metriche e poche altre
+const KNOWN_UNITS = new Set([
+  ...Object.keys(UNIT_PLURALS),
+  'g', 'gr', 'grammi', 'kg', 'ml', 'millilitri', 'cl', 'l', 'litro', 'litri',
+  'lattina', 'lattine', 'tazza', 'tazze',
+]);
+
+function parseQuantity(raw: string): number {
+  const mixed = raw.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  const fraction = raw.match(/^(\d+)\/(\d+)$/);
+  if (fraction) return Number(fraction[1]) / Number(fraction[2]);
+  return Number(raw.replace(',', '.'));
+}
+
+/**
+ * Ricava quantità, unità e nome da un testo ingrediente, es. "400 g di ceci" → 400, "g", "ceci"
+ */
+export function parseIngredientText(text: string): { amount: number | null; unit: string; ingredient: string } {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)\s*(\S+)?\s*(.*)$/);
+  if (!match) return { amount: null, unit: '', ingredient: trimmed };
+
+  const amount = parseQuantity(match[1]);
+  const amountValue = Number.isFinite(amount) ? amount : null;
+  const word = match[2] || '';
+  const rest = match[3].replace(/^di\s+|^d['’]/i, '').trim();
+
+  if (KNOWN_UNITS.has(word.toLowerCase().replace(/\.$/, ''))) {
+    return { amount: amountValue, unit: word.replace(/\.$/, ''), ingredient: rest || trimmed };
+  }
+  return { amount: amountValue, unit: '', ingredient: [word, rest].filter(Boolean).join(' ') || trimmed };
+}
+
+/**
+ * Ingrediente strutturato a partire dal solo testo, con quantità e unità se riconoscibili
+ */
+export function ingredientItemFromText(text: string, section = 'Principale'): IngredientItem {
+  const parsed = parseIngredientText(text);
+  if (parsed.amount === null) return { section, text, amount: null, unit: '', ingredient: text };
+  return { section, text, amount: parsed.amount, unit: parsed.unit, ingredient: parsed.ingredient };
+}
+
+/**
+ * Ingredienti pronti per il ridimensionamento. Le ricette senza quantità strutturate
+ * (es. quelle salvate dall'importer AI) le ricavano dal testo.
+ */
+export function getScalableIngredients(recipe: Recipe): IngredientItem[] {
+  if (!recipe.detailed_ingredients?.length) {
+    return (recipe.ingredients || []).map(text => ingredientItemFromText(text));
+  }
+
+  return recipe.detailed_ingredients.map(item => {
+    if (item.amount !== null && item.amount !== undefined) return item;
+    const parsed = ingredientItemFromText(item.text || item.ingredient || '', item.section);
+    return parsed.amount === null ? item : { ...item, amount: parsed.amount, unit: parsed.unit, ingredient: parsed.ingredient };
+  });
+}
