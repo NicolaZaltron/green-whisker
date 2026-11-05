@@ -2,6 +2,7 @@
   "expo": {
     "name": "Green-Whisker",
     "slug": "green-whisker",
+    "owner": "nicola-zaltron",
     "scheme": "greenwhisker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +17,7 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.veronicapuddu.greenwhisker",
+      "package": "com.nicolazaltron.greenwhisker",
       "adaptiveIcon": {
         "backgroundColor": "#EAF0EB",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,12 +32,14 @@
       "expo-router",
       "expo-sqlite",
       "expo-image",
-      "expo-localization"
+      "expo-localization",
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "388ead9c-dc04-480d-9a90-225b5274431a"
+        "projectId": "0bcb4c96-2fba-4536-b9c7-6c28da9540d3"
       }
     }
   }
