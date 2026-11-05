@@ -957,12 +957,9 @@ export async function deleteCatalogRecipes(ids: string[]): Promise<string[]> {
     return deleted;
   }
 
-  try {
-    const placeholders = deleted.map(() => '?').join(',');
-    await dbInstance.runAsync(`DELETE FROM catalog WHERE id IN (${placeholders})`, deleted);
-  } catch (e) {
-    console.error('deleteCatalogRecipes error', e);
-  }
+  // Gli errori non vanno inghiottiti: chi chiama deve sapere che la cancellazione non è avvenuta
+  const placeholders = deleted.map(() => '?').join(',');
+  await dbInstance.runAsync(`DELETE FROM catalog WHERE id IN (${placeholders})`, deleted);
   return deleted;
 }
 

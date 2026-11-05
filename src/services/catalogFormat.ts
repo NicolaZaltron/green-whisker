@@ -43,7 +43,8 @@ export interface ParsedCatalogFile {
  * Le ricette non valide vengono contate e scartate; i campi sconosciuti restano nell'oggetto.
  */
 export function parseCatalogText(text: string): ParsedCatalogFile {
-  const parsed: unknown = JSON.parse(text);
+  // Alcuni programmi salvano il JSON con un BOM in testa, che JSON.parse non accetta
+  const parsed: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
   if (!Array.isArray(parsed)) throw new Error('Il file non contiene un elenco di ricette');
 
   const byId = new Map<string, Recipe>();

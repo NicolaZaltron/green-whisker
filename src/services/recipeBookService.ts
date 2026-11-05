@@ -18,6 +18,29 @@ export interface ImportResult {
 }
 
 /**
+ * Legge il file scelto provando più metodi, in ordine. Se tutti falliscono, l'errore elenca ogni tentativo.
+ */
+async function readPickedFile(asset: { uri: string; file?: Blob & { text(): Promise<string> } }): Promise<string> {
+  if (Platform.OS === 'web' && asset.file) return asset.file.text();
+
+  const attempts: { name: string; read: () => Promise<string> }[] = [
+    { name: 'File', read: () => new File(asset.uri).text() },
+    { name: 'fetch', read: () => fetch(asset.uri).then(r => r.text()) },
+  ];
+  const errors: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      const text = await attempt.read();
+      console.info(`Ricettario letto con il metodo: ${attempt.name}`);
+      return text;
+    } catch (e: any) {
+      errors.push(`${attempt.name}: ${e?.message ?? e}`);
+    }
+  }
+  throw new Error(errors.join(' | '));
+}
+
+/**
  * Chiede un file JSON al telefono e lo legge. Restituisce null se l'utente annulla.
  */
 export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
@@ -28,9 +51,7 @@ export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
   if (picked.canceled) return null;
 
   const asset = picked.assets[0];
-  const text = Platform.OS === 'web' && asset.file
-    ? await asset.file.text()
-    : await new File(asset.uri).text();
+  const text = await readPickedFile(asset);
   return parseCatalogText(text);
 }
 

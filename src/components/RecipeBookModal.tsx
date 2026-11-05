@@ -104,9 +104,9 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     let parsed: ParsedCatalogFile | null;
     try {
       parsed = await pickCatalogFile();
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Lettura ricettario fallita', e);
-      showStatus(t('recipeBook.invalidFile'), true);
+      showStatus(`${t('recipeBook.invalidFile')} (${e?.message ?? e})`, true);
       setBusy(false);
       return;
     }
@@ -130,33 +130,23 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     );
   };
 
-  // Elimina le ricette indicate (con le varianti) dopo conferma
-  const askDelete = (ids: string[]) => {
-    Alert.alert(
-      t('recipeBook.deleteTitle'),
-      t('recipeBook.deleteMessage', { count: ids.length }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setBusy(true);
-            try {
-              const count = await deleteRecipes(ids);
-              setDeselectedIds(new Set());
-              showStatus(t('recipeBook.deleted', { count }));
-              onChanged();
-            } catch (e) {
-              console.warn('Eliminazione fallita', e);
-              showStatus(t('common.error'), true);
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-      ]
-    );
+  // Eliminazione: la conferma è nella finestra stessa (un Alert aperto da un modale non è affidabile)
+  const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
+
+  const runDelete = async (ids: string[]) => {
+    setPendingDelete(null);
+    setBusy(true);
+    try {
+      const count = await deleteRecipes(ids);
+      setDeselectedIds(new Set());
+      showStatus(t('recipeBook.deleted', { count }));
+      onChanged();
+    } catch (e: any) {
+      console.warn('Eliminazione fallita', e);
+      showStatus(`${t('common.error')}: ${e?.message ?? e}`, true);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const renderItem = ({ item }: { item: Recipe }) => {
@@ -173,7 +163,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             {item.variant_of ? `${item.title} · ${t(`recipeBook.dietShort.${item.diet ?? 'omnivore'}`)}` : item.title}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => askDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
+        <TouchableOpacity onPress={() => setPendingDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
           <Ionicons name="trash-outline" size={18} color="#D9534F" />
         </TouchableOpacity>
       </View>
@@ -280,6 +270,20 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             />
           </View>
 
+          {pendingDelete ? (
+            <View style={styles.confirmBox}>
+              <Text style={styles.confirmText}>{t('recipeBook.deleteMessage', { count: pendingDelete.length })}</Text>
+              <View style={styles.confirmRow}>
+                <TouchableOpacity style={styles.confirmCancel} onPress={() => setPendingDelete(null)} activeOpacity={0.85}>
+                  <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirmDelete} onPress={() => runDelete(pendingDelete)} activeOpacity={0.85}>
+                  <Text style={styles.confirmDeleteText}>{t('common.delete')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+
           <TouchableOpacity
             style={[styles.primaryBtn, (busy || toExport.length === 0) && styles.disabledBtn]}
             onPress={handleExport}
@@ -292,7 +296,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
 
           <TouchableOpacity
             style={[styles.dangerBtn, (busy || selected.length === 0) && styles.disabledBtn]}
-            onPress={() => askDelete(selected.map(r => r.id))}
+            onPress={() => setPendingDelete(selected.map(r => r.id))}
             disabled={busy || selected.length === 0}
             activeOpacity={0.85}
           >
@@ -404,6 +408,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
   },
+  confirmBox: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: '#FDECEA', borderWidth: 1, borderColor: '#E8B4B1' },
+  confirmText: { fontSize: 13, color: '#1A2E1F', lineHeight: 18 },
+  confirmRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  confirmCancel: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4DDD6' },
+  confirmCancelText: { fontSize: 14, fontWeight: '700', color: '#34523C' },
+  confirmDelete: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#D9534F' },
+  confirmDeleteText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
   dangerBtnText: { color: '#D9534F', fontSize: 14, fontWeight: '800' },
   busy: { marginTop: 12 },
   message: { fontSize: 14, fontWeight: '600', color: '#34523C', marginTop: 12, lineHeight: 20 },

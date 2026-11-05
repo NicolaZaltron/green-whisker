@@ -64,6 +64,10 @@ check('campi sconosciuti: la ricetta è valida e i campi restano', () => {
   assert.deepEqual(r.recipes[0].campo_futuro, { x: 1 });
 });
 
+check('file con BOM in testa: letto correttamente', () => {
+  const r = format.parseCatalogText('\uFEFF' + fixture('nuovo-con-varianti.json'));
+  assert.equal(r.recipes.length, 2);
+});
 check('file che non è un elenco: errore', () => {
   assert.throws(() => format.parseCatalogText(fixture('non-elenco.json')), /elenco/);
 });

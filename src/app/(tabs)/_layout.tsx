@@ -58,7 +58,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.explore'),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="leaf" color={color} size={size - 2} />
+            <Ionicons name="leaf" color={color as string} size={size - 2} />
           ),
         }}
       />
@@ -67,7 +67,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.favorites'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color} size={size - 2} />
+            <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color as string} size={size - 2} />
           ),
         }}
       />
@@ -76,7 +76,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.shopping'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'cart' : 'cart-outline'} color={color} size={size - 2} />
+            <Ionicons name={focused ? 'cart' : 'cart-outline'} color={color as string} size={size - 2} />
           ),
         }}
       />
@@ -85,7 +85,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.planner'),
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color} size={size - 2} />
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} color={color as string} size={size - 2} />
           ),
         }}
       />

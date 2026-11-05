@@ -35,7 +35,7 @@ export function useResponsiveDimensions() {
         window.removeEventListener('orientationchange', handleResize);
       };
     } else {
-      const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      const subscription = Dimensions.addEventListener('change', ({ window }: { window: { width: number; height: number } }) => {
         setDimensions({
           width: window.width,
           height: window.height,

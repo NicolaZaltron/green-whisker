@@ -372,8 +372,8 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         maxToRenderPerBatch={8}
         windowSize={5}
         removeClippedSubviews={Platform.OS !== 'web'}
-        ListHeaderComponent={listHeaderElement}
-        ListEmptyComponent={listEmptyElement}
+        ListHeaderComponent={listHeaderElement ?? undefined}
+        ListEmptyComponent={listEmptyElement ?? undefined}
         renderItem={renderPantryItem}
       />
     </View>
