@@ -38,6 +38,8 @@ import {
   copyRecipeToClipboard
 } from '../utils/shareHelper';
 import { useTranslation } from 'react-i18next';
+import { generateBimbyInstructions } from '../services/aiService';
+import { saveBimbySteps } from '../services/bimbyService';
 
 interface RecipeModalProps {
   // Ricetta originale: le varianti vengono mostrate con le schede
@@ -90,6 +92,17 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
+  // Versione Bimby: bozza generata per una specifica ricetta (vale solo se l'id coincide con quella aperta)
+  const [bimbyOpen, setBimbyOpen] = useState(false);
+  const [bimbyModel, setBimbyModel] = useState<'TM5' | 'TM6'>('TM6');
+  const [bimbyDraft, setBimbyDraft] = useState<{ recipeId: string; steps: string[] } | null>(null);
+  const [bimbyLoading, setBimbyLoading] = useState(false);
+  const [bimbyError, setBimbyError] = useState<string | null>(null);
+  const [bimbySaving, setBimbySaving] = useState(false);
+  const [bimbySaveError, setBimbySaveError] = useState<string | null>(null);
+  // Modalità delle istruzioni: torna a 'normale' quando cambia la ricetta
+  const [instructionsChoice, setInstructionsChoice] = useState<{ recipeId?: string; mode: 'normale' | 'bimby' }>({ mode: 'normale' });
+  const instructionsMode = instructionsChoice.recipeId === recipe?.id ? instructionsChoice.mode : 'normale';
 
   // Native driver scroll value for smooth 60fps title fade without JS re-renders
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -292,6 +305,54 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       showToast('Ricetta copiata negli appunti!');
     }
   };
+
+  // Bozza Bimby valida solo per la ricetta aperta
+  const bimbySteps = bimbyDraft?.recipeId === recipe.id ? bimbyDraft.steps : null;
+  const savedBimbySteps = recipe.bimby_steps ?? [];
+
+  const closeBimby = () => {
+    setBimbyOpen(false);
+    setBimbyDraft(null);
+    setBimbyError(null);
+    setBimbySaveError(null);
+  };
+
+  const handleGenerateBimby = async () => {
+    const target = recipe;
+    setBimbyLoading(true);
+    setBimbyError(null);
+    setBimbySaveError(null);
+    try {
+      const steps = await generateBimbyInstructions(target, bimbyModel);
+      setBimbyDraft({ recipeId: target.id, steps });
+    } catch (e) {
+      setBimbyError(e instanceof Error ? e.message : 'Generazione non riuscita. Riprova.');
+    } finally {
+      setBimbyLoading(false);
+    }
+  };
+
+  const handleSaveBimby = async () => {
+    if (!bimbySteps) return;
+    setBimbySaving(true);
+    setBimbySaveError(null);
+    try {
+      await saveBimbySteps(recipe, bimbySteps, bimbyModel);
+      closeBimby();
+    } catch {
+      setBimbySaveError('Salvataggio non riuscito. Riprova.');
+    } finally {
+      setBimbySaving(false);
+    }
+  };
+
+  const renderNumberedList = (items: string[]) =>
+    items.map((step, idx) => (
+      <View key={idx} style={styles.numberedRow}>
+        <Text style={styles.numberedIndex}>{idx + 1}.</Text>
+        <Text style={styles.numberedText}>{step}</Text>
+      </View>
+    ));
 
   // Group detailed ingredients by section
   const sections: { title: string; items: IngredientItem[] }[] = [];
@@ -520,6 +581,16 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
               <Text style={styles.title}>{recipe.title}</Text>
 
+              {/* Versione Bimby: istruzioni per TM5/TM6 da salvare sulla ricetta */}
+              <TouchableOpacity
+                style={[styles.versionActionBtn, styles.bimbyOpenBtn]}
+                onPress={() => setBimbyOpen(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="hardware-chip-outline" size={14} color="#34523C" />
+                <Text style={styles.versionActionText}>Versione Bimby</Text>
+              </TouchableOpacity>
+
               {/* Quick Metrics Bar */}
               <View style={styles.metricsBar}>
                 <View style={styles.metricItem}>
@@ -624,7 +695,26 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               {/* Instructions */}
               <View style={styles.instructionsSection}>
                 <Text style={styles.sectionTitle}>Preparazione</Text>
-                {(recipe.instructions || []).map((step, idx) => {
+                {savedBimbySteps.length > 0 && (
+                  <View style={styles.instructionsToggle}>
+                    {(['normale', 'bimby'] as const).map(mode => {
+                      const active = instructionsMode === mode;
+                      return (
+                        <TouchableOpacity
+                          key={mode}
+                          style={[styles.versionTab, active && styles.versionTabActive]}
+                          onPress={() => setInstructionsChoice({ recipeId: recipe.id, mode })}
+                          activeOpacity={0.85}
+                        >
+                          <Text style={[styles.versionTabText, active && styles.versionTabTextActive]}>
+                            {mode === 'normale' ? 'Normale' : 'Bimby'}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+                {instructionsMode === 'bimby' && savedBimbySteps.length > 0 ? renderNumberedList(savedBimbySteps) : (recipe.instructions || []).map((step, idx) => {
                   const isDone = !!completedSteps[idx];
                   return (
                     <TouchableOpacity
@@ -1000,6 +1090,103 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               </View>
             </View>
           </TouchableOpacity>
+        </Modal>
+
+        {/* Versione Bimby Dialog */}
+        <Modal visible={bimbyOpen} animationType="fade" transparent onRequestClose={closeBimby}>
+          <View style={styles.jsonBackdrop}>
+            <View style={styles.jsonCard}>
+              <View style={styles.jsonHeader}>
+                <Text style={styles.jsonTitle}>Versione Bimby</Text>
+                <TouchableOpacity onPress={closeBimby} hitSlop={12} accessibilityLabel="Chiudi">
+                  <Ionicons name="close" size={22} color="#2B332B" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.bimbySub} numberOfLines={1}>{recipe.title}</Text>
+
+              <View style={styles.bimbyChipRow}>
+                {(['TM5', 'TM6'] as const).map(model => {
+                  const active = bimbyModel === model;
+                  return (
+                    <TouchableOpacity
+                      key={model}
+                      style={[styles.bimbyChip, active && styles.bimbyChipActive]}
+                      onPress={() => {
+                        setBimbyModel(model);
+                        // Le istruzioni generate valgono per il modello scelto: cambiarlo scarta la bozza
+                        setBimbyDraft(null);
+                      }}
+                      disabled={bimbyLoading || bimbySaving}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.bimbyChipText, active && styles.bimbyChipTextActive]}>{model}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {!bimbySteps && (
+                <TouchableOpacity
+                  style={[styles.jsonCopyBtn, (bimbyLoading || bimbySaving) && styles.versionActionBtnDisabled]}
+                  onPress={handleGenerateBimby}
+                  disabled={bimbyLoading || bimbySaving}
+                  activeOpacity={0.85}
+                >
+                  {bimbyLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" />
+                  )}
+                  <Text style={styles.jsonCopyText}>{bimbyLoading ? 'Generazione…' : 'Genera istruzioni'}</Text>
+                </TouchableOpacity>
+              )}
+
+              {bimbyError && <Text style={styles.bimbyErrorText}>{bimbyError}</Text>}
+
+              {bimbySteps && (
+                <ScrollView style={styles.bimbyStepsScroll} showsVerticalScrollIndicator={false}>
+                  {renderNumberedList(bimbySteps)}
+                </ScrollView>
+              )}
+
+              {bimbySteps && (
+                <TouchableOpacity
+                  style={[styles.bimbyRetryBtn, (bimbyLoading || bimbySaving) && styles.versionActionBtnDisabled]}
+                  onPress={handleGenerateBimby}
+                  disabled={bimbyLoading || bimbySaving}
+                  activeOpacity={0.8}
+                >
+                  {bimbyLoading ? (
+                    <ActivityIndicator size="small" color="#34523C" />
+                  ) : (
+                    <Ionicons name="refresh" size={14} color="#34523C" />
+                  )}
+                  <Text style={styles.versionActionText}>{bimbyLoading ? 'Generazione…' : 'Riprova'}</Text>
+                </TouchableOpacity>
+              )}
+
+              {bimbySaveError && <Text style={styles.bimbyErrorText}>{bimbySaveError}</Text>}
+
+              <View style={styles.bimbyActionRow}>
+                <TouchableOpacity
+                  style={[styles.bimbyActionBtn, (bimbyLoading || bimbySaving) && styles.versionActionBtnDisabled]}
+                  onPress={closeBimby}
+                  disabled={bimbyLoading || bimbySaving}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.versionActionText}>Scarta</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.bimbyActionBtnPrimary, (!bimbySteps || bimbyLoading || bimbySaving) && styles.versionActionBtnDisabled]}
+                  onPress={handleSaveBimby}
+                  disabled={!bimbySteps || bimbyLoading || bimbySaving}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.jsonCopyText}>{bimbySaving ? 'Salvataggio…' : 'Salva'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </Modal>
@@ -1803,5 +1990,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718075',
     marginTop: 1,
+  },
+  // Versione Bimby Styles
+  bimbyOpenBtn: { alignSelf: 'flex-start', marginBottom: 16 },
+  bimbySub: { fontSize: 13, color: '#5E6D60', marginBottom: 12 },
+  bimbyChipRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  bimbyChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#F1F6F2',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  bimbyChipActive: { backgroundColor: '#34523C', borderColor: '#34523C' },
+  bimbyChipText: { fontSize: 13, fontWeight: '700', color: '#5E6D60' },
+  bimbyChipTextActive: { color: '#FFFFFF' },
+  bimbyErrorText: { fontSize: 13, color: '#D9534F', marginTop: 10 },
+  bimbyStepsScroll: { maxHeight: 360, marginTop: 12 },
+  bimbyRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  bimbyActionRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  bimbyActionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+  },
+  bimbyActionBtnPrimary: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#34523C',
+  },
+  numberedRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  numberedIndex: { width: 26, fontSize: 14, fontWeight: '700', color: '#4A6B53' },
+  numberedText: { flex: 1, fontSize: 14, color: '#2B332B', lineHeight: 22 },
+  instructionsToggle: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: '#EAF0EB',
+    marginBottom: 12,
   },
 });

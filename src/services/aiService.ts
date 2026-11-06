@@ -497,6 +497,111 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
   throw new Error(lastErrorMsg || 'Impossibile estrarre la ricetta con Gemini. Riprova tra poco.');
 }
 
+// Prompt per istruzioni Bimby manuali (senza programmi automatici del robot)
+const BIMBY_SYSTEM_PROMPT = `Sei un esperto di cucina con Bimby (Thermomix). Trasforma la ricetta in istruzioni MANUALI passo passo: l'utente cucinerà a mano, il robot non eseguirà programmi.
+
+Regole:
+- Scrivi in italiano, frasi brevi, nell'ordine di cottura.
+- Un'azione per passo.
+- Ogni passo di cottura o miscelazione indica le impostazioni esatte: temperatura in °C (solo se la ricetta prevede calore), velocità da 1 a 10 oppure "spiga" (impasto) o "turbo", tempo in secondi o minuti. Scrivi "senso inverso" se serve la rotazione inversa e "Varoma" se serve il vapore.
+- Usa SOLO impostazioni manuali: temperatura, velocità, tempo, Varoma, senso inverso, turbo, spiga. Non usare programmi automatici come Cottura lenta, Fermentazione, Sottovuoto, Caramello, Cottura uova, Cottura riso.
+- Ingredienti e quantità devono restare esattamente quelli della ricetta originale. Non aggiungere né togliere ingredienti o azioni.
+- Non aggiungere azioni che la ricetta non chiede (niente mescolate, raschiature o pulizie extra se non sono nella ricetta).
+- Se un tempo o una temperatura non è nella ricetta, scrivi "a vista" o "fino a doratura" invece di inventare un numero.
+- Mantieni il tempo di cottura della ricetta: "a fuoco medio per 15 minuti" diventa "100 °C, velocità 1, per 15 minuti", ma solo se serve calore.
+- Rispondi SOLO con un array JSON di stringhe, una per passo.`;
+
+/**
+ * Converte una ricetta normale in istruzioni manuali per Bimby (solo Gemini)
+ */
+export async function generateBimbyInstructions(recipe: Recipe, model: 'TM5' | 'TM6'): Promise<string[]> {
+  const config = await getAIConfig('complex');
+  if (config.provider !== 'gemini') throw new Error('La versione Bimby è disponibile solo con Gemini.');
+  if (!config.apiKey) throw new Error('Chiave API mancante: inseriscila in Impostazioni AI.');
+
+  const recipeJson = JSON.stringify({
+    title: recipe.title,
+    servings: recipe.servings,
+    ingredients: recipe.ingredients,
+    instructions: recipe.instructions,
+  });
+
+  const payload = {
+    systemInstruction: { parts: [{ text: BIMBY_SYSTEM_PROMPT }] },
+    contents: [{
+      parts: [{ text: `Bimby modello: ${model}\n\nRicetta:\n${recipeJson}` }]
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+      responseSchema: { type: 'ARRAY', items: { type: 'STRING' } }
+    }
+  };
+
+  // Modello configurato, poi quello di default se diverso
+  const candidateModels = Array.from(new Set([config.model, 'gemini-flash-latest']));
+
+  let rawContent = '';
+  let lastErrorMsg = '';
+
+  for (const candidate of candidateModels) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${config.apiKey}`;
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, 45000);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        try {
+          const errJson = JSON.parse(errorText);
+          if (errJson.error && errJson.error.message) {
+            lastErrorMsg = errJson.error.message;
+          }
+        } catch {}
+        continue;
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        rawContent = text;
+        break;
+      }
+    } catch (e: any) {
+      lastErrorMsg = e.message;
+    }
+  }
+
+  if (!rawContent) {
+    throw new Error(lastErrorMsg || 'Impossibile generare le istruzioni Bimby con Gemini. Riprova tra poco.');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch {
+    throw new Error('Istruzioni Bimby non valide: riprova.');
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('Istruzioni Bimby non valide: riprova.');
+  }
+
+  const steps = parsed
+    .filter((step): step is string => typeof step === 'string')
+    .map(step => step.trim())
+    .filter(step => step.length > 0);
+
+  if (steps.length === 0) {
+    throw new Error('Istruzioni Bimby non valide: riprova.');
+  }
+
+  return steps;
+}
+
 async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConfig): Promise<Recipe> {
   let baseUrl = config.baseUrl || PROVIDER_DEFAULTS.openai.baseUrl!;
   let defaultHeaders: Record<string, string> = {

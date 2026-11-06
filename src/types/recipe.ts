@@ -64,6 +64,9 @@ export interface Recipe {
   needs_review?: boolean;
   created_at?: number;
   updated_at?: number;
+  // Istruzioni manuali per Bimby (generate con l'AI su richiesta)
+  bimby_steps?: string[];
+  bimby_model?: 'TM5' | 'TM6';
 }
 
 export type RecipeDiet = 'omnivore' | 'vegetarian' | 'vegan';
