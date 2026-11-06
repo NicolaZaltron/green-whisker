@@ -723,6 +723,34 @@ export async function clearMealPlans(): Promise<void> {
   }
 }
 
+/**
+ * Elimina tutti i pasti pianificati nelle date indicate (formato YYYY-MM-DD). Restituisce il numero di pasti eliminati.
+ */
+export async function deleteMealPlanForDates(dates: string[]): Promise<number> {
+  if (!dates || dates.length === 0) return 0;
+  const wanted = new Set(dates);
+
+  if (isWebFallback || !dbInstance) {
+    const plans = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    const kept = plans.filter(p => !wanted.has(p.date));
+    setWebData(WEB_STORAGE_KEYS.PLANNER, kept);
+    return plans.length - kept.length;
+  }
+
+  const placeholders = dates.map(() => '?').join(',');
+  try {
+    const row = (await dbInstance.getFirstAsync(
+      `SELECT COUNT(*) AS n FROM meal_plan WHERE date IN (${placeholders})`,
+      dates,
+    )) as { n: number } | null;
+    await dbInstance.runAsync(`DELETE FROM meal_plan WHERE date IN (${placeholders})`, dates);
+    return row?.n ?? 0;
+  } catch (e) {
+    console.error('deleteMealPlanForDates error', e);
+    return 0;
+  }
+}
+
 // --- RECIPE NOTES ---
 export async function getRecipeNote(recipeId: string): Promise<string> {
   if (isWebFallback || !dbInstance) {

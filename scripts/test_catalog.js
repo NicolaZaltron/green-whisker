@@ -69,7 +69,7 @@ check('file con BOM in testa: letto correttamente', () => {
   assert.equal(r.recipes.length, 2);
 });
 check('file che non è un elenco: errore', () => {
-  assert.throws(() => format.parseCatalogText(fixture('non-elenco.json')), /elenco/);
+  assert.throws(() => format.parseCatalogText(fixture('non-elenco.json')), /CATALOG_NOT_LIST/);
 });
 
 check('id variante: fisso per base e dieta', () => {

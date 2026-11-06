@@ -5,7 +5,8 @@ import * as Sharing from 'expo-sharing';
 import { Recipe } from '../types/recipe';
 import { deleteCatalogRecipes, removeRecipeReferences, upsertCatalogRecipes } from '../db/database';
 import { refreshCatalog } from './recipeCatalog';
-import { ExportFilter, ParsedCatalogFile, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
+import { ExportFilter, ParsedCatalogFile, CATALOG_NOT_LIST_ERROR, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
+import i18n from '../i18n';
 
 export type ImportMode = 'overwrite' | 'keep';
 
@@ -52,7 +53,12 @@ export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
 
   const asset = picked.assets[0];
   const text = await readPickedFile(asset);
-  return parseCatalogText(text);
+  try {
+    return parseCatalogText(text);
+  } catch (e: any) {
+    if (e?.message === CATALOG_NOT_LIST_ERROR) throw new Error(i18n.t('errors.catalogNotList'));
+    throw e;
+  }
 }
 
 /**

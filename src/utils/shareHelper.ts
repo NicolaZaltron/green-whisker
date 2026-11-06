@@ -22,13 +22,13 @@ export function formatRecipeShareText(
   lines.push(`🌿 *${recipe.title.trim()}*`);
 
   const metaParts: string[] = [];
-  if (servings) metaParts.push(`👥 ${servings} ${servings === 1 ? 'porzione' : 'porzioni'}`);
+  if (servings) metaParts.push(`👥 ${i18n.t('share.servings', { count: servings })}`);
   if (recipe.times?.display_time) {
     metaParts.push(`⏱️ ${recipe.times.display_time}`);
   } else if (recipe.times?.total_minutes) {
-    metaParts.push(`⏱️ ${recipe.times.total_minutes} min`);
+    metaParts.push(`⏱️ ${i18n.t('common.minutes', { count: recipe.times.total_minutes })}`);
   }
-  if (recipe.difficulty) metaParts.push(`📊 Difficoltà: ${recipe.difficulty}`);
+  if (recipe.difficulty) metaParts.push(`📊 ${i18n.t('share.difficulty')}: ${recipe.difficulty}`);
 
   if (metaParts.length > 0) {
     lines.push(metaParts.join(' • '));
@@ -36,7 +36,7 @@ export function formatRecipeShareText(
   lines.push('');
 
   // Ingredients Section
-  lines.push(`🛒 *INGREDIENTI (${servings} ${servings === 1 ? 'porzione' : 'porzioni'}):*`);
+  lines.push(`🛒 *${i18n.t('share.ingredients')} (${i18n.t('share.servings', { count: servings })}):*`);
   if (scaledIngredients && scaledIngredients.length > 0) {
     let currentSection = '';
     scaledIngredients.forEach(ing => {
@@ -56,7 +56,7 @@ export function formatRecipeShareText(
 
   // Instructions / Steps Section
   if (recipe.instructions && recipe.instructions.length > 0) {
-    lines.push('👩‍🍳 *PREPARAZIONE:*');
+    lines.push(`👩‍🍳 *${i18n.t('share.preparation')}:*`);
     recipe.instructions.forEach((step, idx) => {
       lines.push(`${idx + 1}. ${step.trim()}`);
     });
@@ -65,38 +65,34 @@ export function formatRecipeShareText(
 
   // Personal Notes (if present)
   if (userNotes && userNotes.trim().length > 0) {
-    lines.push('📝 *NOTE PERSONALI:*');
+    lines.push(`📝 *${i18n.t('share.personalNotes')}:*`);
     lines.push(userNotes.trim());
     lines.push('');
   }
 
   // Source & App Footer
   if (recipe.url) {
-    lines.push(`🔗 Fonte ricetta: ${recipe.url}`);
+    lines.push(`🔗 ${i18n.t('share.source')}: ${recipe.url}`);
   }
-  lines.push('✨ Condiviso da Green-Whisker 🐾');
+  lines.push(`✨ ${i18n.t('share.sharedBy')} 🐾`);
 
   return lines.join('\n');
 }
 
 /**
- * Share directly to Telegram
- * Works on Web, Desktop, iOS, and Android
+ * Share directly to the Telegram app via deep link.
+ * Falls back to the native share sheet if the app cannot be opened.
  */
 export async function shareToTelegram(text: string): Promise<boolean> {
-  const url = `https://t.me/share/url?text=${encodeURIComponent(text)}`;
   try {
-    const supported = await Linking.canOpenURL(url);
-    if (supported || Platform.OS === 'web') {
-      await Linking.openURL(url);
-      return true;
-    } else {
-      await Linking.openURL(`https://telegram.me/share/url?text=${encodeURIComponent(text)}`);
-      return true;
-    }
+    // Do not use Linking.canOpenURL here: on Android 11+ it returns false for
+    // schemes not declared in the manifest queries, so open the link directly.
+    await Linking.openURL(`tg://msg?text=${encodeURIComponent(text)}`);
+    return true;
   } catch (error) {
-    console.error('Error sharing to Telegram:', error);
-    return false;
+    // Telegram is not installed: fall back to the system share sheet
+    console.warn('Telegram app not available, falling back to share sheet:', error);
+    return shareNative('Ricetta', text);
   }
 }
 
@@ -166,9 +162,9 @@ export async function copyRecipeToClipboard(text: string): Promise<boolean> {
  * Formatta la lista della spesa raggruppata per reparti
  */
 export function formatShoppingListShareText(items: ShoppingItem[]): string {
-  if (!items || items.length === 0) return '🛒 La lista della spesa è vuota.';
+  if (!items || items.length === 0) return `🛒 ${i18n.t('share.emptyList')}`;
 
-  const lines: string[] = ['🛒 *LISTA DELLA SPESA GREEN-WHISKER*', ''];
+  const lines: string[] = [`🛒 *${i18n.t('share.listTitle')}*`, ''];
   const map = new Map<ShoppingDepartment, ShoppingItem[]>();
 
   for (const dept of SHOPPING_DEPARTMENTS) {
@@ -202,7 +198,7 @@ export function formatShoppingListShareText(items: ShoppingItem[]): string {
     }
   }
 
-  lines.push('✨ Generata con Green-Whisker 🌿🐾');
+  lines.push(`✨ ${i18n.t('share.generatedBy')} 🌿🐾`);
   return lines.join('\n');
 }
 

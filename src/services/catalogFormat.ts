@@ -42,10 +42,13 @@ export interface ParsedCatalogFile {
  * Legge il testo di un ricettario JSON. Lancia un errore se il contenuto non è un elenco.
  * Le ricette non valide vengono contate e scartate; i campi sconosciuti restano nell'oggetto.
  */
+// Codice dell'errore quando il file non è un elenco: il chiamante lo traduce
+export const CATALOG_NOT_LIST_ERROR = 'CATALOG_NOT_LIST';
+
 export function parseCatalogText(text: string): ParsedCatalogFile {
   // Alcuni programmi salvano il JSON con un BOM in testa, che JSON.parse non accetta
   const parsed: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
-  if (!Array.isArray(parsed)) throw new Error('Il file non contiene un elenco di ricette');
+  if (!Array.isArray(parsed)) throw new Error(CATALOG_NOT_LIST_ERROR);
 
   const byId = new Map<string, Recipe>();
   let invalid = 0;

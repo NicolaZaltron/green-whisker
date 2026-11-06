@@ -1,7 +1,8 @@
-import { Recipe, SlotConsigliato, GruppoAlimentare } from '../types/recipe';
+import { Recipe, SlotConsigliato } from '../types/recipe';
 import { RECIPE_TAXONOMY, MacroCategory, MACRO_CATEGORIES } from '../constants/categories';
 import { loadAISettings } from './settingsService';
 import { ingredientItemFromText } from '../utils/servingsScaler';
+import i18n from '../i18n';
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom';
 
@@ -122,12 +123,92 @@ async function fetchWithTimeout(
     return response;
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error(`Richiesta scaduta (${Math.round(timeoutMs / 1000)}s). Verifica la connessione internet.`);
+      throw new Error(i18n.t('errors.requestTimeout', { seconds: Math.round(timeoutMs / 1000) }));
     }
     throw error;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// Ritardi tra i tentativi, solo per errori di rete (l'app può andare in background durante la chiamata)
+const NETWORK_RETRY_DELAYS_MS = [1500, 3000];
+const NETWORK_ERROR_MARKERS = ['fetch failed', 'Network request failed', 'UnknownHost', 'Unable to resolve host'];
+
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) return true;
+  const message = String((error as any)?.message ?? '');
+  return NETWORK_ERROR_MARKERS.some(marker => message.includes(marker));
+}
+
+/**
+ * fetchWithTimeout con nuovi tentativi solo su errori di rete; gli errori HTTP non vengono ritentati
+ */
+async function fetchWithNetworkRetry(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 35000
+): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchWithTimeout(url, options, timeoutMs);
+    } catch (error) {
+      if (!isNetworkError(error) || attempt >= NETWORK_RETRY_DELAYS_MS.length) throw error;
+      await new Promise(resolve => setTimeout(resolve, NETWORK_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+}
+
+// Pattern di immagini da scartare (loghi, avatar, icone, miniature)
+const EXCLUDED_IMAGE_PATTERNS = ['profile_pic', 'avatar', 'logo', 'icon', 'emoji', 'sprite', 'favicon', 's150x150'];
+const IMAGE_SIZE_SEGMENT = /\/s\d{2,3}x\d{2,3}/;
+
+function isExcludedImageUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  return EXCLUDED_IMAGE_PATTERNS.some(pattern => lower.includes(pattern)) || IMAGE_SIZE_SEGMENT.test(lower);
+}
+
+// Legge og:image / twitter:image dalla pagina, con attributi in entrambi gli ordini
+async function fetchPageImage(url: string): Promise<string> {
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+        'Accept': 'text/html'
+      }
+    }, 12000);
+    if (!res.ok) return '';
+    const html = await res.text();
+
+    const findImage = (key: string): string => {
+      const attr = `(?:property|name)=["']${key}["']`;
+      const contentAttr = `content=["']([^"']+)["']`;
+      const patterns = [
+        new RegExp(`<meta\\s+${attr}\\s+${contentAttr}[^>]*>`, 'i'),
+        new RegExp(`<meta\\s+${contentAttr}\\s+${attr}[^>]*>`, 'i'),
+      ];
+      for (const pattern of patterns) {
+        const match = html.match(pattern);
+        if (match?.[1]) return match[1].replace(/&amp;/g, '&').trim();
+      }
+      return '';
+    };
+
+    const image = findImage('og:image') || findImage('twitter:image');
+    return /^https?:\/\//i.test(image) ? image : '';
+  } catch {
+    return '';
+  }
+}
+
+// Prima immagine non scartata nel markdown di Jina (sintassi ![..](url) o URL diretti)
+function pickMarkdownImage(markdown: string): string {
+  const imageRegex = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)"'<>]+\.(?:jpe?g|png|webp)(?=[?#\s)"'<>]|$))/gi;
+  for (const match of markdown.matchAll(imageRegex)) {
+    const url = match[1] ?? match[2];
+    if (url && !isExcludedImageUrl(url)) return url;
+  }
+  return '';
 }
 
 export const VALID_MACRO_CATEGORIES = MACRO_CATEGORIES;
@@ -362,21 +443,25 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
   const config = await getAIConfig(role);
 
   if (!config.apiKey && config.provider !== 'custom') {
-    throw new Error(`Chiave API mancante per ${PROVIDER_DEFAULTS[config.provider].label}. Inseriscila dal menu, in Impostazioni AI.`);
+    throw new Error(i18n.t('errors.missingApiKey', { provider: PROVIDER_DEFAULTS[config.provider].label }));
   }
 
   const effectiveInput: ParseRecipeInput = { ...input };
   const targetUrl = input.url || (input.text && /^https?:\/\/[^\s]+$/i.test(input.text.trim()) ? input.text.trim() : null);
 
+  let markdownImage = '';
+  const pageImagePromise = targetUrl ? fetchPageImage(targetUrl) : Promise.resolve('');
+
   if (targetUrl) {
     try {
-      const jinaRes = await fetchWithTimeout(`https://r.jina.ai/${targetUrl}`, {
+      const jinaRes = await fetchWithNetworkRetry(`https://r.jina.ai/${targetUrl}`, {
         headers: { 'Accept': 'text/plain' }
       }, 12000);
       if (jinaRes.ok) {
         const markdown = await jinaRes.text();
         if (markdown && markdown.length > 50) {
           effectiveInput.text = `Recipe Source URL: ${targetUrl}\n\nWebpage Content:\n${markdown}`;
+          markdownImage = pickMarkdownImage(markdown);
         }
       }
     } catch {
@@ -384,18 +469,35 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
     }
   }
 
+  const pageImage = await pageImagePromise;
+  const chosenImage = pageImage || markdownImage;
+
+  let recipe: Recipe;
   switch (config.provider) {
     case 'gemini':
-      return parseWithGemini(effectiveInput, config);
+      recipe = await parseWithGemini(effectiveInput, config);
+      break;
     case 'openai':
     case 'openrouter':
     case 'custom':
-      return parseWithOpenAICompatible(effectiveInput, config);
+      recipe = await parseWithOpenAICompatible(effectiveInput, config);
+      break;
     case 'claude':
-      return parseWithClaude(effectiveInput, config);
+      recipe = await parseWithClaude(effectiveInput, config);
+      break;
     default:
-      return parseWithGemini(effectiveInput, config);
+      recipe = await parseWithGemini(effectiveInput, config);
   }
+
+  if (targetUrl) {
+    // L'immagine del modello si tiene solo se è valida; altrimenti si usa quella della pagina
+    const modelImage = (recipe.image || '').trim();
+    if (!modelImage || isExcludedImageUrl(modelImage)) {
+      recipe = { ...recipe, image: chosenImage };
+    }
+  }
+
+  return recipe;
 }
 
 // Alias for backwards compatibility
@@ -467,7 +569,7 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
   for (const model of candidateModels) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
-      const response = await fetchWithTimeout(endpoint, {
+      const response = await fetchWithNetworkRetry(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -490,11 +592,15 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
         return normalizeParsedRecipe(rawContent, input.url);
       }
     } catch (e: any) {
+      // Rete non disponibile: inutile provare gli altri modelli
+      if (isNetworkError(e)) {
+        throw new Error(i18n.t('errors.networkUnavailable'));
+      }
       lastErrorMsg = e.message;
     }
   }
 
-  throw new Error(lastErrorMsg || 'Impossibile estrarre la ricetta con Gemini. Riprova tra poco.');
+  throw new Error(lastErrorMsg || i18n.t('errors.geminiExtractFailed'));
 }
 
 async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConfig): Promise<Recipe> {
@@ -572,7 +678,7 @@ async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConf
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMsg = `Errore API (${response.status})`;
+    let errorMsg = i18n.t('errors.apiError', { status: response.status });
     try {
       const errJson = JSON.parse(errorText);
       if (errJson.error && errJson.error.message) {
@@ -586,7 +692,7 @@ async function parseWithOpenAICompatible(input: ParseRecipeInput, config: AIConf
   const rawContent = data?.choices?.[0]?.message?.content;
 
   if (!rawContent) {
-    throw new Error('Nessuna risposta ricevuta dal modello.');
+    throw new Error(i18n.t('errors.noModelResponse'));
   }
 
   return normalizeParsedRecipe(rawContent, input.url);
@@ -645,7 +751,7 @@ async function parseWithClaude(input: ParseRecipeInput, config: AIConfig): Promi
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMsg = `Errore Claude (${response.status})`;
+    let errorMsg = i18n.t('errors.claudeApiError', { status: response.status });
     try {
       const errJson = JSON.parse(errorText);
       if (errJson.error && errJson.error.message) {
@@ -659,7 +765,7 @@ async function parseWithClaude(input: ParseRecipeInput, config: AIConfig): Promi
   const rawContent = data?.content?.[0]?.text;
 
   if (!rawContent) {
-    throw new Error('Nessuna risposta ricevuta da Claude.');
+    throw new Error(i18n.t('errors.noClaudeResponse'));
   }
 
   return normalizeParsedRecipe(rawContent, input.url);
@@ -670,8 +776,8 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string): Recipe {
   try {
     const cleaned = rawContent.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
     parsed = JSON.parse(cleaned);
-  } catch (e) {
-    throw new Error('Impossibile interpretare la risposta JSON generata dal modello.');
+  } catch {
+    throw new Error(i18n.t('errors.invalidJsonResponse'));
   }
 
   const safeId = 'custom-' + (parsed.title || parsed.titolo || 'ricetta')

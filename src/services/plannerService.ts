@@ -872,10 +872,16 @@ export async function checkAndAutoGeneratePlan(
 export async function manualGeneratePlan(
   existingPlans: MealPlanEntry[],
   overwrite: boolean = false,
+  scope: 'day' | 'week' = 'week',
+  selectedDate?: string,
 ): Promise<number> {
   try {
     const prefs = await getPlannerPreferences();
-    const { days } = getWeekDays(0);
+    const weekDays = getWeekDays(0).days;
+    const days = scope === 'day'
+      ? weekDays.filter(d => !!selectedDate && d.dateString === selectedDate)
+      : weekDays;
+    if (days.length === 0) return 0;
 
     const options: AutoPlanOptions = {
       servings: prefs.servings,

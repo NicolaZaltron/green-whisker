@@ -49,6 +49,12 @@
         {
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*"]
+        }
       ]
     ],
     "extra": {
