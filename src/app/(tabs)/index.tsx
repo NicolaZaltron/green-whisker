@@ -4,7 +4,6 @@ import {
   Text,
   View,
   TextInput,
-  FlatList,
   TouchableOpacity,
   ScrollView,
   Keyboard,
@@ -12,32 +11,44 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Recipe } from '../../types/recipe';
+import { Recipe, RecipeOrigin } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
+import { TabFlatList } from '../../components/TabScrollViews';
 import { RecipeModal } from '../../components/RecipeModal';
 import { PantryView } from '../../components/PantryView';
-import { MagicRecipeImporterModal } from '../../components/MagicRecipeImporterModal';
+import { MagicRecipeImporterModal, ReviewRequest } from '../../components/MagicRecipeImporterModal';
 import { HeaderMenu } from '../../components/HeaderMenu';
 import { useCatalogVersion } from '../../hooks/useCatalog';
 import { catalogRecipes, catalogVariants, refreshCatalog } from '../../services/recipeCatalog';
 import { DietFilter, VariantDiet, availableVariantDiets, matchesDiet } from '../../services/catalogFormat';
 import { generateVariant, saveVariant, deleteVariant } from '../../services/variantService';
-import { ReviewRequest } from '../../components/MagicRecipeImporterModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
 import { useDebounce } from '../../hooks/useDebounce';
 import { searchRecipes, AdvancedFilterOptions } from '../../services/searchService';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constants/categories';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
+import { useShareIntent } from 'expo-share-intent';
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
+
+const ORIGIN_OPTIONS: { labelKey: string; value: RecipeOrigin }[] = [
+  { labelKey: 'explore.advanced.originOptions.ai', value: 'ai' },
+  { labelKey: 'explore.advanced.originOptions.file', value: 'file' },
+  { labelKey: 'explore.advanced.originOptions.manual', value: 'manual' },
+];
 
 export default function ExploreScreen() {
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
+  const insets = useSafeAreaInsets();
+  // Il pulsante sta sopra la barra di navigazione (altezza 64, distanza dal fondo, margine)
+  const fabBottom = Math.max(insets.bottom, 8) + 12 + 64 + 12;
+  // Il FAB sta nel contenitore centrato di 1200px: 16px dal bordo, come la navbar (vedi _layout.tsx)
+  const fabRight = 16;
   const { isFavorite, toggleFavorite } = useFavorites();
   const [viewMode, setViewMode] = useState<'catalog' | 'pantry'>('catalog');
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,14 +56,45 @@ export default function ExploreScreen() {
   const [selectedSubCategory, setSelectedSubCategory] = useState('Tutte');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showMagicImporter, setShowMagicImporter] = useState(false);
+  // Link ricevuto dalla condivisione di Android, passato all'importer
+  const [sharedUrl, setSharedUrl] = useState<string | undefined>(undefined);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [reviewRequest, setReviewRequest] = useState<ReviewRequest | null>(null);
   const [variantBusy, setVariantBusy] = useState(false);
   // Variante in generazione: il pulsante nella scheda mostra lo spinner
   const [generating, setGenerating] = useState<{ baseId: string; diet: VariantDiet } | null>(null);
   const [dietFilter, setDietFilter] = useState<DietFilter>('all');
+  const [originFilter, setOriginFilter] = useState<'all' | RecipeOrigin>('all');
   // Il catalogo è condiviso con le altre schermate: cambia versione a ogni modifica
   const catalogVersion = useCatalogVersion();
+
+  // Testo condiviso da altre app: apre l'importer con il primo link trovato
+  const { shareIntent, resetShareIntent } = useShareIntent();
+  const sharedText = shareIntent?.text ?? null;
+  // Testo già elaborato: evita di riaprire l'importer a ogni render
+  const [handledShareText, setHandledShareText] = useState<string | null>(null);
+  if (sharedText && sharedText !== handledShareText) {
+    setHandledShareText(sharedText);
+    const match = sharedText.match(/https?:\/\/[^\s]+/);
+    if (match) {
+      setSharedUrl(match[0]);
+      setShowMagicImporter(true);
+    }
+  }
+  useEffect(() => {
+    // Reset per non gestire la stessa condivisione due volte
+    if (sharedText) resetShareIntent();
+  }, [sharedText, resetShareIntent]);
+
+  // Ricetta aperta letta dal catalogo: dopo una modifica la scheda mostra la versione aggiornata
+  const shownRecipe = useMemo(() => {
+    if (!selectedRecipe) return null;
+    return catalogRecipes.find(r => r.id === selectedRecipe.id)
+      ?? catalogVariants.find(r => r.id === selectedRecipe.id)
+      ?? selectedRecipe;
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRecipe, catalogVersion]);
 
   // Varianti raggruppate per ricetta originale, e dieta disponibili per la card
   const variantsByBase = useMemo(() => {
@@ -63,8 +105,18 @@ export default function ExploreScreen() {
       map.set(v.variant_of!, list);
     });
     return map;
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogVersion]);
 
+
+  // Origini mostrate nel filtro: solo quelle presenti nel catalogo
+  const availableOrigins = useMemo(() => {
+    const present = new Set(catalogRecipes.map(r => r.origin ?? 'file'));
+    return ORIGIN_OPTIONS.filter(o => present.has(o.value));
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogVersion]);
 
   // Advanced Filters State
   const [showFilterSheet, setShowFilterSheet] = useState(false);
@@ -83,8 +135,9 @@ export default function ExploreScreen() {
     if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') count++;
     if (selectedSubCategory !== 'Tutte') count++;
     if (dietFilter !== 'all') count++;
+    if (originFilter !== 'all') count++;
     return count;
-  }, [filters, selectedSubCategory, dietFilter]);
+  }, [filters, selectedSubCategory, dietFilter, originFilter]);
 
   const handleResetFilters = () => {
     setFilters({
@@ -95,6 +148,7 @@ export default function ExploreScreen() {
     });
     setSelectedSubCategory('Tutte');
     setDietFilter('all');
+    setOriginFilter('all');
   };
 
   const handleSelectCategory = (cat: string) => {
@@ -119,8 +173,11 @@ export default function ExploreScreen() {
       sottocategoria: selectedSubCategory !== 'Tutte' ? selectedSubCategory : (filters.sottocategoria || null)
     };
     return searchRecipes(debouncedQuery, selectedCategory, combinedFilters)
+      .filter(r => originFilter === 'all' || (r.origin ?? 'file') === originFilter)
       .filter(r => matchesDiet(r, variantsByBase.get(r.id) ?? [], dietFilter));
-  }, [debouncedQuery, selectedCategory, selectedSubCategory, filters, dietFilter, catalogVersion, variantsByBase]);
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, selectedCategory, selectedSubCategory, filters, dietFilter, originFilter, catalogVersion, variantsByBase]);
 
   // Responsive column count calculation
   const numColumns = useMemo(() => {
@@ -160,7 +217,7 @@ export default function ExploreScreen() {
     setEditingRecipe(null);
     setReviewRequest({
       recipe: generated,
-      title: diet === 'vegan' ? 'Variante vegana' : 'Variante vegetariana',
+      title: diet === 'vegan' ? t('variants.reviewVegan') : t('variants.reviewVegetarian'),
       onConfirm: async variant => {
         if (settled) return;
         await saveVariant(variant);
@@ -192,7 +249,7 @@ export default function ExploreScreen() {
     generateVariant(source, diet)
       .then(generated => openVariantReview(source, diet, generated, rest))
       .catch((e: any) => {
-        Alert.alert('Variante non generata', e.message || 'Errore durante la generazione.');
+        Alert.alert(t('variants.notGenerated'), e.message || t('variants.generationError'));
         runVariantQueue(source, rest);
       })
       .finally(() => {
@@ -224,10 +281,10 @@ export default function ExploreScreen() {
 
   const handleDeleteVariant = (variant: Recipe) => {
     const source = catalogRecipes.find(r => r.id === variant.variant_of);
-    Alert.alert('Eliminare la variante?', `"${variant.title}" verrà eliminata. La ricetta originale resta.`, [
-      { text: 'Annulla', style: 'cancel' },
+    Alert.alert(t('variants.deleteTitle'), t('variants.deleteBody', { title: variant.title }), [
+      { text: t('variants.cancel'), style: 'cancel' },
       {
-        text: 'Elimina',
+        text: t('variants.delete'),
         style: 'destructive',
         onPress: async () => {
           await deleteVariant(variant);
@@ -318,7 +375,7 @@ export default function ExploreScreen() {
                 style={[styles.filterBtn, activeFiltersCount > 0 && styles.filterBtnActive]}
                 onPress={() => setShowFilterSheet(true)}
                 activeOpacity={0.8}
-                accessibilityLabel="Filtri avanzati"
+                accessibilityLabel={t('explore.advanced.open')}
               >
                 <Ionicons
                   name={activeFiltersCount > 0 ? 'options' : 'options-outline'}
@@ -353,7 +410,7 @@ export default function ExploreScreen() {
                   >
                     <Ionicons name="close-circle" size={14} color="#FFF" style={{ marginRight: 4 }} />
                     <Text style={styles.activeFiltersPillText}>
-                      {activeFiltersCount} {activeFiltersCount === 1 ? 'filtro' : 'filtri'}
+                      {t('explore.advanced.activeFilters', { count: activeFiltersCount })}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -410,14 +467,12 @@ export default function ExploreScreen() {
             {/* Results Counter */}
             <View style={styles.counterRow}>
               <Text style={styles.counterText}>
-                {filteredRecipes.length === 1
-                  ? t('explore.recipesFound', { count: 1 })
-                  : t('explore.recipesFound_plural', { count: filteredRecipes.length })}
+                {t('explore.recipesFound', { count: filteredRecipes.length })}
               </Text>
             </View>
 
             {/* Recipes Grid */}
-            <FlatList
+            <TabFlatList
               key={`grid-cols-${numColumns}`}
               data={filteredRecipes}
               keyExtractor={item => item.id}
@@ -450,8 +505,8 @@ export default function ExploreScreen() {
 
         {/* Modal Dettaglio Ricetta */}
         <RecipeModal
-          recipe={selectedRecipe}
-          variants={selectedRecipe ? variantsByBase.get(selectedRecipe.id) ?? [] : []}
+          recipe={shownRecipe}
+          variants={shownRecipe ? variantsByBase.get(shownRecipe.id) ?? [] : []}
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
           onGenerateVariant={handleGenerateVariant}
@@ -483,8 +538,8 @@ export default function ExploreScreen() {
             >
               <View style={styles.sheetHeader}>
                 <View>
-                  <Text style={styles.sheetTitle}>Filtri Avanzati</Text>
-                  <Text style={styles.sheetSub}>Personalizza la ricerca delle ricette</Text>
+                  <Text style={styles.sheetTitle}>{t('explore.advanced.title')}</Text>
+                  <Text style={styles.sheetSub}>{t('explore.advanced.subtitle')}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.sheetCloseBtn}
@@ -500,14 +555,14 @@ export default function ExploreScreen() {
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
                     <Ionicons name="time-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
-                    <Text style={styles.sheetSectionTitle}>Tempo Massimo</Text>
+                    <Text style={styles.sheetSectionTitle}>{t('explore.advanced.maxTime')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
                     {[
-                      { label: 'Qualsiasi', value: null },
-                      { label: '< 20 min', value: 20 },
-                      { label: '< 35 min', value: 35 },
-                      { label: '< 50 min', value: 50 },
+                      { label: t('explore.advanced.any'), value: null },
+                      { label: t('explore.advanced.under', { n: 20 }), value: 20 },
+                      { label: t('explore.advanced.under', { n: 35 }), value: 35 },
+                      { label: t('explore.advanced.under', { n: 50 }), value: 50 },
                     ].map(opt => {
                       const isSel = filters.maxMinutes === opt.value;
                       return (
@@ -530,14 +585,14 @@ export default function ExploreScreen() {
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
                     <Ionicons name="speedometer-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
-                    <Text style={styles.sheetSectionTitle}>Difficoltà</Text>
+                    <Text style={styles.sheetSectionTitle}>{t('explore.advanced.difficulty')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
                     {[
-                      { label: 'Tutte', value: null },
-                      { label: 'Facile', value: 'Facile' },
-                      { label: 'Media', value: 'Media' },
-                      { label: 'Difficile', value: 'Difficile' },
+                      { label: t('explore.advanced.all'), value: null },
+                      { label: t('explore.advanced.difficultyLevel.easy'), value: 'Facile' },
+                      { label: t('explore.advanced.difficultyLevel.medium'), value: 'Media' },
+                      { label: t('explore.advanced.difficultyLevel.hard'), value: 'Difficile' },
                     ].map(opt => {
                       const isSel = filters.difficolta === opt.value;
                       return (
@@ -560,13 +615,13 @@ export default function ExploreScreen() {
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
                     <Ionicons name="nutrition-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
-                    <Text style={styles.sheetSectionTitle}>Dieta</Text>
+                    <Text style={styles.sheetSectionTitle}>{t('explore.advanced.diet')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
                     {([
-                      { label: 'Tutte', value: 'all' },
-                      { label: 'Vegetariane', value: 'vegetarian' },
-                      { label: 'Vegane', value: 'vegan' },
+                      { label: t('explore.advanced.all'), value: 'all' },
+                      { label: t('explore.advanced.dietOptions.vegetarian'), value: 'vegetarian' },
+                      { label: t('explore.advanced.dietOptions.vegan'), value: 'vegan' },
                     ] as const).map(opt => {
                       const isSel = dietFilter === opt.value;
                       return (
@@ -583,18 +638,43 @@ export default function ExploreScreen() {
                   </View>
                 </View>
 
+                {/* Origine: solo se il catalogo contiene ricette di più origini */}
+                {availableOrigins.length > 1 && (
+                  <View style={styles.sheetSection}>
+                    <View style={styles.sectionLabelRow}>
+                      <Ionicons name="library-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                      <Text style={styles.sheetSectionTitle}>{t('explore.advanced.origin')}</Text>
+                    </View>
+                    <View style={styles.sheetChipsRow}>
+                      {[{ labelKey: 'explore.advanced.all', value: 'all' as const }, ...availableOrigins].map(opt => {
+                        const isSel = originFilter === opt.value;
+                        return (
+                          <TouchableOpacity
+                            key={opt.value}
+                            style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
+                            onPress={() => setOriginFilter(opt.value)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{t(opt.labelKey)}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
                 {/* Caratteristiche */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
                     <Ionicons name="leaf-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
-                    <Text style={styles.sheetSectionTitle}>Caratteristiche</Text>
+                    <Text style={styles.sheetSectionTitle}>{t('explore.advanced.features')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
                     {[
-                      { label: 'Tutte', value: null },
-                      { label: 'Senza Glutine', value: 'Senza Glutine' },
-                      { label: 'Al forno', value: 'Al forno' },
-                      { label: 'Senza cottura', value: 'Senza cottura' },
+                      { label: t('explore.advanced.all'), value: null },
+                      { label: t('explore.filters.glutenFree'), value: 'Senza Glutine' },
+                      { label: t('explore.filters.baked'), value: 'Al forno' },
+                      { label: t('explore.advanced.noCooking'), value: 'Senza cottura' },
                     ].map(opt => {
                       const isSel = filters.tag === opt.value;
                       return (
@@ -623,7 +703,7 @@ export default function ExploreScreen() {
                     activeOpacity={0.7}
                   >
                     <Ionicons name="refresh-outline" size={15} color="#6E7E72" style={{ marginRight: 4 }} />
-                    <Text style={styles.sheetResetText}>Azzera</Text>
+                    <Text style={styles.sheetResetText}>{t('explore.advanced.reset')}</Text>
                   </TouchableOpacity>
                 ) : (
                   <View />
@@ -635,7 +715,7 @@ export default function ExploreScreen() {
                   activeOpacity={0.85}
                 >
                   <Text style={styles.sheetApplyText}>
-                    Mostra {filteredRecipes.length} {filteredRecipes.length === 1 ? 'ricetta' : 'ricette'}
+                    {t('explore.advanced.showResults', { count: filteredRecipes.length })}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -646,12 +726,14 @@ export default function ExploreScreen() {
         {/* Floating Action Button: Importa AI */}
         {viewMode === 'catalog' && (
           <TouchableOpacity
-            style={styles.fabImportBtn}
+            style={[styles.fabImportBtn, { bottom: fabBottom, right: fabRight }]}
             onPress={() => setShowMagicImporter(true)}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={t('explore.importAi')}
           >
-            <Ionicons name="sparkles" size={17} color="#FFFFFF" style={{ marginRight: 7 }} />
-            <Text style={styles.fabImportText}>Importa AI</Text>
+            <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+            <Text style={styles.fabImportText}>{t('explore.importButton')}</Text>
           </TouchableOpacity>
         )}
 
@@ -659,6 +741,7 @@ export default function ExploreScreen() {
         <MagicRecipeImporterModal
           key={reviewRequest ? `review-${reviewRequest.recipe.updated_at}` : editingRecipe?.id ?? 'new'}
           visible={showMagicImporter}
+          initialUrl={sharedUrl}
           editingRecipe={editingRecipe}
           review={reviewRequest}
           onClose={() => {
@@ -675,7 +758,7 @@ export default function ExploreScreen() {
         {variantBusy && (
           <View style={styles.busyOverlay} pointerEvents="none">
             <ActivityIndicator size="large" color="#34523C" />
-            <Text style={styles.busyText}>Generazione della variante…</Text>
+            <Text style={styles.busyText}>{t('explore.variantGenerating')}</Text>
           </View>
         )}
       </View>
@@ -722,12 +805,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 20,
     right: 20,
-    flexDirection: 'row',
+    width: 75,
+    height: 75,
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#34523C',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 28,
+    borderRadius: 37.5,
     shadowColor: '#1A2E1F',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
@@ -737,8 +821,9 @@ const styles = StyleSheet.create({
   },
   fabImportText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
+    marginTop: 2,
     letterSpacing: 0.2,
   },
   logoBadge: {
@@ -1029,7 +1114,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetScroll: {
-    maxHeight: 340,
+    flexShrink: 1,
   },
   sheetSection: {
     marginBottom: 20,

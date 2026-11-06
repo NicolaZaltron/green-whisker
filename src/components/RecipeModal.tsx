@@ -1,3 +1,4 @@
+import { SheetModal } from './SheetModal';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
@@ -13,7 +14,6 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -54,7 +54,7 @@ interface RecipeModalProps {
   onDeleteVariant?: (variant: Recipe) => void;
 }
 
-const VERSION_LABELS: Record<VariantDiet, string> = { vegetarian: 'Vegetariana', vegan: 'Vegana' };
+const VERSION_LABELS: Record<VariantDiet, string> = { vegetarian: 'recipeDetail.versionVegetarian', vegan: 'recipeDetail.versionVegan' };
 
 export const RecipeModal: React.FC<RecipeModalProps> = ({
   recipe: baseRecipe,
@@ -149,18 +149,18 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const hasExternalLink = /^https?:\/\//i.test(recipe.url ?? '');
   // Badge in base alla dieta della ricetta (non più fisso): onnivora, nessun badge
   const recipeDiet = recipe.diet ?? classifyDiet(recipe);
-  const dietBadge = recipeDiet === 'vegan' ? '100% Vegetale' : recipeDiet === 'vegetarian' ? 'Vegetariana' : null;
+  const dietBadge = recipeDiet === 'vegan' ? t('recipeDetail.dietVegan') : recipeDiet === 'vegetarian' ? t('recipeDetail.versionVegetarian') : null;
 
   const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const selectedDayLabel = selectedDayObj ? `${selectedDayObj.dayName.slice(0, 3)} ${selectedDayObj.dayNumber}` : '';
   const slotNames: Record<MealSlot, string> = {
-    colazione: 'Colazione',
-    spuntino_mattina: 'Spuntino',
-    pranzo: 'Pranzo',
-    spuntino_pomeriggio: 'Spuntino',
-    cena: 'Cena'
+    colazione: 'recipeDetail.slotBreakfast',
+    spuntino_mattina: 'recipeDetail.slotSnack',
+    pranzo: 'recipeDetail.slotLunch',
+    spuntino_pomeriggio: 'recipeDetail.slotSnack',
+    cena: 'recipeDetail.slotDinner'
   };
-  const selectedSlotLabel = slotNames[selectedSlot] || 'Pasto';
+  const selectedSlotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
 
   const showToast = (msg: string) => {
     setFeedbackMessage(msg);
@@ -173,7 +173,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     if (!baseRecipe || !favContext) return;
     const newFav = await favContext.toggleFavorite(baseRecipe.id);
     if (onFavoriteChange) onFavoriteChange(newFav);
-    showToast(newFav ? 'Aggiunta ai Preferiti' : 'Rimossa dai Preferiti');
+    showToast(newFav ? t('recipeDetail.favoriteAdded') : t('recipeDetail.favoriteRemoved'));
   };
 
   const changeServings = (delta: number) => {
@@ -205,7 +205,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     });
 
     // 2. Aggiunge contestualmente gli ingredienti scalati alla lista della spesa
-    const titleWithServings = `${recipe.title} (${currentServings} porz.)`;
+    const titleWithServings = t('recipeDetail.titleWithServings', { title: recipe.title, servings: currentServings });
     const itemsToAdd = scalableIngredients.map(item => {
       const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
       return {
@@ -225,21 +225,21 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
     setShowPlanPicker(false);
     const slotNames: Record<MealSlot, string> = {
-      colazione: 'Colazione',
-      spuntino_mattina: 'Spuntino',
-      pranzo: 'Pranzo',
-      spuntino_pomeriggio: 'Spuntino',
-      cena: 'Cena'
+      colazione: 'recipeDetail.slotBreakfast',
+      spuntino_mattina: 'recipeDetail.slotSnack',
+      pranzo: 'recipeDetail.slotLunch',
+      spuntino_pomeriggio: 'recipeDetail.slotSnack',
+      cena: 'recipeDetail.slotDinner'
     };
-    const slotLabel = slotNames[selectedSlot] || 'Pasto';
-    showToast(`Pianificato per ${slotLabel} e ingredienti aggiunti alla Spesa!`);
+    const slotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
+    showToast(t('recipeDetail.plannedToast', { slot: slotLabel }));
   };
 
   const handleSaveNote = async () => {
     await saveRecipeNote(recipe.id, userNote);
     setIsEditingNote(false);
-    setSavedNoteStatus('Salvata');
-    showToast('Nota personale salvata!');
+    setSavedNoteStatus(t('recipeDetail.noteSaved'));
+    showToast(t('recipeDetail.noteSavedToast'));
     setTimeout(() => setSavedNoteStatus(null), 3000);
   };
 
@@ -265,7 +265,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     const ok = await shareToTelegram(text);
     if (ok) {
       setShowShareModal(false);
-      showToast('Apertura Telegram in corso...');
+      showToast(t('recipeDetail.openingTelegram'));
     }
   };
 
@@ -274,7 +274,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     const ok = await shareToWhatsApp(text);
     if (ok) {
       setShowShareModal(false);
-      showToast('Apertura WhatsApp in corso...');
+      showToast(t('recipeDetail.openingWhatsApp'));
     }
   };
 
@@ -289,7 +289,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     const ok = await copyRecipeToClipboard(text);
     if (ok) {
       setShowShareModal(false);
-      showToast('Ricetta copiata negli appunti!');
+      showToast(t('recipeDetail.copiedToClipboard'));
     }
   };
 
@@ -307,8 +307,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   });
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SheetModal visible={visible} onClose={onClose} fullScreen>
+      <View style={styles.safeArea}>
         <StatusBar barStyle="dark-content" />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
           {/* Dynamic Sticky Top Navigation Bar */}
@@ -317,7 +317,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               style={styles.navBtn}
               onPress={onClose}
               activeOpacity={0.7}
-              accessibilityLabel="Chiudi ricetta"
+              accessibilityLabel={t('recipeDetail.closeRecipe')}
             >
               <Ionicons name="close" size={22} color="#2B332B" />
             </TouchableOpacity>
@@ -340,7 +340,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   setShowJson(true);
                 }}
                 activeOpacity={0.7}
-                accessibilityLabel="Mostra JSON della ricetta"
+                accessibilityLabel={t('recipeDetail.showRecipeJson')}
               >
                 <Ionicons name="code-slash-outline" size={19} color="#4A6B53" />
               </TouchableOpacity>
@@ -349,7 +349,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={styles.navBtn}
                   onPress={() => onEdit(recipe)}
                   activeOpacity={0.7}
-                  accessibilityLabel="Modifica ricetta"
+                  accessibilityLabel={t('recipeDetail.edit')}
                 >
                   <Ionicons name="create-outline" size={19} color="#4A6B53" />
                 </TouchableOpacity>
@@ -358,7 +358,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 style={[styles.navBtn, onEdit && { marginLeft: 8 }]}
                 onPress={() => setShowShareModal(true)}
                 activeOpacity={0.7}
-                accessibilityLabel="Condividi ricetta"
+                accessibilityLabel={t('recipeDetail.shareRecipe')}
               >
                 <Ionicons name="share-social-outline" size={19} color="#4A6B53" />
               </TouchableOpacity>
@@ -366,7 +366,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 style={[styles.navBtn, { marginLeft: 8 }]}
                 onPress={handleToggleFavorite}
                 activeOpacity={0.7}
-                accessibilityLabel="Preferiti"
+                accessibilityLabel={t('recipeDetail.favorites')}
               >
                 <Ionicons
                   name={favorite ? 'heart' : 'heart-outline'}
@@ -379,7 +379,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={[styles.navBtn, { marginLeft: 8 }]}
                   onPress={() => Linking.openURL(recipe.url)}
                   activeOpacity={0.7}
-                  accessibilityLabel="Apri sul web"
+                  accessibilityLabel={t('recipeDetail.openOnWeb')}
                 >
                   <Ionicons name="open-outline" size={19} color="#4A6B53" />
                 </TouchableOpacity>
@@ -393,7 +393,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <View style={styles.versionTabs}>
                 {(['original', ...variants.map(v => v.diet as VariantDiet)] as const).map(value => {
                   const active = value === version;
-                  const label = value === 'original' ? 'Originale' : VERSION_LABELS[value as VariantDiet];
+                  const label = value === 'original' ? t('recipeDetail.versionOriginal') : t(VERSION_LABELS[value as VariantDiet]);
                   return (
                     <TouchableOpacity
                       key={value}
@@ -432,10 +432,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                         )}
                         <Text style={styles.versionActionText} numberOfLines={1}>
                           {isGenerating
-                            ? 'Generazione…'
+                            ? t('recipeDetail.generating')
                             : exists
-                              ? (diet === 'vegan' ? 'Vegana già presente' : 'Vegetariana già presente')
-                              : diet === 'vegan' ? 'Rendi vegana' : 'Rendi vegetariana'}
+                              ? (diet === 'vegan' ? t('recipeDetail.veganExists') : t('recipeDetail.vegetarianExists'))
+                              : diet === 'vegan' ? t('recipeDetail.makeVegan') : t('recipeDetail.makeVegetarian')}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -445,11 +445,11 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <View style={styles.generateRow}>
                   <TouchableOpacity style={styles.generateBtn} onPress={() => onRegenerateVariant?.(activeVariant)} activeOpacity={0.8}>
                     <Ionicons name="refresh" size={14} color="#34523C" />
-                    <Text style={styles.versionActionText} numberOfLines={1}>Rigenera variante (AI)</Text>
+                    <Text style={styles.versionActionText} numberOfLines={1}>{t('recipeDetail.regenerateVariant')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.generateBtn} onPress={() => onDeleteVariant?.(activeVariant)} activeOpacity={0.8}>
                     <Ionicons name="trash-outline" size={14} color="#D9534F" />
-                    <Text style={[styles.versionActionText, { color: '#D9534F' }]} numberOfLines={1}>Elimina variante</Text>
+                    <Text style={[styles.versionActionText, { color: '#D9534F' }]} numberOfLines={1}>{t('recipeDetail.deleteVariant')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -524,19 +524,19 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <View style={styles.metricsBar}>
                 <View style={styles.metricItem}>
                   <Ionicons name="time-outline" size={20} color="#4A6B53" />
-                  <Text style={styles.metricLabel}>TEMPO</Text>
-                  <Text style={styles.metricValue}>{recipe.times.total_minutes} min</Text>
+                  <Text style={styles.metricLabel}>{t('recipeDetail.metricTime')}</Text>
+                  <Text style={styles.metricValue}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
                   <Ionicons name="people-outline" size={20} color="#4A6B53" />
-                  <Text style={styles.metricLabel}>PORZIONI</Text>
+                  <Text style={styles.metricLabel}>{t('recipeDetail.metricServings')}</Text>
                   <Text style={styles.metricValue}>{currentServings}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
                   <Ionicons name="bar-chart-outline" size={20} color="#4A6B53" />
-                  <Text style={styles.metricLabel}>LIVELLO</Text>
+                  <Text style={styles.metricLabel}>{t('recipeDetail.metricLevel')}</Text>
                   <Text style={styles.metricValue}>{recipe.difficulty}</Text>
                 </View>
               </View>
@@ -544,10 +544,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               {/* Dynamic Servings Scaler with Quick Presets */}
               <View style={styles.scalerCard}>
                 <View style={styles.scalerInfo}>
-                  <Text style={styles.scalerTitle}>Dosi e ingredienti</Text>
+                  <Text style={styles.scalerTitle}>{t('recipeDetail.ingredientsTitle')}</Text>
                   <Text style={styles.scalerSub}>
-                    {scale !== 1 ? `Ricalcolate per ${currentServings} porzioni` : (recipe.servings_text || `Per ${baseServings} porzioni`)}
-                    {scale !== 1 && ` (base: ${baseServings})`}
+                    {scale !== 1 ? t('recipeDetail.recalculatedFor', { servings: currentServings }) : (recipe.servings_text || t('recipeDetail.servingsBase', { servings: baseServings }))}
+                    {scale !== 1 && t('recipeDetail.baseServings', { servings: baseServings })}
                   </Text>
                 </View>
 
@@ -561,7 +561,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.presetChipText, currentServings === num && styles.presetChipTextActive]}>
-                          {num}p
+                          {t('recipeDetail.presetShort', { n: num })}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -623,7 +623,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
               {/* Instructions */}
               <View style={styles.instructionsSection}>
-                <Text style={styles.sectionTitle}>Preparazione</Text>
+                <Text style={styles.sectionTitle}>{t('recipeDetail.preparation')}</Text>
                 {(recipe.instructions || []).map((step, idx) => {
                   const isDone = !!completedSteps[idx];
                   return (
@@ -653,7 +653,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <View style={styles.notesHeader}>
                   <View style={styles.notesTitleRow}>
                     <Ionicons name="journal-outline" size={18} color="#4A6B53" />
-                    <Text style={styles.notesTitle}>Le mie note & varianti</Text>
+                    <Text style={styles.notesTitle}>{t('recipeDetail.notesTitle')}</Text>
                   </View>
                   {savedNoteStatus && (
                     <View style={styles.savedNoteBadge}>
@@ -664,7 +664,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 </View>
                 <TextInput
                   style={styles.notesInput}
-                  placeholder="Es. Forno statico a 180° per 25 min; ottima anche con farina d'avena..."
+                  placeholder={t('recipeDetail.notesPlaceholder')}
                   placeholderTextColor="#9EA89F"
                   multiline
                   numberOfLines={3}
@@ -687,7 +687,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                       activeOpacity={0.8}
                     >
                       <Ionicons name="checkmark" size={15} color="#FFF" style={{ marginRight: 4 }} />
-                      <Text style={styles.notesSaveBtnText}>Salva Nota</Text>
+                      <Text style={styles.notesSaveBtnText}>{t('recipeDetail.saveNote')}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -698,7 +698,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <View style={styles.tipsBox}>
                   <View style={styles.tipsHeader}>
                     <Ionicons name="bulb-outline" size={20} color="#4A6B53" />
-                    <Text style={styles.tipsTitle}>I consigli per te</Text>
+                    <Text style={styles.tipsTitle}>{t('recipeDetail.tipsTitle')}</Text>
                   </View>
                   {recipe.tips.map((sugg, idx) => (
                     <Text key={idx} style={styles.tipsText}>
@@ -726,7 +726,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
           {showPlanPicker && (
             <View style={styles.stickyPlanDrawer}>
               <View style={styles.planDrawerHeader}>
-                <Text style={styles.planDrawerTitle}>Scegli quando cucinare:</Text>
+                <Text style={styles.planDrawerTitle}>{t('recipeDetail.choosePlanTime')}</Text>
                 <TouchableOpacity
                   onPress={() => setShowPlanPicker(false)}
                   style={styles.planDrawerCloseBtn}
@@ -743,7 +743,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 >
                   <Ionicons name="cafe-outline" size={13} color={selectedSlot === 'colazione' ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'colazione' && styles.slotToggleTextActive]}>
-                    Colazione
+                    {t('recipeDetail.slotBreakfast')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -752,7 +752,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 >
                   <Ionicons name="sunny-outline" size={13} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
-                    Pranzo
+                    {t('recipeDetail.slotLunch')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -761,7 +761,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 >
                   <Ionicons name="nutrition-outline" size={13} color={(selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleTextActive]}>
-                    Spuntino
+                    {t('recipeDetail.slotSnack')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -770,7 +770,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 >
                   <Ionicons name="moon-outline" size={13} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
-                    Cena
+                    {t('recipeDetail.slotDinner')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -835,8 +835,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               />
               <Text style={styles.stickyPlanBtnText}>
                 {showPlanPicker
-                  ? `Conferma nel Piano (${selectedDayLabel} • ${selectedSlotLabel})`
-                  : `Aggiungi al Piano (${currentServings} porz.)`}
+                  ? t('recipeDetail.confirmInPlan', { day: selectedDayLabel, slot: selectedSlotLabel })
+                  : t('recipeDetail.addToPlan', { servings: currentServings })}
               </Text>
               {!showPlanPicker && (
                 <Ionicons
@@ -855,20 +855,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
           <View style={styles.jsonBackdrop}>
             <View style={styles.jsonCard}>
               <View style={styles.jsonHeader}>
-                <Text style={styles.jsonTitle}>JSON della ricetta</Text>
-                <TouchableOpacity onPress={() => setShowJson(false)} hitSlop={12} accessibilityLabel="Chiudi">
+                <Text style={styles.jsonTitle}>{t('recipeDetail.recipeJson')}</Text>
+                <TouchableOpacity onPress={() => setShowJson(false)} hitSlop={12} accessibilityLabel={t('recipeDetail.close')}>
                   <Ionicons name="close" size={22} color="#2B332B" />
                 </TouchableOpacity>
               </View>
-              <TextInput
-                style={styles.jsonText}
-                value={JSON.stringify(recipe, null, 2)}
-                editable={false}
-                multiline
-                selectTextOnFocus
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <ScrollView style={styles.jsonScroll} contentContainerStyle={styles.jsonScrollContent}>
+                <Text selectable style={styles.jsonText}>{JSON.stringify(recipe, null, 2)}</Text>
+              </ScrollView>
               <TouchableOpacity
                 style={styles.jsonCopyBtn}
                 onPress={async () => {
@@ -878,7 +872,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 activeOpacity={0.85}
               >
                 <Ionicons name={jsonCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
-                <Text style={styles.jsonCopyText}>{jsonCopied ? 'Copiato' : 'Copia negli appunti'}</Text>
+                <Text style={styles.jsonCopyText}>{jsonCopied ? t('recipeDetail.copied') : t('recipeDetail.copyToClipboard')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -901,9 +895,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             >
               <View style={styles.shareSheetHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.shareSheetTitle}>Condividi Ricetta</Text>
+                  <Text style={styles.shareSheetTitle}>{t('recipeDetail.shareRecipeTitle')}</Text>
                   <Text style={styles.shareSheetSub} numberOfLines={1}>
-                    {recipe.title} • {currentServings} {currentServings === 1 ? 'porzione' : 'porzioni'}
+                    {t('recipeDetail.shareSubtitle', { title: recipe.title, count: currentServings })}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -928,7 +922,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     color={includeNotesInShare ? '#4A6B53' : '#7E8B80'}
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={styles.includeNotesText}>Includi le mie note personali</Text>
+                  <Text style={styles.includeNotesText}>{t('recipeDetail.includeNotes')}</Text>
                 </TouchableOpacity>
               )}
 
@@ -945,7 +939,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   </View>
                   <View style={styles.shareOptionTextCol}>
                     <Text style={[styles.shareOptionTitle, { color: '#0E73A6' }]}>Telegram</Text>
-                    <Text style={styles.shareOptionSub}>Invia in chat o canale Telegram</Text>
+                    <Text style={styles.shareOptionSub}>{t('recipeDetail.telegramSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#2AABEE" />
                 </TouchableOpacity>
@@ -961,7 +955,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   </View>
                   <View style={styles.shareOptionTextCol}>
                     <Text style={[styles.shareOptionTitle, { color: '#1B8742' }]}>WhatsApp</Text>
-                    <Text style={styles.shareOptionSub}>Condividi con contatti o gruppi</Text>
+                    <Text style={styles.shareOptionSub}>{t('recipeDetail.whatsappSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#25D366" />
                 </TouchableOpacity>
@@ -976,8 +970,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     <Ionicons name="share-outline" size={19} color="#FFF" />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#2C4A34' }]}>Altre Applicazioni...</Text>
-                    <Text style={styles.shareOptionSub}>Menu di condivisione di sistema</Text>
+                    <Text style={[styles.shareOptionTitle, { color: '#2C4A34' }]}>{t('recipeDetail.otherApps')}</Text>
+                    <Text style={styles.shareOptionSub}>{t('recipeDetail.systemShareSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#4A6B53" />
                 </TouchableOpacity>
@@ -992,8 +986,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     <Ionicons name="copy-outline" size={19} color="#FFF" />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#37474F' }]}>Copia negli Appunti</Text>
-                    <Text style={styles.shareOptionSub}>Testo formattato con ingredienti e dosi</Text>
+                    <Text style={[styles.shareOptionTitle, { color: '#37474F' }]}>{t('recipeDetail.copyRecipeTitle')}</Text>
+                    <Text style={styles.shareOptionSub}>{t('recipeDetail.copyRecipeSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#607D8B" />
                 </TouchableOpacity>
@@ -1001,8 +995,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             </View>
           </TouchableOpacity>
         </Modal>
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </SheetModal>
   );
 };
 
@@ -1011,9 +1005,10 @@ const styles = StyleSheet.create({
   jsonCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: '85%' },
   jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   jsonTitle: { fontSize: 16, fontWeight: '800', color: '#1A2E1F' },
+  // Area scorrevole con altezza limitata dalla card: il JSON scorre dentro di essa
+  jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: '#F7F9F6', borderRadius: 10 },
+  jsonScrollContent: { padding: 10 },
   jsonText: {
-    flexGrow: 0,
-    minHeight: 280,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     fontSize: 11,
     color: '#1A2E1F',

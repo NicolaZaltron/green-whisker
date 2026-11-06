@@ -1,6 +1,6 @@
+import { SheetModal } from './SheetModal';
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -109,8 +109,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
       : t('aiSettings.noKey');
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SheetModal visible={visible} onClose={close} fullScreen>
+      <View style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('aiSettings.title')}</Text>
           <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
@@ -237,8 +237,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
             </TouchableOpacity>
           ) : null}
         </ScrollView>
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </SheetModal>
   );
 }
 

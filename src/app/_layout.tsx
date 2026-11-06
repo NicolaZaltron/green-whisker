@@ -9,24 +9,26 @@ import { loadCatalog } from '../services/recipeCatalog';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
 import '../i18n';
+import { useTranslation } from 'react-i18next';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  const { t } = useTranslation();
   return (
     <SafeAreaView style={styles.errorContainer}>
       <View style={styles.errorCard}>
         <View style={styles.errorIconCircle}>
           <Ionicons name="alert-circle-outline" size={48} color="#D9534F" />
         </View>
-        <Text style={styles.errorTitle}>Qualcosa è andato storto</Text>
+        <Text style={styles.errorTitle}>{t('errors.somethingWentWrong')}</Text>
         <Text style={styles.errorMessage}>
-          {error?.message || 'Si è verificato un errore inaspettato durante il caricamento.'}
+          {error?.message || t('errors.unexpectedLoading')}
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={retry} activeOpacity={0.8}>
           <Ionicons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text style={styles.retryButtonText}>Riprova</Text>
+          <Text style={styles.retryButtonText}>{t('errors.retry')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

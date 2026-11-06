@@ -1,3 +1,4 @@
+import { SheetModal } from './SheetModal';
 import React, { useState } from 'react';
 import {
   StyleSheet,
@@ -6,7 +7,6 @@ import {
   View,
   TextInput,
   TouchableOpacity,
-  Modal,
   ScrollView,
   ActivityIndicator,
   Alert,
@@ -14,7 +14,6 @@ import {
   Linking,
   Platform
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -45,14 +44,16 @@ interface MagicRecipeImporterModalProps {
   onRecipeSaved: (recipe: Recipe, variantDiets?: VariantDiet[]) => void;
   editingRecipe?: Recipe | null;
   review?: ReviewRequest | null;
+  // Link ricevuto dalla condivisione: precompila il campo testo senza avviare l'estrazione
+  initialUrl?: string;
 }
 
 const CATEGORIES = [...MACRO_CATEGORIES];
 
 const SLOTS: { label: string; value: SlotConsigliato }[] = [
-  { label: 'Pranzo / Cena', value: 'pranzo_cena' },
-  { label: 'Colazione', value: 'colazione' },
-  { label: 'Spuntino', value: 'spuntino' },
+  { label: 'recipeImporter.slots.lunchDinner', value: 'pranzo_cena' },
+  { label: 'recipeImporter.slots.breakfast', value: 'colazione' },
+  { label: 'recipeImporter.slots.snack', value: 'spuntino' },
 ];
 
 interface CapturedPage {
@@ -62,10 +63,10 @@ interface CapturedPage {
 }
 
 const VARIANT_SUMMARY: Record<'none' | 'vegetarian' | 'vegan' | 'both', string> = {
-  none: 'Verrà salvata solo la ricetta originale, così com\'è.',
-  vegetarian: 'Originale più una versione vegetariana, da verificare prima del salvataggio.',
-  vegan: 'Originale più una versione vegana, da verificare prima del salvataggio.',
-  both: 'Originale più versione vegetariana e vegana, da verificare una alla volta.',
+  none: 'recipeImporter.variantSummary.none',
+  vegetarian: 'recipeImporter.variantSummary.vegetarian',
+  vegan: 'recipeImporter.variantSummary.vegan',
+  both: 'recipeImporter.variantSummary.both',
 };
 
 export function MagicRecipeImporterModal({
@@ -74,6 +75,7 @@ export function MagicRecipeImporterModal({
   onRecipeSaved,
   editingRecipe,
   review,
+  initialUrl,
 }: MagicRecipeImporterModalProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'text' | 'photo'>('text');
@@ -168,7 +170,7 @@ export function MagicRecipeImporterModal({
         }
       }
     } catch (e: any) {
-      Alert.alert('Errore', 'Impossibile accedere alla galleria: ' + e.message);
+      Alert.alert(t('recipeImporter.errorTitle'), t('recipeImporter.galleryError', { message: e.message }));
     }
   }
 
@@ -176,7 +178,7 @@ export function MagicRecipeImporterModal({
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permesso negato', 'Abilita i permessi della fotocamera per scattare foto.');
+        Alert.alert(t('recipeImporter.cameraPermissionTitle'), t('recipeImporter.cameraPermissionMessage'));
         return;
       }
 
@@ -197,7 +199,7 @@ export function MagicRecipeImporterModal({
         setErrorMsg(null);
       }
     } catch (e: any) {
-      Alert.alert('Errore', 'Impossibile aprire la fotocamera: ' + e.message);
+      Alert.alert(t('recipeImporter.errorTitle'), t('recipeImporter.cameraError', { message: e.message }));
     }
   }
 
@@ -207,12 +209,12 @@ export function MagicRecipeImporterModal({
 
   async function handleStartParsing() {
     if (activeTab === 'text' && !inputText.trim()) {
-      setErrorMsg('Inserisci o incolla il testo o il link della ricetta.');
+      setErrorMsg(t('recipeImporter.enterTextOrLink'));
       return;
     }
 
     if (activeTab === 'photo' && capturedPages.length === 0) {
-      setErrorMsg('Scatta o seleziona almeno una pagina o foto della ricetta.');
+      setErrorMsg(t('recipeImporter.addPhotoFirst'));
       return;
     }
 
@@ -220,8 +222,8 @@ export function MagicRecipeImporterModal({
     setErrorMsg(null);
     setLoadingMessage(
       activeTab === 'photo' && capturedPages.length > 1
-        ? `Analisi di ${capturedPages.length} pagine del libro con AI...`
-        : 'Analisi della ricetta in corso...'
+        ? t('recipeImporter.analyzingPages', { count: capturedPages.length })
+        : t('recipeImporter.analyzing')
     );
 
     try {
@@ -244,7 +246,7 @@ export function MagicRecipeImporterModal({
 
       loadRecipeIntoForm(recipe, activeTab === 'photo' && capturedPages[0] ? capturedPages[0].uri : '');
     } catch (e: any) {
-      setErrorMsg(e.message || 'Errore durante l\'estrazione della ricetta.');
+      setErrorMsg(e.message || t('recipeImporter.extractError'));
     } finally {
       setLoading(false);
     }
@@ -274,7 +276,7 @@ export function MagicRecipeImporterModal({
 
   async function handleSaveRecipe() {
     if (!editTitle.trim()) {
-      Alert.alert('Attenzione', 'Il titolo non può essere vuoto.');
+      Alert.alert(t('recipeImporter.attentionTitle'), t('recipeImporter.titleEmpty'));
       return;
     }
 
@@ -284,7 +286,7 @@ export function MagicRecipeImporterModal({
       .filter(Boolean);
 
     if (ings.length === 0) {
-      Alert.alert('Attenzione', 'Inserisci almeno un ingrediente.');
+      Alert.alert(t('recipeImporter.attentionTitle'), t('recipeImporter.ingredientRequired'));
       return;
     }
 
@@ -364,7 +366,7 @@ export function MagicRecipeImporterModal({
       onClose();
       onRecipeSaved(finalRecipe, editingRecipe ? [] : wantedVariants);
     } catch (e: any) {
-      Alert.alert('Errore di salvataggio', e.message);
+      Alert.alert(t('recipeImporter.saveErrorTitle'), e.message);
     }
   }
 
@@ -375,7 +377,7 @@ export function MagicRecipeImporterModal({
       await review.onRetry(retryInstructions.trim());
       setRetryInstructions('');
     } catch (e: any) {
-      Alert.alert('Errore', e.message || 'Impossibile generare di nuovo la ricetta.');
+      Alert.alert(t('recipeImporter.errorTitle'), e.message || t('recipeImporter.retryError'));
     } finally {
       setRetrying(false);
     }
@@ -404,9 +406,18 @@ export function MagicRecipeImporterModal({
     loadRecipeIntoForm(formSource);
   }
 
+  // Link condiviso: passa alla scheda testo e lo inserisce una volta per valore
+  const [appliedInitialUrl, setAppliedInitialUrl] = useState<string | null>(null);
+  if (visible && initialUrl && initialUrl !== appliedInitialUrl) {
+    setAppliedInitialUrl(initialUrl);
+    setActiveTab('text');
+    setInputText(initialUrl);
+    setErrorMsg(null);
+  }
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={false} onRequestClose={onClose}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SheetModal visible={visible} onClose={onClose} fullScreen>
+      <View style={styles.safeArea}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -419,12 +430,12 @@ export function MagicRecipeImporterModal({
               </View>
               <View>
                 <Text style={styles.headerTitle}>
-                  {review ? review.title : editingRecipe ? 'Modifica ricetta' : 'Magic Importer AI'}
+                  {review ? review.title : editingRecipe ? t('recipeImporter.editTitle') : 'Magic Importer AI'}
                 </Text>
                 <Text style={styles.headerSubtitle}>
                   {review
-                    ? 'Verifica la ricetta prima di salvarla'
-                    : editingRecipe ? 'Le modifiche sostituiscono la versione salvata' : 'Importa da link web, testo o foto'}
+                    ? t('recipeImporter.verifyBeforeSave')
+                    : editingRecipe ? t('recipeImporter.editSubtitle') : t('recipeImporter.importSubtitle')}
                 </Text>
               </View>
             </View>
@@ -449,7 +460,7 @@ export function MagicRecipeImporterModal({
                     color={activeTab === 'text' ? '#34523C' : '#7A8A7E'}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'text' && styles.tabLabelActive]}>
-                    Testo o Link
+                    {t('recipeImporter.tabText')}
                   </Text>
                 </TouchableOpacity>
 
@@ -464,7 +475,7 @@ export function MagicRecipeImporterModal({
                     color={activeTab === 'photo' ? '#34523C' : '#7A8A7E'}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'photo' && styles.tabLabelActive]}>
-                    Foto Libro
+                    {t('recipeImporter.tabPhoto')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -481,20 +492,20 @@ export function MagicRecipeImporterModal({
               {activeTab === 'text' && (
                 <View style={styles.inputSection}>
                   <View style={styles.inputHeaderRow}>
-                    <Text style={styles.sectionTitle}>Incolla Testo o Link della Ricetta</Text>
+                    <Text style={styles.sectionTitle}>{t('recipeImporter.pasteTextTitle')}</Text>
                     <TouchableOpacity style={styles.pasteButton} onPress={handlePasteFromClipboard} activeOpacity={0.75}>
                       <Ionicons name="clipboard-outline" size={13} color="#34523C" />
-                      <Text style={styles.pasteButtonText}>Incolla</Text>
+                      <Text style={styles.pasteButtonText}>{t('recipeImporter.paste')}</Text>
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.sectionSubtitle}>
-                    Incolla link di blog (GialloZafferano, Vegolosi, ecc.), trascrizioni di reel, o testi disordinati inviati in chat.
+                    {t('recipeImporter.pasteHint')}
                   </Text>
                   <TextInput
                     style={styles.textAreaInput}
                     multiline
                     numberOfLines={8}
-                    placeholder="Es. https://blogcucina.it/ricetta-tofu o incollami ingredienti e procedimento..."
+                    placeholder={t('recipeImporter.pastePlaceholder')}
                     placeholderTextColor="#9CA89E"
                     value={inputText}
                     onChangeText={setInputText}
@@ -507,7 +518,7 @@ export function MagicRecipeImporterModal({
               {activeTab === 'photo' && (
                 <View style={styles.inputSection}>
                   <View style={styles.inputHeaderRow}>
-                    <Text style={styles.sectionTitle}>Pagine del Libro o Ricettario</Text>
+                    <Text style={styles.sectionTitle}>{t('recipeImporter.bookPagesTitle')}</Text>
                     {capturedPages.length > 0 && (
                       <TouchableOpacity
                         style={styles.clearPagesBtn}
@@ -515,12 +526,12 @@ export function MagicRecipeImporterModal({
                         activeOpacity={0.7}
                       >
                         <Ionicons name="trash-outline" size={13} color="#C0392B" />
-                        <Text style={styles.clearPagesText}>Rimuovi tutte</Text>
+                        <Text style={styles.clearPagesText}>{t('recipeImporter.removeAll')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                   <Text style={styles.sectionSubtitle}>
-                    Scatta o carica le pagine del libro. Se la ricetta occupa più di una facciata (es. ingredienti su una e procedimento sull'altra), puoi aggiungere fino a 5 pagine consecutive!
+                    {t('recipeImporter.photoHint')}
                   </Text>
 
                   {capturedPages.length > 0 ? (
@@ -539,7 +550,7 @@ export function MagicRecipeImporterModal({
                               transition={200}
                             />
                             <View style={styles.pageBadge}>
-                              <Text style={styles.pageBadgeText}>Pagina {index + 1}</Text>
+                              <Text style={styles.pageBadgeText}>{t('recipeImporter.pageBadge', { n: index + 1 })}</Text>
                             </View>
                             <TouchableOpacity
                               style={styles.pageDeleteBtn}
@@ -562,7 +573,7 @@ export function MagicRecipeImporterModal({
                             activeOpacity={0.75}
                           >
                             <Ionicons name="camera-outline" size={18} color="#34523C" />
-                            <Text style={styles.appendPageBtnText}>+ Scatta Pag. {capturedPages.length + 1}</Text>
+                            <Text style={styles.appendPageBtnText}>{t('recipeImporter.takePageN', { n: capturedPages.length + 1 })}</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -571,17 +582,19 @@ export function MagicRecipeImporterModal({
                             activeOpacity={0.75}
                           >
                             <Ionicons name="images-outline" size={18} color="#34523C" />
-                            <Text style={styles.appendPageBtnText}>+ Dalla Galleria</Text>
+                            <Text style={styles.appendPageBtnText}>{t('recipeImporter.pickFromGallery')}</Text>
                           </TouchableOpacity>
                         </View>
                       )}
 
                       <View style={styles.pagesHintBox}>
-                        <Ionicons name="information-circle-outline" size={16} color="#4A6B53" />
+                        <View style={styles.bannerIconSlot}>
+                          <Ionicons name="information-circle-outline" size={16} color="#4A6B53" />
+                        </View>
                         <Text style={styles.pagesHintText}>
                           {capturedPages.length === 1
-                            ? '1 pagina acquisita. Se la ricetta continua, tocca "+ Scatta Pag. 2" per aggiungere la continuazione!'
-                            : `${capturedPages.length} pagine acquisite. L'AI leggerà tutte le pagine insieme unificando ingredienti e procedimento.`}
+                            ? t('recipeImporter.onePageHint')
+                            : t('recipeImporter.pagesHint', { count: capturedPages.length })}
                         </Text>
                       </View>
                     </View>
@@ -589,14 +602,14 @@ export function MagicRecipeImporterModal({
                     <View style={styles.photoActionsRow}>
                       <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto} activeOpacity={0.75}>
                         <Ionicons name="camera-outline" size={30} color="#34523C" />
-                        <Text style={styles.photoActionLabel}>Scatta 1ª Pagina</Text>
-                        <Text style={styles.photoActionSub}>con fotocamera</Text>
+                        <Text style={styles.photoActionLabel}>{t('recipeImporter.takeFirstPage')}</Text>
+                        <Text style={styles.photoActionSub}>{t('recipeImporter.withCamera')}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage} activeOpacity={0.75}>
                         <Ionicons name="images-outline" size={30} color="#34523C" />
-                        <Text style={styles.photoActionLabel}>Scegli da Galleria</Text>
-                        <Text style={styles.photoActionSub}>anche pagine multiple</Text>
+                        <Text style={styles.photoActionLabel}>{t('recipeImporter.chooseFromGallery')}</Text>
+                        <Text style={styles.photoActionSub}>{t('recipeImporter.multiPages')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -607,8 +620,8 @@ export function MagicRecipeImporterModal({
               <View style={styles.dietCard}>
                 <DietSwitchRow
                   icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? '#FFFFFF' : '#34523C'} />}
-                  title="Versione vegetariana"
-                  hint="Niente carne né pesce"
+                  title={t('recipeImporter.vegetarianVersion')}
+                  hint={t('recipeImporter.vegetarianHint')}
                   value={wantVegetarian}
                   disabled={loading}
                   onValueChange={setWantVegetarian}
@@ -616,15 +629,17 @@ export function MagicRecipeImporterModal({
                 <View style={styles.dietDivider} />
                 <DietSwitchRow
                   icon={<Ionicons name="leaf" size={18} color={wantVegan ? '#FFFFFF' : '#34523C'} />}
-                  title="Versione vegana"
-                  hint="Nessun ingrediente animale"
+                  title={t('recipeImporter.veganVersion')}
+                  hint={t('recipeImporter.veganHint')}
                   value={wantVegan}
                   disabled={loading}
                   onValueChange={setWantVegan}
                 />
                 <View style={styles.dietSummary}>
-                  <Ionicons name="information-circle-outline" size={16} color="#34523C" />
-                  <Text style={styles.dietSummaryText}>{VARIANT_SUMMARY[variantSummaryKey]}</Text>
+                  <View style={styles.bannerIconSlot}>
+                    <Ionicons name="information-circle-outline" size={16} color="#34523C" />
+                  </View>
+                  <Text style={styles.dietSummaryText}>{t(VARIANT_SUMMARY[variantSummaryKey])}</Text>
                 </View>
               </View>
 
@@ -645,8 +660,8 @@ export function MagicRecipeImporterModal({
                     <Ionicons name="sparkles" size={18} color="#FFFFFF" />
                     <Text style={styles.parseButtonText}>
                       {activeTab === 'photo' && capturedPages.length > 1
-                        ? `Estrai Ricetta da ${capturedPages.length} Pagine con AI`
-                        : 'Estrai Ricetta con AI'}
+                        ? t('recipeImporter.extractFromPages', { count: capturedPages.length })
+                        : t('recipeImporter.extractRecipe')}
                     </Text>
                   </View>
                 )}
@@ -657,12 +672,12 @@ export function MagicRecipeImporterModal({
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.successBanner}>
                 <Ionicons name="checkmark-circle" size={20} color="#34523C" />
-                <Text style={styles.successBannerText}>Ricetta estratta con successo! Rivedi o modifica prima di salvare.</Text>
+                <Text style={styles.successBannerText}>{t('recipeImporter.extractSuccess')}</Text>
               </View>
 
               {/* Titolo */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Titolo</Text>
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.title')}</Text>
                 <TextInput
                   style={styles.singleLineInput}
                   value={editTitle}
@@ -672,7 +687,7 @@ export function MagicRecipeImporterModal({
 
               {/* Categoria */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Categoria</Text>
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.category')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
                   {CATEGORIES.map(cat => (
                     <TouchableOpacity
@@ -695,7 +710,7 @@ export function MagicRecipeImporterModal({
               {/* Sottocategoria */}
               {RECIPE_TAXONOMY[editCategory as MacroCategory] && (
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>Sottocategoria</Text>
+                  <Text style={styles.fieldLabel}>{t('recipeImporter.fields.subcategory')}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
                     {RECIPE_TAXONOMY[editCategory as MacroCategory].map(sub => (
                       <TouchableOpacity
@@ -714,23 +729,23 @@ export function MagicRecipeImporterModal({
 
               {/* Slot Planner */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Slot Consigliato nel Planner</Text>
-                <SegmentedSelector options={SLOTS} value={editSlot} onChange={setEditSlot} />
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.plannerSlot')}</Text>
+                <SegmentedSelector options={SLOTS.map(s => ({ ...s, label: t(s.label) }))} value={editSlot} onChange={setEditSlot} />
               </View>
 
               {/* Dieta: calcolata dagli ingredienti, correggibile a mano */}
               <View style={styles.fieldGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Dieta</Text>
+                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.diet')}</Text>
                   {dietChosenByHand ? (
-                    <Text style={{ fontSize: 11, color: '#5E6D60' }}>Scelta a mano: non verrà ricalcolata.</Text>
+                    <Text style={{ fontSize: 11, color: '#5E6D60' }}>{t('recipeImporter.fields.dietByHand')}</Text>
                   ) : null}
                 </View>
                 <SegmentedSelector
                   options={[
-                    { value: 'omnivore' as RecipeDiet, label: 'Onnivora' },
-                    { value: 'vegetarian' as RecipeDiet, label: 'Vegetariana' },
-                    { value: 'vegan' as RecipeDiet, label: 'Vegana' },
+                    { value: 'omnivore' as RecipeDiet, label: t('recipeImporter.diet.omnivore') },
+                    { value: 'vegetarian' as RecipeDiet, label: t('recipeImporter.diet.vegetarian') },
+                    { value: 'vegan' as RecipeDiet, label: t('recipeImporter.diet.vegan') },
                   ]}
                   value={editDiet}
                   onChange={value => {
@@ -743,7 +758,7 @@ export function MagicRecipeImporterModal({
               {/* Row: Porzioni, Tempo, Difficoltà */}
               <View style={styles.rowThree}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Porzioni</Text>
+                  <Text style={styles.fieldLabel}>{t('recipeImporter.fields.servings')}</Text>
                   <TextInput
                     style={styles.singleLineInput}
                     value={editServings}
@@ -752,7 +767,7 @@ export function MagicRecipeImporterModal({
                   />
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1, marginHorizontal: 8 }]}>
-                  <Text style={styles.fieldLabel}>Tempo (min)</Text>
+                  <Text style={styles.fieldLabel}>{t('recipeImporter.fields.time')}</Text>
                   <TextInput
                     style={styles.singleLineInput}
                     value={editTotalTime}
@@ -761,9 +776,9 @@ export function MagicRecipeImporterModal({
                   />
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={styles.fieldLabel}>Difficoltà</Text>
+                  <Text style={styles.fieldLabel}>{t('recipeImporter.fields.difficulty')}</Text>
                   <SegmentedSelector
-                    options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ value: d, label: d[0] }))}
+                    options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ value: d, label: t(`recipeImporter.difficultyShort.${d}`) }))}
                     value={editDifficulty}
                     onChange={setEditDifficulty}
                   />
@@ -773,8 +788,8 @@ export function MagicRecipeImporterModal({
               {/* Sostituzioni fatte dall'AI: solo lettura, per controllarle */}
               {substitutions.length > 0 && (
                 <View style={styles.substitutionsCard}>
-                  <Text style={styles.substitutionsTitle}>Sostituzioni</Text>
-                  <Text style={styles.substitutionsNote}>Ingredienti sostituiti dall&apos;AI: controllali.</Text>
+                  <Text style={styles.substitutionsTitle}>{t('recipeImporter.substitutions')}</Text>
+                  <Text style={styles.substitutionsNote}>{t('recipeImporter.substitutionsNote')}</Text>
                   {substitutions.map((s, index) => (
                     <View key={`${s.from}-${index}`} style={styles.substitutionRow}>
                       <Text style={styles.substitutionFrom}>{s.from}</Text>
@@ -788,7 +803,7 @@ export function MagicRecipeImporterModal({
               {/* Immagine URL */}
               <View style={styles.fieldGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>Link Immagine (opzionale)</Text>
+                  <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.imageLink')}</Text>
                   {editImageUrl ? (
                     <TouchableOpacity
                       onPress={() => {
@@ -797,7 +812,7 @@ export function MagicRecipeImporterModal({
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600' }}>Rimuovi</Text>
+                      <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600' }}>{t('recipeImporter.remove')}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -816,11 +831,11 @@ export function MagicRecipeImporterModal({
                 <View style={styles.imageActionsRow}>
                   <TouchableOpacity style={styles.imageActionBtn} onPress={openGoogleImageSearch} activeOpacity={0.75}>
                     <Ionicons name="search-outline" size={14} color="#34523C" />
-                    <Text style={styles.imageActionText}>Cerca su Google Immagini</Text>
+                    <Text style={styles.imageActionText}>{t('recipeImporter.searchGoogleImages')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.imageActionBtn} onPress={handlePasteImageUrl} activeOpacity={0.75}>
                     <Ionicons name="clipboard-outline" size={14} color="#34523C" />
-                    <Text style={styles.imageActionText}>Incolla link</Text>
+                    <Text style={styles.imageActionText}>{t('recipeImporter.pasteLink')}</Text>
                   </TouchableOpacity>
                 </View>
                 {editImageUrl && !imageLoadError ? (
@@ -838,7 +853,7 @@ export function MagicRecipeImporterModal({
                   <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Ionicons name="image-outline" size={18} color="#ef4444" />
                     <Text style={{ fontSize: 12, color: '#b91c1c', flex: 1 }}>
-                      Anteprima non disponibile per questo link.
+                      {t('recipeImporter.previewUnavailable')}
                     </Text>
                   </View>
                 ) : null}
@@ -846,7 +861,7 @@ export function MagicRecipeImporterModal({
 
               {/* Ingredienti */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Ingredienti (uno per riga)</Text>
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.ingredients')}</Text>
                 <TextInput
                   style={[styles.textAreaInput, { minHeight: 140 }]}
                   multiline
@@ -858,7 +873,7 @@ export function MagicRecipeImporterModal({
 
               {/* Istruzioni */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Istruzioni (un passaggio per riga)</Text>
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.instructions')}</Text>
                 <TextInput
                   style={[styles.textAreaInput, { minHeight: 140 }]}
                   multiline
@@ -870,7 +885,7 @@ export function MagicRecipeImporterModal({
 
               {/* Consigli */}
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>Consigli / Suggerimenti Chef</Text>
+                <Text style={styles.fieldLabel}>{t('recipeImporter.fields.tips')}</Text>
                 <TextInput
                   style={[styles.textAreaInput, { minHeight: 80 }]}
                   multiline
@@ -884,13 +899,13 @@ export function MagicRecipeImporterModal({
                 <View style={styles.fieldGroup}>
                   {review.recipe.needs_review ? (
                     <Text style={styles.reviewWarning}>
-                      Gli ingredienti contengono ancora elementi non compatibili con questa dieta: controllali.
+                      {t('recipeImporter.needsReviewWarning')}
                     </Text>
                   ) : null}
-                  <Text style={styles.fieldLabel}>Istruzioni per riprovare (opzionale)</Text>
+                  <Text style={styles.fieldLabel}>{t('recipeImporter.retryInstructions')}</Text>
                   <TextInput
                     style={styles.singleLineInput}
-                    placeholder="Es. non usare il tofu"
+                    placeholder={t('recipeImporter.retryPlaceholder')}
                     placeholderTextColor="#94a3b8"
                     value={retryInstructions}
                     onChangeText={setRetryInstructions}
@@ -903,7 +918,7 @@ export function MagicRecipeImporterModal({
                     activeOpacity={0.75}
                   >
                     <Ionicons name="refresh" size={14} color="#34523C" />
-                    <Text style={styles.imageActionText}>{retrying ? 'Generazione in corso…' : 'Riprova'}</Text>
+                    <Text style={styles.imageActionText}>{retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -913,27 +928,27 @@ export function MagicRecipeImporterModal({
                 {review ? (
                   <TouchableOpacity style={styles.resetButton} onPress={discardReview} activeOpacity={0.75}>
                     <Ionicons name="trash-outline" size={18} color="#556459" />
-                    <Text style={styles.resetButtonText}>Scarta</Text>
+                    <Text style={styles.resetButtonText}>{t('recipeImporter.discard')}</Text>
                   </TouchableOpacity>
                 ) : !editingRecipe && (
                   <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
                     <Ionicons name="arrow-back" size={18} color="#556459" />
-                    <Text style={styles.resetButtonText}>Ricomincia</Text>
+                    <Text style={styles.resetButtonText}>{t('recipeImporter.restart')}</Text>
                   </TouchableOpacity>
                 )}
 
                 <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
                   <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
                   <Text style={styles.saveRecipeBtnText}>
-                    {review ? 'Salva variante' : wantedVariants.length > 0 && !editingRecipe ? 'Salva e verifica le varianti' : 'Salva nel Ricettario'}
+                    {review ? t('recipeImporter.saveVariant') : wantedVariants.length > 0 && !editingRecipe ? t('recipeImporter.saveAndCheckVariants') : t('recipeImporter.saveToRecipeBook')}
                   </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
           )}
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+      </View>
+    </SheetModal>
   );
 }
 
@@ -1240,9 +1255,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#34523C',
   },
+  // Icona allineata alla prima riga di testo: stessa altezza della riga (lineHeight 17)
+  bannerIconSlot: {
+    height: 17,
+    justifyContent: 'center',
+  },
   pagesHintBox: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
     backgroundColor: '#EAF0EB',
     paddingHorizontal: 12,
@@ -1253,7 +1273,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: '#26422E',
-    lineHeight: 16,
+    lineHeight: 17,
     fontWeight: '500',
   },
   parseButton: {
