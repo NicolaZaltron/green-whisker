@@ -3,10 +3,10 @@ import {
   StyleSheet,
   Text,
   View,
-  FlatList,
   TextInput,
   TouchableOpacity
 } from 'react-native';
+import { TabFlatList } from '../../components/TabScrollViews';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
@@ -38,6 +38,8 @@ export default function FavoritesScreen() {
   // Mappa di tutte le ricette del catalogo, originali e varianti
   const fullRecipeMap = useMemo(() => {
     return new Map<string, Recipe>([...catalogRecipes, ...catalogVariants].map(r => [r.id, r]));
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogVersion]);
 
   const favoriteRecipes = useMemo(() => {
@@ -89,9 +91,7 @@ export default function FavoritesScreen() {
             <View>
               <Text style={styles.title}>{t('favorites.title')}</Text>
               <Text style={styles.subtitle}>
-                {favoriteRecipes.length === 1
-                  ? t('favorites.subtitle', { count: 1 })
-                  : t('favorites.subtitle_plural', { count: favoriteRecipes.length })}
+                {t('favorites.subtitle', { count: favoriteRecipes.length })}
               </Text>
             </View>
           </View>
@@ -115,7 +115,7 @@ export default function FavoritesScreen() {
           )}
         </View>
 
-        <FlatList
+        <TabFlatList
           key={`favs-cols-${numColumns}`}
           data={filtered}
           keyExtractor={item => item.id}
@@ -143,7 +143,7 @@ export default function FavoritesScreen() {
                   activeOpacity={0.8}
                 >
                   <Ionicons name="compass-outline" size={18} color="#FFF" />
-                  <Text style={styles.exploreBtnText}>Esplora le ricette</Text>
+                  <Text style={styles.exploreBtnText}>{t('favorites.exploreRecipes')}</Text>
                 </TouchableOpacity>
               )}
             </View>

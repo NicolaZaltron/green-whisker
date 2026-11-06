@@ -3,15 +3,14 @@ import {
   StyleSheet,
   Text,
   View,
-  SectionList,
   TouchableOpacity,
   TextInput,
   ScrollView,
   Alert,
   Modal,
-  Platform,
   RefreshControl,
 } from 'react-native';
+import { TabSectionList } from '../../components/TabScrollViews';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
@@ -29,7 +28,7 @@ import {
 } from '../../db/database';
 import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
 import { getWeekDays, aggregateAndAddToShopping } from '../../services/plannerService';
-import { cleanShoppingIngredientText, splitShoppingItemDisplay } from '../../utils/servingsScaler';
+import { splitShoppingItemDisplay } from '../../utils/servingsScaler';
 import {
   SHOPPING_DEPARTMENTS,
   ShoppingDepartment,
@@ -221,7 +220,7 @@ export default function ShoppingScreen() {
     setNewItemText('');
     setManualDeptOverride(null);
     loadItems();
-    showToast(`Aggiunto in "${chosenDept}"`);
+    showToast(t('shopping.addedToDept', { dept: chosenDept }));
   };
 
   const toggleCollapse = (dept: string) => {
@@ -260,7 +259,7 @@ export default function ShoppingScreen() {
       const map: Record<string, Recipe> = {};
       [...catalogRecipes, ...catalogVariants].forEach(r => { map[r.id] = r; });
 
-      const count = await aggregateAndAddToShopping(weekPlans, map);
+      await aggregateAndAddToShopping(weekPlans, map);
       await loadItems();
       showToast(t('shopping.syncSuccess'));
     } catch (e) {
@@ -466,7 +465,7 @@ export default function ShoppingScreen() {
         </View>
 
         {/* SectionList divided by Departments */}
-        <SectionList
+        <TabSectionList
           sections={displayedSections}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
