@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { Recipe } from '../../types/recipe';
 import {
   type MealSlot,
-  SLOT_LABELS,
   SLOT_ICONS,
   getRecipesForSlot,
   isAuthenticSideDish,

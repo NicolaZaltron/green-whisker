@@ -3,14 +3,11 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
   TouchableOpacity,
-  Modal,
-  TextInput,
-  FlatList,
   ActivityIndicator,
   Animated,
 } from 'react-native';
+import { TabScrollView } from '../../components/TabScrollViews';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,10 +18,10 @@ import {
   getMealPlans,
   saveMealPlanEntry,
   deleteMealPlanEntry,
-  clearMealPlans,
   updateMealPlanSideRecipe,
   updateMealPlanRecipe,
   addShoppingItems,
+  deleteMealPlanForDates,
 } from '../../db/database';
 import { scaleIngredient } from '../../utils/servingsScaler';
 import {
@@ -33,25 +30,21 @@ import {
   checkAndAutoGeneratePlan,
   manualGeneratePlan,
   getPlannerPreferences,
-  savePlannerPreferences,
   PlannerPreferences,
   type MealSlot,
   SLOT_ORDER,
   SLOT_LABELS,
   SLOT_ICONS,
   SLOT_COLORS,
-  getRecipesForSlot,
 } from '../../services/plannerService';
 import { RecipeModal } from '../../components/RecipeModal';
 import { PlannerRegenModal } from '../../components/planner/PlannerRegenModal';
+import { PlannerDeleteModal } from '../../components/planner/PlannerDeleteModal';
 import { PlannerPreferencesModal } from '../../components/planner/PlannerPreferencesModal';
 import { RecipePickerModal } from '../../components/planner/RecipePickerModal';
 import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
 import { useCatalogVersion } from '../../hooks/useCatalog';
 
-
-// ─── Week offset navigation ───────────────────────────────────────────────────
-const WEEK_OFFSETS = [-1, 0, 1];
 
 export default function PlannerScreen() {
   const { t } = useTranslation();
@@ -62,6 +55,8 @@ export default function PlannerScreen() {
 
   const catalogVersion = useCatalogVersion();
   // Copia nuova a ogni modifica del catalogo, così il selettore si aggiorna
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const pickerRecipes = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
 
   const recipeMap = useMemo(() => {
@@ -70,6 +65,8 @@ export default function PlannerScreen() {
       map[r.id] = r;
     });
     return map;
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogVersion]);
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -78,6 +75,7 @@ export default function PlannerScreen() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmRegen, setShowConfirmRegen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
 
@@ -139,11 +137,13 @@ export default function PlannerScreen() {
     }, [])
   );
 
-  // When week changes, select today if in current week, else first day of week
-  useEffect(() => {
+  // Quando cambia settimana si seleziona oggi, se è nella settimana, altrimenti il primo giorno
+  const [dateWeekOffset, setDateWeekOffset] = useState(weekOffset);
+  if (dateWeekOffset !== weekOffset) {
+    setDateWeekOffset(weekOffset);
     const found = weekDays.find(d => d.dateString === todayStr);
     setSelectedDate(found ? todayStr : weekDays[0]?.dateString ?? todayStr);
-  }, [weekOffset]);
+  }
 
   const dayItems = useMemo(() => {
     const result: Partial<Record<MealSlot, DayMealItem[]>> = {};
@@ -249,8 +249,16 @@ export default function PlannerScreen() {
     }
   };
 
+  // Il piatto principale e il contorno di una voce generata dal piano stanno nella stessa riga:
+  // eliminando il principale, il contorno diventa il principale e non viene perso.
   const handleDeleteSlot = async (id: string) => {
-    await deleteMealPlanEntry(id);
+    const entry = plans.find(p => p.id === id);
+    if (entry?.side_recipe_id) {
+      await updateMealPlanRecipe(id, entry.side_recipe_id);
+      await updateMealPlanSideRecipe(id, null);
+    } else {
+      await deleteMealPlanEntry(id);
+    }
     loadPlans();
     showToast(t('planner.slotRemovedToast'));
   };
@@ -272,10 +280,10 @@ export default function PlannerScreen() {
     showToast(t('planner.shoppingToast', { count }));
   };
 
-  const handleManualGenerate = async (overwrite: boolean = false) => {
+  const handleManualGenerate = async (overwrite: boolean = false, scope: 'day' | 'week' = 'week') => {
     setIsGenerating(true);
     setShowConfirmRegen(false);
-    const count = await manualGeneratePlan(plans, overwrite);
+    const count = await manualGeneratePlan(plans, overwrite, scope, selectedDate);
     await loadPlans();
     setIsGenerating(false);
     if (count > 0) {
@@ -366,11 +374,12 @@ export default function PlannerScreen() {
 
         {/* ─── Days Bar ─── */}
         <View style={styles.daysBarWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysBar}>
+          <View style={styles.daysBar}>
             {weekDays.map(d => {
               const isSelected = d.dateString === selectedDate;
               const hasMeal = plans.some(p => p.date === d.dateString);
-              const mealCount = plans.filter(p => p.date === d.dateString).length;
+              // Un pallino per ogni slot pianificato (max 5), non per ogni portata
+              const mealCount = new Set(plans.filter(p => p.date === d.dateString).map(p => p.slot)).size;
               return (
                 <TouchableOpacity
                   key={d.dateString}
@@ -398,11 +407,11 @@ export default function PlannerScreen() {
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
         </View>
 
         {/* ─── Day Content ─── */}
-        <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <TabScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.dayHeader}>
             <View>
               <Text style={styles.dayHeading}>
@@ -413,64 +422,74 @@ export default function PlannerScreen() {
               </Text>
             </View>
 
-            {/* Generate / Regen buttons for current week */}
-            {weekOffset === 0 && (
-              <View style={styles.dayActions}>
-                {weekPlansCount === 0 ? (
-                  <TouchableOpacity
-                    style={styles.generateBtn}
-                    onPress={() => handleManualGenerate(false)}
-                    activeOpacity={0.8}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? (
-                      <ActivityIndicator size="small" color="#FFF" />
-                    ) : (
-                      <>
-                        <MaterialCommunityIcons name="chef-hat" size={16} color="#FFF" style={{ marginRight: 5 }} />
-                        <Text style={styles.generateBtnText}>{t('planner.generateBtn')}</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    {weekPlansCount < maxMeals && (
-                      <TouchableOpacity
-                        style={styles.completeBtn}
-                        onPress={() => handleManualGenerate(false)}
-                        activeOpacity={0.8}
-                        disabled={isGenerating}
-                      >
-                        {isGenerating ? (
-                          <ActivityIndicator size="small" color="#FFF" />
-                        ) : (
-                          <>
-                            <MaterialCommunityIcons name="chef-hat" size={15} color="#FFF" style={{ marginRight: 4 }} />
-                            <Text style={styles.completeBtnText}>{t('planner.completeBtn')} ({maxMeals - weekPlansCount})</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
+          </View>
+
+          {/* Generate / Regen / Delete buttons for current week */}
+          {weekOffset === 0 && (
+            <View style={styles.dayActions}>
+              {weekPlansCount === 0 ? (
+                <TouchableOpacity
+                  style={styles.generateBtn}
+                  onPress={() => setShowConfirmRegen(true)}
+                  activeOpacity={0.8}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="chef-hat" size={16} color="#FFF" style={{ marginRight: 5 }} />
+                      <Text style={styles.generateBtnText}>{t('planner.generateBtn')}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  {weekPlansCount < maxMeals && (
                     <TouchableOpacity
-                      style={styles.regenBtn}
+                      style={styles.completeBtn}
                       onPress={() => setShowConfirmRegen(true)}
                       activeOpacity={0.8}
                       disabled={isGenerating}
                     >
                       {isGenerating ? (
-                        <ActivityIndicator size="small" color="#4A6B53" />
+                        <ActivityIndicator size="small" color="#FFF" />
                       ) : (
                         <>
-                          <Ionicons name="refresh" size={14} color="#4A6B53" />
-                          <Text style={styles.regenBtnText}>{t('planner.regenBtn')}</Text>
+                          <MaterialCommunityIcons name="chef-hat" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                          <Text style={styles.completeBtnText}>{t('planner.completeBtn')} ({maxMeals - weekPlansCount})</Text>
                         </>
                       )}
                     </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            )}
-          </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.regenBtn}
+                    onPress={() => setShowConfirmRegen(true)}
+                    activeOpacity={0.8}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <ActivityIndicator size="small" color="#4A6B53" />
+                    ) : (
+                      <>
+                        <Ionicons name="refresh" size={14} color="#4A6B53" />
+                        <Text style={styles.regenBtnText}>{t('planner.regenBtn')}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => setShowDeleteModal(true)}
+                    activeOpacity={0.8}
+                    disabled={isGenerating}
+                  >
+                    <Ionicons name="trash-outline" size={15} color="#D9534F" />
+                    <Text style={styles.deleteBtnText}>{t('planner.deleteBtn')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
@@ -494,14 +513,31 @@ export default function PlannerScreen() {
             );
           })}
 
-          <View style={{ height: 40 }} />
-        </ScrollView>
+        </TabScrollView>
 
         {/* ─── Confirm Regen Modal ─── */}
         <PlannerRegenModal
           visible={showConfirmRegen}
-          onConfirm={(overwriteAll) => handleManualGenerate(overwriteAll)}
+          onConfirm={(overwriteAll, scope) => handleManualGenerate(overwriteAll, scope)}
           onCancel={() => setShowConfirmRegen(false)}
+        />
+
+        {/* ─── Delete Modal ─── */}
+        <PlannerDeleteModal
+          visible={showDeleteModal}
+          onDeleteDay={async () => {
+            await deleteMealPlanForDates([selectedDate]);
+            setShowDeleteModal(false);
+            loadPlans();
+            showToast(t('planner.dayClearedToast'));
+          }}
+          onDeleteWeek={async () => {
+            await deleteMealPlanForDates(weekDays.map(d => d.dateString));
+            setShowDeleteModal(false);
+            loadPlans();
+            showToast(t('planner.weekClearedToast'));
+          }}
+          onExit={() => setShowDeleteModal(false)}
         />
 
         {/* ─── Preferences Modal ─── */}
@@ -572,14 +608,6 @@ interface MealSlotCardProps {
   onSwapSide: (entryId: string) => void;
   onDeleteSide: (entryId: string) => void;
 }
-
-const EMPTY_SLOT_TEXTS: Record<MealSlot, string> = {
-  colazione: 'Scegli cosa gustare a colazione',
-  spuntino_mattina: 'Scegli frutta fresca o frutta secca per la mattina',
-  pranzo: 'Scegli cosa cucinare a pranzo',
-  spuntino_pomeriggio: 'Scegli uno snack o merenda per il pomeriggio',
-  cena: 'Scegli cosa preparare per cena',
-};
 
 const MealSlotCard = React.memo(function MealSlotCard({
   slot,
@@ -708,7 +736,7 @@ function MealRow({
         <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
         <View style={styles.mealMeta}>
           <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
-          <Text style={styles.mealMetaText}>{recipe.times.total_minutes} min</Text>
+          <Text style={styles.mealMetaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
           <Text style={styles.mealMetaDivider}>·</Text>
           <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
           <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
@@ -784,18 +812,19 @@ const styles = StyleSheet.create({
   weekNavLabel: { fontSize: 13, fontWeight: '700', color: '#2B332B' },
 
   daysBarWrapper: { paddingVertical: 4 },
-  daysBar: { paddingHorizontal: 20, gap: 8 },
+  daysBar: { flexDirection: 'row', paddingHorizontal: 16, gap: 6 },
   dayChip: {
-    width: 58, paddingVertical: 10, borderRadius: 14,
+    flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14,
     backgroundColor: '#FFFFFF', alignItems: 'center',
     borderWidth: 1, borderColor: '#ECE7DF',
   },
   dayChipSelected: { backgroundColor: '#4A6B53', borderColor: '#4A6B53' },
-  dayChipToday: { borderColor: '#4A6B53', borderWidth: 2 },
   dayChipName: { fontSize: 10, fontWeight: '600', color: '#7E8B80', textTransform: 'uppercase' },
   dayChipNameSelected: { color: '#FFFFFF' },
   dayChipNum: { fontSize: 17, fontWeight: '700', color: '#2B332B', marginTop: 3 },
   dayChipNumSelected: { color: '#FFFFFF' },
+  // Giorno corrente: bordo verde dello stesso spessore dei giorni, continuo con il bordo del pulsante
+  dayChipToday: { borderColor: '#4A6B53' },
   mealDotRow: { flexDirection: 'row', gap: 3, marginTop: 4 },
   mealDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#4A6B53' },
   mealDotSelected: { backgroundColor: '#FFF' },
@@ -807,7 +836,7 @@ const styles = StyleSheet.create({
   },
   dayHeading: { fontSize: 17, fontWeight: '700', color: '#2B332B' },
   daySub: { fontSize: 12, color: '#7E8B80', marginTop: 2 },
-  dayActions: { alignItems: 'flex-end' },
+  dayActions: { marginTop: 4, marginBottom: 8 },
   generateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#4A6B53', paddingHorizontal: 12, paddingVertical: 8,
@@ -825,6 +854,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF0EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
   },
   regenBtnText: { color: '#4A6B53', fontSize: 13, fontWeight: '700' },
+  deleteBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#EAF0EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: '#E8B4B1',
+  },
+  deleteBtnText: { color: '#D9534F', fontSize: 13, fontWeight: '700' },
 
   slotContainer: { marginBottom: 16 },
   slotCardsGroup: { gap: 16 },

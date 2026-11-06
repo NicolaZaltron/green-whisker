@@ -1,59 +1,114 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
+export type PlannerRegenScope = 'day' | 'week';
+
 export interface PlannerRegenModalProps {
   visible: boolean;
-  onConfirm: (overwriteAll: boolean) => void;
+  selectedDateLabel?: string;
+  onConfirm: (overwriteAll: boolean, scope: PlannerRegenScope) => void;
   onCancel: () => void;
 }
 
 /**
- * Dialog prompting user to either fill empty slots or regenerate the full meal plan.
+ * Dialog prompting user to either fill empty slots or regenerate the full meal plan,
+ * for either the selected day or the whole week.
  */
 export const PlannerRegenModal: React.FC<PlannerRegenModalProps> = ({
   visible,
+  selectedDateLabel,
+  onConfirm,
+  onCancel,
+}) => {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      {/* Rendered inside Modal: RN unmounts Modal children when hidden, so the scope resets to 'week' on every open. */}
+      <RegenDialogBody
+        selectedDateLabel={selectedDateLabel}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />
+    </Modal>
+  );
+};
+
+interface RegenDialogBodyProps {
+  selectedDateLabel?: string;
+  onConfirm: (overwriteAll: boolean, scope: PlannerRegenScope) => void;
+  onCancel: () => void;
+}
+
+const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
+  selectedDateLabel,
   onConfirm,
   onCancel,
 }) => {
   const { t } = useTranslation();
+  const [scope, setScope] = useState<PlannerRegenScope>('week');
+
+  const scopeOptions: { value: PlannerRegenScope; label: string }[] = [
+    { value: 'day', label: t('planner.scope.day') },
+    { value: 'week', label: t('planner.scope.week') },
+  ];
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.confirmOverlay}>
-        <View style={styles.confirmBox}>
-          <View style={styles.confirmIconWrap}>
-            <Ionicons name="refresh-circle" size={36} color="#4A6B53" />
-          </View>
-          <Text style={styles.confirmTitle}>{t('planner.regenModal.title')}</Text>
-          <Text style={styles.confirmSub}>
-            {t('planner.regenModal.sub')}
-          </Text>
-          <TouchableOpacity
-            style={styles.confirmBtnPrimary}
-            onPress={() => onConfirm(false)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.confirmBtnPrimaryText}>{t('planner.regenModal.completeEmpty')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.confirmBtnSecondary}
-            onPress={() => onConfirm(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.confirmBtnSecondaryText}>{t('planner.regenModal.restartFresh')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.confirmBtnCancel}
-            onPress={onCancel}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.confirmBtnCancelText}>{t('common.cancel')}</Text>
-          </TouchableOpacity>
+    <View style={styles.confirmOverlay}>
+      <View style={styles.confirmBox}>
+        <View style={styles.confirmIconWrap}>
+          <Ionicons name="refresh-circle" size={36} color="#4A6B53" />
         </View>
+        <Text style={styles.confirmTitle}>{t('planner.regenModal.title')}</Text>
+        <Text style={styles.confirmSub}>
+          {t('planner.regenModal.sub')}
+        </Text>
+        <View style={styles.scopeContainer}>
+          <Text style={styles.scopeLabel}>{t('planner.scope.label')}</Text>
+          <View style={styles.scopeRow}>
+            {scopeOptions.map((option) => {
+              const selected = scope === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[styles.scopePill, selected && styles.scopePillSelected]}
+                  onPress={() => setScope(option.value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.scopePillText, selected && styles.scopePillTextSelected]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {scope === 'day' && selectedDateLabel ? (
+            <Text style={styles.scopeDateLabel}>{selectedDateLabel}</Text>
+          ) : null}
+        </View>
+        <TouchableOpacity
+          style={styles.confirmBtnPrimary}
+          onPress={() => onConfirm(false, scope)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.confirmBtnPrimaryText}>{t('planner.regenModal.completeEmpty')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.confirmBtnSecondary}
+          onPress={() => onConfirm(true, scope)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.confirmBtnSecondaryText}>{t('planner.regenModal.restartFresh')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.confirmBtnCancel}
+          onPress={onCancel}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.confirmBtnCancelText}>{t('common.cancel')}</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </View>
   );
 };
 
@@ -127,5 +182,45 @@ const styles = StyleSheet.create({
   confirmBtnCancelText: {
     color: '#7E8B80',
     fontSize: 13,
+  },
+  scopeContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  scopeLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#243328',
+    marginBottom: 6,
+  },
+  scopeRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  scopePill: {
+    flex: 1,
+    backgroundColor: '#EAF0EB',
+    borderWidth: 1,
+    borderColor: '#D4DDD6',
+    borderRadius: 999,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  scopePillSelected: {
+    backgroundColor: '#34523C',
+    borderColor: '#34523C',
+  },
+  scopePillText: {
+    color: '#34523C',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  scopePillTextSelected: {
+    color: '#FFF',
+  },
+  scopeDateLabel: {
+    fontSize: 12,
+    color: '#718073',
+    marginTop: 6,
   },
 });
