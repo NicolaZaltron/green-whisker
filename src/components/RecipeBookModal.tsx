@@ -1,9 +1,10 @@
+import { SheetModal } from './SheetModal';
 import React, { useMemo, useState } from 'react';
-import { Alert, Modal, View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Recipe } from '../types/recipe';
+import { RecipePreviewCard } from './RecipePreviewCard';
 import { applyCatalogImport, deleteRecipes, exportRecipeBook, pickCatalogFile } from '../services/recipeBookService';
 import { catalogRecipes, catalogVariants } from '../services/recipeCatalog';
 import { useCatalogVersion } from '../hooks/useCatalog';
@@ -29,11 +30,15 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   const [isError, setIsError] = useState(false);
   const [filter, setFilter] = useState<ExportFilter>(DEFAULT_FILTER);
   const [includeVariants, setIncludeVariants] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+  const [preview, setPreview] = useState<Recipe | null>(null);
   // Si memorizzano le deselezionate: per default sono tutte selezionate
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
 
   // Dal catalogo condiviso: si aggiorna da solo a ogni modifica
   const catalogVersion = useCatalogVersion();
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const everything = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
   const listed = useMemo(() => filterCatalog(everything, filter), [everything, filter]);
   const selected = useMemo(() => listed.filter(r => !deselectedIds.has(r.id)), [listed, deselectedIds]);
@@ -44,8 +49,12 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
 
   const close = () => {
     setMessage('');
+    setPreview(null);
+    setShowFilters(false);
     onClose();
   };
+
+  const activeFilterCount = (['scope', 'kind', 'diet', 'origin'] as const).filter(key => filter[key] !== DEFAULT_FILTER[key]).length;
 
   const showStatus = (text: string, error = false) => {
     setMessage(text);
@@ -163,6 +172,9 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             {item.variant_of ? `${item.title} · ${t(`recipeBook.dietShort.${item.diet ?? 'omnivore'}`)}` : item.title}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => setPreview(item)} hitSlop={10} accessibilityLabel={t('recipeBook.preview')}>
+          <Ionicons name="open-outline" size={18} color="#34523C" />
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => setPendingDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
           <Ionicons name="trash-outline" size={18} color="#D9534F" />
         </TouchableOpacity>
@@ -219,8 +231,8 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   );
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SheetModal visible={visible} onClose={close} fullScreen>
+      <View style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('recipeBook.title')}</Text>
           <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
@@ -231,10 +243,12 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
         <View style={styles.content}>
           <Text style={styles.description}>{t('recipeBook.description')}</Text>
 
-          {renderChips(t('recipeBook.filterScope'), scopeOptions, filter.scope, v => changeFilter('scope', v))}
-          {renderChips(t('recipeBook.filterKind'), kindOptions, filter.kind, v => changeFilter('kind', v))}
-          {renderChips(t('recipeBook.filterDiet'), dietOptions, filter.diet, v => changeFilter('diet', v))}
-          {renderChips(t('recipeBook.filterOrigin'), originOptions, filter.origin, v => changeFilter('origin', v))}
+          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)} activeOpacity={0.8}>
+            <Ionicons name="options-outline" size={16} color="#34523C" />
+            <Text style={styles.filterButtonText}>
+              {t('recipeBook.filtersButton')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.selectionRow}>
             <Text style={styles.selectionCount}>
@@ -314,8 +328,31 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             <Text style={[styles.message, isError && styles.messageError]}>{message}</Text>
           ) : null}
         </View>
-      </SafeAreaView>
-    </Modal>
+
+        <SheetModal visible={showFilters} onClose={() => setShowFilters(false)} autoHeight>
+          <View style={styles.filterSheet}>
+            <View style={styles.header}>
+              <Text style={styles.title}>{t('recipeBook.filtersTitle')}</Text>
+              <TouchableOpacity onPress={() => setShowFilters(false)} hitSlop={12} accessibilityLabel={t('common.close')}>
+                <Ionicons name="close" size={24} color="#34523C" />
+              </TouchableOpacity>
+            </View>
+            {renderChips(t('recipeBook.filterScope'), scopeOptions, filter.scope, v => changeFilter('scope', v))}
+            {renderChips(t('recipeBook.filterKind'), kindOptions, filter.kind, v => changeFilter('kind', v))}
+            {renderChips(t('recipeBook.filterDiet'), dietOptions, filter.diet, v => changeFilter('diet', v))}
+            {renderChips(t('recipeBook.filterOrigin'), originOptions, filter.origin, v => changeFilter('origin', v))}
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowFilters(false)} activeOpacity={0.85}>
+              <Text style={styles.primaryBtnText}>{t('common.done')}</Text>
+            </TouchableOpacity>
+          </View>
+        </SheetModal>
+
+        <RecipePreviewCard
+          recipe={preview}
+          onClose={() => setPreview(null)}
+        />
+      </View>
+    </SheetModal>
   );
 }
 
@@ -331,6 +368,19 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: '800', color: '#1A2E1F' },
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
   description: { fontSize: 14, color: '#5E6D60', lineHeight: 20, marginBottom: 10 },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: '#EAF0EB',
+    marginBottom: 8,
+  },
+  filterButtonText: { fontSize: 13, fontWeight: '700', color: '#34523C' },
+  filterSheet: { padding: 20, paddingBottom: 28 },
   filterGroup: { marginBottom: 8 },
   filterLabel: { fontSize: 11, fontWeight: '700', color: '#5E6D60', marginBottom: 4, textTransform: 'uppercase' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },

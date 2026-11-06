@@ -99,7 +99,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
         {recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 && (
           <View style={styles.fastPill}>
             <Ionicons name="flash" size={11} color="#FFF" />
-            <Text style={styles.fastPillText}>Veloce</Text>
+            <Text style={styles.fastPillText}>{t('recipeCard.fast')}</Text>
           </View>
         )}
       </View>
@@ -121,8 +121,8 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
               pantryMatch.missingCount === 0 ? styles.pantryBadgeTextFull : styles.pantryBadgeTextPartial
             ]}>
               {pantryMatch.missingCount === 0
-                ? '100% • Pronta subito!'
-                : `Hai il ${pantryMatch.percentage}% (mancano ${pantryMatch.missingCount})`}
+                ? t('recipeCard.pantryReady')
+                : t('recipeCard.pantryPartial', { percentage: pantryMatch.percentage, missingCount: pantryMatch.missingCount })}
             </Text>
           </View>
         )}
@@ -134,7 +134,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
         <View style={styles.footer}>
           <View style={styles.metaRow}>
             <Ionicons name="time-outline" size={14} color="#6C786E" style={{ marginRight: 3 }} />
-            <Text style={styles.metaText}>{recipe.times.total_minutes} min</Text>
+            <Text style={styles.metaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
           </View>
 
           <View style={styles.dot} />
@@ -160,7 +160,9 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
           >
             <Ionicons name="cart-outline" size={13} color="#4A6B53" style={{ marginRight: 5 }} />
             <Text style={styles.addMissingText}>
-              Aggiungi {pantryMatch.missingCount} {pantryMatch.missingCount === 1 ? 'mancante' : 'mancanti'} alla spesa
+              {pantryMatch.missingCount === 1
+                ? t('recipeCard.addMissingSingle', { number: pantryMatch.missingCount })
+                : t('recipeCard.addMissingPlural', { number: pantryMatch.missingCount })}
             </Text>
           </TouchableOpacity>
         )}
@@ -349,3 +351,5 @@ const styles = StyleSheet.create({
     color: '#34523C',
   },
 });
+
+RecipeCard.displayName = 'RecipeCard';

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   FlatList,
   ScrollView,
-  Keyboard,
   Platform
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -111,7 +110,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       }))
     );
 
-    const msg = t(missing.length === 1 ? 'pantry.addedToShopping' : 'pantry.addedToShopping_plural', { count: missing.length });
+    const msg = t('pantry.addedToShopping', { count: missing.length });
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
@@ -284,7 +283,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         <View style={styles.resultsHeader}>
           <View style={styles.resultsTitleRow}>
             <Text style={styles.resultsCount}>
-              {t(allResults.length === 1 ? 'pantry.recipesFound' : 'pantry.recipesFound_plural', { count: allResults.length })}
+              {t('pantry.recipesFound', { count: allResults.length })}
             </Text>
             {readyCount > 0 && (
               <View style={styles.readyBadge}>

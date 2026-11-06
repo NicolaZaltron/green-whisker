@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,9 @@ interface HeaderMenuProps {
 export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  // Stessa colonna centrale di 1200px del resto dell'app: il popup resta dentro di essa anche su web
+  const { width } = useWindowDimensions();
+  const popupRight = Math.max((width - 1200) / 2, 0) + 16;
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
   const isEnglish = i18n.language?.startsWith('en');
@@ -39,7 +42,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOpen(false)} />
-          <View style={[styles.popup, { top: insets.top + 56 }]}>
+          <View style={[styles.popup, { top: insets.top + 56, right: popupRight }]}>
             <Text style={styles.sectionLabel}>{t('menu.language')}</Text>
             <View style={styles.langRow}>
               {(['it', 'en'] as const).map(lng => {
@@ -108,7 +111,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(26, 46, 31, 0.15)' },
   popup: {
     position: 'absolute',
-    right: 16,
     width: 240,
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
