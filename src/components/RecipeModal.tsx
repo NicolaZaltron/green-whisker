@@ -1,5 +1,5 @@
 import { SheetModal } from './SheetModal';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -38,6 +38,8 @@ import {
   copyRecipeToClipboard
 } from '../utils/shareHelper';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 interface RecipeModalProps {
   // Ricetta originale: le varianti vengono mostrate con le schede
@@ -70,6 +72,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   // La versione scelta vale solo per la ricetta aperta: cambiando ricetta si torna all'originale
   const [versionChoice, setVersionChoice] = useState<{ baseId?: string; version: 'original' | VariantDiet }>({ version: 'original' });
   const version = versionChoice.baseId === baseRecipe?.id ? versionChoice.version : 'original';
@@ -309,7 +313,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   return (
     <SheetModal visible={visible} onClose={onClose} fullScreen>
       <View style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
           {/* Dynamic Sticky Top Navigation Bar */}
           <View style={styles.topNav}>
@@ -319,7 +323,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               activeOpacity={0.7}
               accessibilityLabel={t('recipeDetail.closeRecipe')}
             >
-              <Ionicons name="close" size={22} color="#2B332B" />
+              <Ionicons name="close" size={22} color={colors.text} />
             </TouchableOpacity>
 
             <Animated.Text
@@ -342,7 +346,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 activeOpacity={0.7}
                 accessibilityLabel={t('recipeDetail.showRecipeJson')}
               >
-                <Ionicons name="code-slash-outline" size={19} color="#4A6B53" />
+                <Ionicons name="code-slash-outline" size={19} color={colors.primaryText} />
               </TouchableOpacity>
               {onEdit && (
                 <TouchableOpacity
@@ -351,7 +355,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   activeOpacity={0.7}
                   accessibilityLabel={t('recipeDetail.edit')}
                 >
-                  <Ionicons name="create-outline" size={19} color="#4A6B53" />
+                  <Ionicons name="create-outline" size={19} color={colors.primaryText} />
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -360,7 +364,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 activeOpacity={0.7}
                 accessibilityLabel={t('recipeDetail.shareRecipe')}
               >
-                <Ionicons name="share-social-outline" size={19} color="#4A6B53" />
+                <Ionicons name="share-social-outline" size={19} color={colors.primaryText} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.navBtn, { marginLeft: 8 }]}
@@ -371,7 +375,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <Ionicons
                   name={favorite ? 'heart' : 'heart-outline'}
                   size={20}
-                  color={favorite ? '#D9534F' : '#4A6B53'}
+                  color={favorite ? colors.danger : colors.primaryText}
                 />
               </TouchableOpacity>
               {hasExternalLink && (
@@ -381,7 +385,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   activeOpacity={0.7}
                   accessibilityLabel={t('recipeDetail.openOnWeb')}
                 >
-                  <Ionicons name="open-outline" size={19} color="#4A6B53" />
+                  <Ionicons name="open-outline" size={19} color={colors.primaryText} />
                 </TouchableOpacity>
               )}
             </View>
@@ -426,9 +430,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                         accessibilityState={{ busy: isGenerating, disabled }}
                       >
                         {isGenerating ? (
-                          <ActivityIndicator size="small" color="#34523C" />
+                          <ActivityIndicator size="small" color={colors.primaryText} />
                         ) : (
-                          <Ionicons name={exists ? 'checkmark-circle' : 'sparkles-outline'} size={14} color="#34523C" />
+                          <Ionicons name={exists ? 'checkmark-circle' : 'sparkles-outline'} size={14} color={colors.primaryText} />
                         )}
                         <Text style={styles.versionActionText} numberOfLines={1}>
                           {isGenerating
@@ -444,12 +448,12 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               ) : activeVariant ? (
                 <View style={styles.generateRow}>
                   <TouchableOpacity style={styles.generateBtn} onPress={() => onRegenerateVariant?.(activeVariant)} activeOpacity={0.8}>
-                    <Ionicons name="refresh" size={14} color="#34523C" />
+                    <Ionicons name="refresh" size={14} color={colors.primaryText} />
                     <Text style={styles.versionActionText} numberOfLines={1}>{t('recipeDetail.regenerateVariant')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.generateBtn} onPress={() => onDeleteVariant?.(activeVariant)} activeOpacity={0.8}>
-                    <Ionicons name="trash-outline" size={14} color="#D9534F" />
-                    <Text style={[styles.versionActionText, { color: '#D9534F' }]} numberOfLines={1}>{t('recipeDetail.deleteVariant')}</Text>
+                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
+                    <Text style={[styles.versionActionText, { color: colors.danger }]} numberOfLines={1}>{t('recipeDetail.deleteVariant')}</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -459,7 +463,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
           {/* Feedback Toast */}
           {feedbackMessage && (
             <View style={styles.toastBanner}>
-              <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 6 }} />
+              <Ionicons name="checkmark-circle" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
               <Text style={styles.toastText}>{feedbackMessage}</Text>
             </View>
           )}
@@ -486,14 +490,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 />
                 {dietBadge && (
                   <View style={styles.plantBadge}>
-                    <Ionicons name="leaf" size={13} color="#4A6B53" style={{ marginRight: 4 }} />
+                    <Ionicons name="leaf" size={13} color={colors.primaryText} style={{ marginRight: 4 }} />
                     <Text style={styles.plantBadgeText}>{dietBadge}</Text>
                   </View>
                 )}
               </View>
             ) : (
               <View style={[styles.imageContainer, styles.imagePlaceholder]}>
-                <Ionicons name="restaurant-outline" size={48} color="#A3B2A6" />
+                <Ionicons name="restaurant-outline" size={48} color={colors.textMuted} />
               </View>
             )}
 
@@ -506,8 +510,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   </Text>
                 </View>
                 {!!recipe.macro_category && recipe.macro_category !== recipe.category && (
-                  <View style={[styles.categoryBadge, { backgroundColor: '#E2EBE5', borderColor: '#C8DACD' }]}>
-                    <Text style={[styles.categoryBadgeText, { color: '#34523C' }]}>
+                  <View style={[styles.categoryBadge, { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong }]}>
+                    <Text style={[styles.categoryBadgeText, { color: colors.primaryText }]}>
                       {t('categories.' + recipe.macro_category, { defaultValue: recipe.macro_category })}
                     </Text>
                   </View>
@@ -523,19 +527,19 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               {/* Quick Metrics Bar */}
               <View style={styles.metricsBar}>
                 <View style={styles.metricItem}>
-                  <Ionicons name="time-outline" size={20} color="#4A6B53" />
+                  <Ionicons name="time-outline" size={20} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricTime')}</Text>
                   <Text style={styles.metricValue}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
-                  <Ionicons name="people-outline" size={20} color="#4A6B53" />
+                  <Ionicons name="people-outline" size={20} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricServings')}</Text>
                   <Text style={styles.metricValue}>{currentServings}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
-                  <Ionicons name="bar-chart-outline" size={20} color="#4A6B53" />
+                  <Ionicons name="bar-chart-outline" size={20} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricLevel')}</Text>
                   <Text style={styles.metricValue}>{recipe.difficulty}</Text>
                 </View>
@@ -574,7 +578,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                       disabled={currentServings <= 1}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="remove" size={16} color={currentServings <= 1 ? '#C2CDC4' : '#4A6B53'} />
+                      <Ionicons name="remove" size={16} color={currentServings <= 1 ? colors.textMuted : colors.primaryText} />
                     </TouchableOpacity>
                     <Text style={styles.scaleNumber}>{currentServings}</Text>
                     <TouchableOpacity
@@ -582,7 +586,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                       onPress={() => changeServings(1)}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="add" size={16} color="#4A6B53" />
+                      <Ionicons name="add" size={16} color={colors.primaryText} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -608,7 +612,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                             activeOpacity={0.6}
                           >
                             <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                              {isChecked && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                              {isChecked && <Ionicons name="checkmark" size={14} color={colors.onPrimary} />}
                             </View>
                             <Text style={[styles.ingredientText, isChecked && styles.ingredientTextChecked]}>
                               {text}
@@ -635,7 +639,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     >
                       <View style={[styles.stepBadge, isDone && styles.stepBadgeDone]}>
                         {isDone ? (
-                          <Ionicons name="checkmark" size={14} color="#FFF" />
+                          <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
                         ) : (
                           <Text style={styles.stepBadgeNumber}>{idx + 1}</Text>
                         )}
@@ -652,12 +656,12 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <View style={styles.notesCard}>
                 <View style={styles.notesHeader}>
                   <View style={styles.notesTitleRow}>
-                    <Ionicons name="journal-outline" size={18} color="#4A6B53" />
+                    <Ionicons name="journal-outline" size={18} color={colors.primaryText} />
                     <Text style={styles.notesTitle}>{t('recipeDetail.notesTitle')}</Text>
                   </View>
                   {savedNoteStatus && (
                     <View style={styles.savedNoteBadge}>
-                      <Ionicons name="checkmark-circle" size={13} color="#2D5A27" style={{ marginRight: 3 }} />
+                      <Ionicons name="checkmark-circle" size={13} color={colors.primaryText} style={{ marginRight: 3 }} />
                       <Text style={styles.savedNoteBadgeText}>{savedNoteStatus}</Text>
                     </View>
                   )}
@@ -665,7 +669,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <TextInput
                   style={styles.notesInput}
                   placeholder={t('recipeDetail.notesPlaceholder')}
-                  placeholderTextColor="#9EA89F"
+                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
                   value={userNote}
@@ -686,7 +690,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                       onPress={handleSaveNote}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="checkmark" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                      <Ionicons name="checkmark" size={15} color={colors.onPrimary} style={{ marginRight: 4 }} />
                       <Text style={styles.notesSaveBtnText}>{t('recipeDetail.saveNote')}</Text>
                     </TouchableOpacity>
                   </View>
@@ -697,7 +701,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               {recipe.tips && recipe.tips.length > 0 && (
                 <View style={styles.tipsBox}>
                   <View style={styles.tipsHeader}>
-                    <Ionicons name="bulb-outline" size={20} color="#4A6B53" />
+                    <Ionicons name="bulb-outline" size={20} color={colors.primaryText} />
                     <Text style={styles.tipsTitle}>{t('recipeDetail.tipsTitle')}</Text>
                   </View>
                   {recipe.tips.map((sugg, idx) => (
@@ -732,7 +736,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={styles.planDrawerCloseBtn}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={18} color="#556658" />
+                  <Ionicons name="close" size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -741,7 +745,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={[styles.slotToggle, selectedSlot === 'colazione' && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('colazione')}
                 >
-                  <Ionicons name="cafe-outline" size={13} color={selectedSlot === 'colazione' ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="cafe-outline" size={13} color={selectedSlot === 'colazione' ? colors.onPrimary : colors.primaryText} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'colazione' && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotBreakfast')}
                   </Text>
@@ -750,7 +754,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={[styles.slotToggle, selectedSlot === 'pranzo' && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('pranzo')}
                 >
-                  <Ionicons name="sunny-outline" size={13} color={selectedSlot === 'pranzo' ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="sunny-outline" size={13} color={selectedSlot === 'pranzo' ? colors.onPrimary : colors.primaryText} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotLunch')}
                   </Text>
@@ -759,7 +763,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={[styles.slotToggle, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('spuntino_pomeriggio')}
                 >
-                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') ? colors.onPrimary : colors.primaryText} />
                   <Text style={[styles.slotToggleText, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotSnack')}
                   </Text>
@@ -768,7 +772,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   style={[styles.slotToggle, selectedSlot === 'cena' && styles.slotToggleActive]}
                   onPress={() => setSelectedSlot('cena')}
                 >
-                  <Ionicons name="moon-outline" size={13} color={selectedSlot === 'cena' ? '#FFF' : '#4A6B53'} />
+                  <Ionicons name="moon-outline" size={13} color={selectedSlot === 'cena' ? colors.onPrimary : colors.primaryText} />
                   <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotDinner')}
                   </Text>
@@ -830,7 +834,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <MaterialCommunityIcons
                 name="chef-hat"
                 size={20}
-                color="#FFF"
+                color={colors.onPrimary}
                 style={{ marginRight: 8 }}
               />
               <Text style={styles.stickyPlanBtnText}>
@@ -842,7 +846,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 <Ionicons
                   name="chevron-up"
                   size={18}
-                  color="#FFF"
+                  color={colors.onPrimary}
                   style={{ marginLeft: 6 }}
                 />
               )}
@@ -857,7 +861,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <View style={styles.jsonHeader}>
                 <Text style={styles.jsonTitle}>{t('recipeDetail.recipeJson')}</Text>
                 <TouchableOpacity onPress={() => setShowJson(false)} hitSlop={12} accessibilityLabel={t('recipeDetail.close')}>
-                  <Ionicons name="close" size={22} color="#2B332B" />
+                  <Ionicons name="close" size={22} color={colors.text} />
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.jsonScroll} contentContainerStyle={styles.jsonScrollContent}>
@@ -871,7 +875,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 }}
                 activeOpacity={0.85}
               >
-                <Ionicons name={jsonCopied ? 'checkmark' : 'copy-outline'} size={16} color="#FFFFFF" />
+                <Ionicons name={jsonCopied ? 'checkmark' : 'copy-outline'} size={16} color={colors.onPrimary} />
                 <Text style={styles.jsonCopyText}>{jsonCopied ? t('recipeDetail.copied') : t('recipeDetail.copyToClipboard')}</Text>
               </TouchableOpacity>
             </View>
@@ -905,7 +909,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   onPress={() => setShowShareModal(false)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={20} color="#2B332B" />
+                  <Ionicons name="close" size={20} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -919,7 +923,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   <Ionicons
                     name={includeNotesInShare ? 'checkbox' : 'square-outline'}
                     size={20}
-                    color={includeNotesInShare ? '#4A6B53' : '#7E8B80'}
+                    color={includeNotesInShare ? colors.primaryText : colors.textMuted}
                     style={{ marginRight: 8 }}
                   />
                   <Text style={styles.includeNotesText}>{t('recipeDetail.includeNotes')}</Text>
@@ -935,10 +939,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.shareIconCircle, { backgroundColor: '#2AABEE' }]}>
-                    <Ionicons name="paper-plane" size={19} color="#FFF" />
+                    <Ionicons name="paper-plane" size={19} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#0E73A6' }]}>Telegram</Text>
+                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#8ED3F5' : '#0E73A6') }]}>Telegram</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.telegramSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#2AABEE" />
@@ -951,10 +955,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.shareIconCircle, { backgroundColor: '#25D366' }]}>
-                    <Ionicons name="logo-whatsapp" size={19} color="#FFF" />
+                    <Ionicons name="logo-whatsapp" size={19} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#1B8742' }]}>WhatsApp</Text>
+                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#7FD39C' : '#1B8742') }]}>WhatsApp</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.whatsappSub')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#25D366" />
@@ -966,14 +970,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   onPress={handleShareNative}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.shareIconCircle, { backgroundColor: '#4A6B53' }]}>
-                    <Ionicons name="share-outline" size={19} color="#FFF" />
+                  <View style={[styles.shareIconCircle, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="share-outline" size={19} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#2C4A34' }]}>{t('recipeDetail.otherApps')}</Text>
+                    <Text style={[styles.shareOptionTitle, { color: colors.primaryText }]}>{t('recipeDetail.otherApps')}</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.systemShareSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#4A6B53" />
+                  <Ionicons name="chevron-forward" size={18} color={colors.primaryText} />
                 </TouchableOpacity>
 
                 {/* Copy to Clipboard */}
@@ -982,14 +986,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   onPress={handleCopyClipboard}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.shareIconCircle, { backgroundColor: '#607D8B' }]}>
-                    <Ionicons name="copy-outline" size={19} color="#FFF" />
+                  <View style={[styles.shareIconCircle, { backgroundColor: (isDark ? '#455A64' : '#607D8B') }]}>
+                    <Ionicons name="copy-outline" size={19} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: '#37474F' }]}>{t('recipeDetail.copyRecipeTitle')}</Text>
+                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#CFD8DC' : '#37474F') }]}>{t('recipeDetail.copyRecipeTitle')}</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.copyRecipeSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#607D8B" />
+                  <Ionicons name="chevron-forward" size={18} color={(isDark ? '#90A4AE' : '#607D8B')} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1000,19 +1004,19 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  jsonBackdrop: { flex: 1, backgroundColor: 'rgba(26, 46, 31, 0.5)', justifyContent: 'center', padding: 16 },
-  jsonCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, maxHeight: '85%' },
+const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
+  jsonBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 16 },
+  jsonCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, maxHeight: '85%' },
   jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  jsonTitle: { fontSize: 16, fontWeight: '800', color: '#1A2E1F' },
+  jsonTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   // Area scorrevole con altezza limitata dalla card: il JSON scorre dentro di essa
-  jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: '#F7F9F6', borderRadius: 10 },
+  jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: colors.surfaceAlt, borderRadius: 10 },
   jsonScrollContent: { padding: 10 },
   jsonText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
     fontSize: 11,
-    color: '#1A2E1F',
-    backgroundColor: '#F7F9F6',
+    color: colors.text,
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 10,
     padding: 10,
     textAlignVertical: 'top',
@@ -1023,17 +1027,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 12,
   },
-  jsonCopyText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  jsonCopyText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
   versionBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
-  versionTabs: { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: '#EAF0EB' },
+  versionTabs: { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: colors.primarySoft },
   versionTab: { flex: 1, paddingVertical: 7, borderRadius: 11, alignItems: 'center' },
-  versionTabActive: { backgroundColor: '#FFFFFF' },
-  versionTabText: { fontSize: 13, fontWeight: '700', color: '#5E6D60' },
-  versionTabTextActive: { color: '#34523C' },
+  versionTabActive: { backgroundColor: colors.surface },
+  versionTabText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
+  versionTabTextActive: { color: colors.primaryText },
   versionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   versionActionBtn: {
     flexDirection: 'row',
@@ -1042,11 +1046,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  versionActionText: { fontSize: 12, fontWeight: '700', color: '#34523C' },
+  versionActionText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
   versionActionBtnDisabled: { opacity: 0.45 },
   generateRow: { flexDirection: 'row', gap: 8 },
   generateBtn: {
@@ -1057,26 +1061,26 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   modalWrapper: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   modalWrapperTablet: {
-    maxWidth: 720,
+    maxWidth: 1200,
     alignSelf: 'center',
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
   },
   topNav: {
     height: 54,
@@ -1085,9 +1089,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2DCD1',
-    backgroundColor: '#FBF9F5',
-    shadowColor: '#1A2E1F',
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 4,
@@ -1098,7 +1102,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EBE5DC',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1107,7 +1111,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginHorizontal: 12,
   },
   navActions: {
@@ -1115,7 +1119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toastBanner: {
-    backgroundColor: '#3E5C46',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1123,7 +1127,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   toastText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -1138,7 +1142,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 16 / 10,
     maxHeight: 400,
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1154,13 +1158,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     left: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: (isDark ? 'rgba(27, 35, 28, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
@@ -1168,7 +1172,7 @@ const styles = StyleSheet.create({
   plantBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
   },
   content: {
     padding: 20,
@@ -1180,7 +1184,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryBadge: {
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1188,11 +1192,11 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
     textTransform: 'uppercase',
   },
   diffBadge: {
-    backgroundColor: '#FBEFEA',
+    backgroundColor: (isDark ? '#3A2A22' : '#FBEFEA'),
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
@@ -1207,18 +1211,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1C261E',
+    color: colors.text,
     lineHeight: 32,
     marginBottom: 16,
   },
   metricsBar: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
     marginBottom: 16,
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -1230,19 +1234,19 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#8A998D',
+    color: colors.textMuted,
     marginTop: 4,
   },
   metricValue: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginTop: 2,
   },
   metricDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#EFEBE4',
+    backgroundColor: colors.border,
   },
   // Sticky Action Bar & Plan Drawer Styles
   stickyActionBar: {
@@ -1250,11 +1254,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: '#EFEBE4',
+    borderTopColor: colors.border,
     gap: 10,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -1265,27 +1269,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 14,
-    shadowColor: '#1A2E1F',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.18,
     shadowRadius: 5,
     elevation: 3,
   },
   stickyPlanBtnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
   stickyPlanDrawer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
     borderTopWidth: 1,
-    borderColor: '#EFEBE4',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.08,
     shadowRadius: 5,
@@ -1301,14 +1305,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#F3EFE8',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   planDrawerTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   slotToggleRow: {
     flexDirection: 'row',
@@ -1323,18 +1327,18 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#F3F5F3',
+    backgroundColor: colors.surfaceAlt,
   },
   slotToggleActive: {
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
   },
   slotToggleText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   slotToggleTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   daysScroll: {
     flexDirection: 'row',
@@ -1343,54 +1347,54 @@ const styles = StyleSheet.create({
     width: 58,
     paddingVertical: 10,
     borderRadius: 12,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     alignItems: 'center',
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
   },
   dayCardToday: {
-    borderColor: '#4A6B53',
-    backgroundColor: '#EAF0EB',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   dayCardSelected: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   dayCardName: {
     fontSize: 11,
-    color: '#7E8B80',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   dayCardNameToday: {
-    color: '#4A6B53',
+    color: colors.primaryText,
   },
   dayCardNameSelected: {
-    color: '#D4E8DA',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   dayCardNum: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginTop: 2,
   },
   dayCardNumToday: {
-    color: '#4A6B53',
+    color: colors.primaryText,
   },
   dayCardNumSelected: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: '800',
   },
   scalerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
     marginBottom: 20,
   },
   scalerInfo: {
@@ -1399,11 +1403,11 @@ const styles = StyleSheet.create({
   scalerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   scalerSub: {
     fontSize: 12,
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginTop: 2,
   },
   scalerRightCol: {
@@ -1418,27 +1422,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
-    backgroundColor: '#F3F5F3',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   presetChipActive: {
-    backgroundColor: '#4A6B53',
-    borderColor: '#4A6B53',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   presetChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   presetChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   scalerControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F5F3',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
     padding: 4,
   },
@@ -1446,22 +1450,22 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   scaleBtnDisabled: {
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     opacity: 0.6,
   },
   scaleNumber: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     minWidth: 32,
     textAlign: 'center',
   },
@@ -1474,7 +1478,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -1485,11 +1489,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#F0ECE4',
+    borderColor: colors.border,
   },
   ingredientMainTouch: {
     flex: 1,
@@ -1499,11 +1503,11 @@ const styles = StyleSheet.create({
   singleAddBtn: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: '#F3F5F3',
+    backgroundColor: colors.surfaceAlt,
     marginLeft: 8,
   },
   ingredientRowChecked: {
-    backgroundColor: '#F7F6F2',
+    backgroundColor: colors.surfaceMuted,
     opacity: 0.6,
   },
   checkbox: {
@@ -1511,24 +1515,24 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#BDC7BE',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: '#4A6B53',
-    borderColor: '#4A6B53',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   ingredientText: {
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
     flex: 1,
     lineHeight: 20,
   },
   ingredientTextChecked: {
     textDecorationLine: 'line-through',
-    color: '#8A998D',
+    color: colors.textMuted,
   },
   instructionsSection: {
     marginBottom: 24,
@@ -1536,57 +1540,57 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginBottom: 12,
   },
   stepCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
   },
   stepCardDone: {
-    backgroundColor: '#F8F9F8',
+    backgroundColor: colors.surfaceAlt,
     opacity: 0.65,
   },
   stepBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     marginTop: 2,
   },
   stepBadgeDone: {
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
   },
   stepBadgeNumber: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
   },
   stepText: {
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
     lineHeight: 22,
     flex: 1,
   },
   stepTextDone: {
     textDecorationLine: 'line-through',
-    color: '#7E8B80',
+    color: colors.textMuted,
   },
   tipsBox: {
-    backgroundColor: '#FAF5EE',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EFE2D3',
+    borderColor: colors.border,
     marginBottom: 20,
   },
   tipsHeader: {
@@ -1598,11 +1602,11 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
   },
   tipsText: {
     fontSize: 13,
-    color: '#5A635B',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 4,
   },
@@ -1613,23 +1617,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tagPill: {
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   tagPillText: {
     fontSize: 12,
-    color: '#556658',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   // Notes Section Styles
   notesCard: {
-    backgroundColor: '#FAF8F4',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E7E1D4',
+    borderColor: colors.border,
     marginBottom: 20,
   },
   notesHeader: {
@@ -1646,12 +1650,12 @@ const styles = StyleSheet.create({
   notesTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   savedNoteBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E2F0D9',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -1659,16 +1663,16 @@ const styles = StyleSheet.create({
   savedNoteBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2D5A27',
+    color: colors.primaryText,
   },
   notesInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#DFD8CB',
+    borderColor: colors.border,
     minHeight: 70,
     textAlignVertical: 'top',
   },
@@ -1680,29 +1684,29 @@ const styles = StyleSheet.create({
   notesSaveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
     paddingVertical: 7,
     paddingHorizontal: 14,
     borderRadius: 10,
   },
   notesSaveBtnText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '600',
   },
   // Share Modal & Sheet Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   shareSheet: {
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
     paddingBottom: 32,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -1725,32 +1729,32 @@ const styles = StyleSheet.create({
   shareSheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   shareSheetSub: {
     fontSize: 13,
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginTop: 2,
   },
   shareCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#EBE5DC',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   includeNotesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0ECE3',
+    backgroundColor: colors.surfaceMuted,
     padding: 10,
     borderRadius: 10,
     marginBottom: 16,
   },
   includeNotesText: {
     fontSize: 13,
-    color: '#3B473D',
+    color: colors.text,
     fontWeight: '500',
   },
   shareGrid: {
@@ -1764,20 +1768,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   shareOptionTelegram: {
-    backgroundColor: '#F0F8FD',
-    borderColor: '#D1EAF8',
+    backgroundColor: (isDark ? '#132630' : '#F0F8FD'),
+    borderColor: (isDark ? '#1E3A48' : '#D1EAF8'),
   },
   shareOptionWhatsapp: {
-    backgroundColor: '#F0FAF3',
-    borderColor: '#D2F2DD',
+    backgroundColor: (isDark ? '#13261A' : '#F0FAF3'),
+    borderColor: (isDark ? '#1F3D2A' : '#D2F2DD'),
   },
   shareOptionNative: {
-    backgroundColor: '#F2F7F3',
-    borderColor: '#D4E6D9',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   shareOptionClipboard: {
-    backgroundColor: '#F5F6F7',
-    borderColor: '#DFE3E6',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   shareIconCircle: {
     width: 38,
@@ -1796,7 +1800,7 @@ const styles = StyleSheet.create({
   },
   shareOptionSub: {
     fontSize: 12,
-    color: '#718075',
+    color: colors.textMuted,
     marginTop: 1,
   },
 });

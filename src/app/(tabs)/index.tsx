@@ -32,6 +32,8 @@ import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../../constant
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
 import { useShareIntent } from 'expo-share-intent';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
@@ -43,6 +45,8 @@ const ORIGIN_OPTIONS: { labelKey: string; value: RecipeOrigin }[] = [
 
 export default function ExploreScreen() {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const { width } = useResponsiveDimensions();
   const insets = useSafeAreaInsets();
   // Il pulsante sta sopra la barra di navigazione (altezza 64, distanza dal fondo, margine)
@@ -199,7 +203,7 @@ export default function ExploreScreen() {
         />
       </View>
     ),
-    [numColumns, isFavorite, toggleFavorite, variantsByBase]
+    [numColumns, isFavorite, toggleFavorite, variantsByBase, styles]
   );
 
   // Revisione di una variante generata: il form è quello dell'importer. Confermando o scartando
@@ -326,7 +330,7 @@ export default function ExploreScreen() {
               <Ionicons
                 name="book-outline"
                 size={14}
-                color={viewMode === 'catalog' ? '#FFFFFF' : '#5E6D60'}
+                color={viewMode === 'catalog' ? colors.onPrimary : colors.textSecondary}
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.modeToggleText, viewMode === 'catalog' && styles.modeToggleTextActive]}>
@@ -342,7 +346,7 @@ export default function ExploreScreen() {
               <MaterialCommunityIcons
                 name="fridge-outline"
                 size={15}
-                color={viewMode === 'pantry' ? '#FFFFFF' : '#5E6D60'}
+                color={viewMode === 'pantry' ? colors.onPrimary : colors.textSecondary}
                 style={{ marginRight: 6 }}
               />
               <Text style={[styles.modeToggleText, viewMode === 'pantry' && styles.modeToggleTextActive]}>
@@ -354,11 +358,11 @@ export default function ExploreScreen() {
           {viewMode === 'catalog' && (
             <View style={styles.searchRow}>
               <View style={styles.searchBar}>
-                <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
+                <Ionicons name="search" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
                 <TextInput
                   style={styles.searchInput}
                   placeholder={t('explore.searchPlaceholder')}
-                  placeholderTextColor="#8C988F"
+                  placeholderTextColor={colors.textMuted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   returnKeyType="search"
@@ -366,7 +370,7 @@ export default function ExploreScreen() {
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close-circle" size={18} color="#7E8B80" />
+                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -380,7 +384,7 @@ export default function ExploreScreen() {
                 <Ionicons
                   name={activeFiltersCount > 0 ? 'options' : 'options-outline'}
                   size={20}
-                  color={activeFiltersCount > 0 ? '#FFFFFF' : '#4A6B53'}
+                  color={activeFiltersCount > 0 ? colors.onPrimary : colors.primaryText}
                 />
                 {activeFiltersCount > 0 && (
                   <View style={styles.filterBadge}>
@@ -408,7 +412,7 @@ export default function ExploreScreen() {
                     onPress={handleResetFilters}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="close-circle" size={14} color="#FFF" style={{ marginRight: 4 }} />
+                    <Ionicons name="close-circle" size={14} color={colors.onPrimary} style={{ marginRight: 4 }} />
                     <Text style={styles.activeFiltersPillText}>
                       {t('explore.advanced.activeFilters', { count: activeFiltersCount })}
                     </Text>
@@ -488,7 +492,7 @@ export default function ExploreScreen() {
               renderItem={renderRecipeItem}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="search-outline" size={48} color="#A3B2A6" />
+                  <Ionicons name="search-outline" size={48} color={colors.textMuted} />
                   <Text style={styles.emptyTitle}>
                     {catalogRecipes.length === 0 ? t('explore.emptyCatalogTitle') : t('explore.noRecipesTitle')}
                   </Text>
@@ -546,7 +550,7 @@ export default function ExploreScreen() {
                   onPress={() => setShowFilterSheet(false)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={20} color="#2B332B" />
+                  <Ionicons name="close" size={20} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
@@ -554,7 +558,7 @@ export default function ExploreScreen() {
                 {/* Tempo Massimo */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="time-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Ionicons name="time-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.maxTime')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
@@ -584,7 +588,7 @@ export default function ExploreScreen() {
                 {/* Difficoltà */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="speedometer-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Ionicons name="speedometer-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.difficulty')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
@@ -614,7 +618,7 @@ export default function ExploreScreen() {
                 {/* Dieta: include le ricette che hanno una variante compatibile */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="nutrition-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Ionicons name="nutrition-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.diet')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
@@ -642,7 +646,7 @@ export default function ExploreScreen() {
                 {availableOrigins.length > 1 && (
                   <View style={styles.sheetSection}>
                     <View style={styles.sectionLabelRow}>
-                      <Ionicons name="library-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                      <Ionicons name="library-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
                       <Text style={styles.sheetSectionTitle}>{t('explore.advanced.origin')}</Text>
                     </View>
                     <View style={styles.sheetChipsRow}>
@@ -666,7 +670,7 @@ export default function ExploreScreen() {
                 {/* Caratteristiche */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="leaf-outline" size={16} color="#4A6B53" style={{ marginRight: 6 }} />
+                    <Ionicons name="leaf-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.features')}</Text>
                   </View>
                   <View style={styles.sheetChipsRow}>
@@ -702,7 +706,7 @@ export default function ExploreScreen() {
                     onPress={handleResetFilters}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="refresh-outline" size={15} color="#6E7E72" style={{ marginRight: 4 }} />
+                    <Ionicons name="refresh-outline" size={15} color={colors.textSecondary} style={{ marginRight: 4 }} />
                     <Text style={styles.sheetResetText}>{t('explore.advanced.reset')}</Text>
                   </TouchableOpacity>
                 ) : (
@@ -732,7 +736,7 @@ export default function ExploreScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('explore.importAi')}
           >
-            <Ionicons name="sparkles" size={20} color="#FFFFFF" />
+            <Ionicons name="sparkles" size={20} color={colors.onPrimary} />
             <Text style={styles.fabImportText}>{t('explore.importButton')}</Text>
           </TouchableOpacity>
         )}
@@ -757,7 +761,7 @@ export default function ExploreScreen() {
 
         {variantBusy && (
           <View style={styles.busyOverlay} pointerEvents="none">
-            <ActivityIndicator size="large" color="#34523C" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.busyText}>{t('explore.variantGenerating')}</Text>
           </View>
         )}
@@ -766,18 +770,18 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   busyOverlay: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(247, 249, 246, 0.7)',
+    backgroundColor: isDark ? 'rgba(17, 22, 17, 0.7)' : 'rgba(247, 249, 246, 0.7)',
     gap: 12,
   },
-  busyText: { fontSize: 14, fontWeight: '700', color: '#34523C' },
+  busyText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   mainWrapper: {
     flex: 1,
@@ -810,9 +814,9 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 37.5,
-    shadowColor: '#1A2E1F',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.22,
     shadowRadius: 8,
@@ -820,7 +824,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   fabImportText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 2,
@@ -830,7 +834,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 5,
@@ -842,17 +846,17 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     letterSpacing: -0.5,
   },
   brandSubtitle: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#718073',
+    color: colors.textSecondary,
   },
   modeToggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#ECE7DF',
+    backgroundColor: colors.border,
     borderRadius: 14,
     padding: 3,
     marginBottom: 12,
@@ -866,8 +870,8 @@ const styles = StyleSheet.create({
     borderRadius: 11,
   },
   modeToggleBtnActive: {
-    backgroundColor: '#34523C',
-    shadowColor: '#1A2E1F',
+    backgroundColor: colors.primary,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
@@ -875,10 +879,10 @@ const styles = StyleSheet.create({
   modeToggleText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   modeToggleTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   searchRow: {
@@ -890,13 +894,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 46,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
-    shadowColor: '#1A2E1F',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 5,
@@ -905,27 +909,27 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
   },
   filterBtn: {
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    shadowColor: '#1A2E1F',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 5,
     elevation: 2,
   },
   filterBtnActive: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterBadge: {
     position: 'absolute',
@@ -939,10 +943,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: '#FBF9F5',
+    borderColor: colors.background,
   },
   filterBadgeText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 10,
     fontWeight: '800',
   },
@@ -966,27 +970,27 @@ const styles = StyleSheet.create({
   activeFiltersPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   categoryChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#EFEBE4',
+    borderColor: colors.border,
   },
   categoryChipSelected: {
-    backgroundColor: '#4A6B53',
-    borderColor: '#4A6B53',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#657367',
+    color: colors.textSecondary,
   },
   categoryChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   subcategoriesSection: {
     marginBottom: 4,
@@ -1001,21 +1005,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
-    backgroundColor: '#F0EBE3',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E2DBD0',
+    borderColor: colors.border,
   },
   subCategoryChipSelected: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   subCategoryChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#5C6C5F',
+    color: colors.textSecondary,
   },
   subCategoryChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   counterRow: {
@@ -1025,7 +1029,7 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8A998D',
+    color: colors.textMuted,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -1049,12 +1053,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginTop: 14,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#7E8B80',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
@@ -1062,17 +1066,17 @@ const styles = StyleSheet.create({
   // Filter Bottom Sheet Styles
   sheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 20,
     paddingBottom: 32,
     maxHeight: '80%',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -1093,23 +1097,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#EFEBE4',
+    borderBottomColor: colors.border,
   },
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   sheetSub: {
     fontSize: 13,
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginTop: 2,
   },
   sheetCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#EBE5DC',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1127,7 +1131,7 @@ const styles = StyleSheet.create({
   sheetSectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   sheetChipsRow: {
     flexDirection: 'row',
@@ -1138,21 +1142,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   sheetChipSelected: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   sheetChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   sheetChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   sheetFooter: {
     flexDirection: 'row',
@@ -1160,7 +1164,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#EFEBE4',
+    borderTopColor: colors.border,
     marginTop: 8,
   },
   sheetResetBtn: {
@@ -1172,17 +1176,17 @@ const styles = StyleSheet.create({
   sheetResetText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6E7E72',
+    color: colors.textSecondary,
   },
   sheetApplyBtn: {
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 14,
     marginLeft: 'auto',
   },
   sheetApplyText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
   },

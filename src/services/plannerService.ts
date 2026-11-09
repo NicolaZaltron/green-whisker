@@ -194,13 +194,16 @@ export const SLOT_ICONS: Record<MealSlot, string> = {
   cena: 'moon-outline',
 };
 
-/** Colori per ogni slot */
-export const SLOT_COLORS: Record<MealSlot, { color: string; bgColor: string }> = {
-  colazione:           { color: '#C07A3A', bgColor: '#FDF5EC' },
-  spuntino_mattina:   { color: '#7B6FA3', bgColor: '#F2F0FA' },
-  pranzo:             { color: '#4A6B53', bgColor: '#EAF0EB' },
-  spuntino_pomeriggio: { color: '#3A8C7E', bgColor: '#E6F4F1' },
-  cena:               { color: '#D97757', bgColor: '#FDF0EE' },
+/** Colori per ogni slot (light in color/bgColor, dark in darkColor/darkBgColor) */
+export const SLOT_COLORS: Record<
+  MealSlot,
+  { color: string; bgColor: string; darkColor: string; darkBgColor: string }
+> = {
+  colazione:           { color: '#C07A3A', bgColor: '#FDF5EC', darkColor: '#E09A5C', darkBgColor: '#35291E' },
+  spuntino_mattina:   { color: '#7B6FA3', bgColor: '#F2F0FA', darkColor: '#A597D1', darkBgColor: '#2A2638' },
+  pranzo:             { color: '#4A6B53', bgColor: '#EAF0EB', darkColor: '#9CCBA8', darkBgColor: '#2A3D2E' },
+  spuntino_pomeriggio: { color: '#3A8C7E', bgColor: '#E6F4F1', darkColor: '#5FB8A8', darkBgColor: '#1F3530' },
+  cena:               { color: '#D97757', bgColor: '#FDF0EE', darkColor: '#E8957A', darkBgColor: '#3A2622' },
 };
 
 /**

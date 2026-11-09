@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 export type PlannerRegenScope = 'day' | 'week';
 
@@ -46,6 +48,8 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
   onCancel,
 }) => {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [scope, setScope] = useState<PlannerRegenScope>('week');
 
   const scopeOptions: { value: PlannerRegenScope; label: string }[] = [
@@ -57,7 +61,7 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
     <View style={styles.confirmOverlay}>
       <View style={styles.confirmBox}>
         <View style={styles.confirmIconWrap}>
-          <Ionicons name="refresh-circle" size={36} color="#4A6B53" />
+          <Ionicons name="refresh-circle" size={36} color={colors.primaryText} />
         </View>
         <Text style={styles.confirmTitle}>{t('planner.regenModal.title')}</Text>
         <Text style={styles.confirmSub}>
@@ -112,16 +116,16 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   confirmBox: {
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderRadius: 20,
     padding: 24,
     width: '100%',
@@ -132,7 +136,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -140,39 +144,39 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     marginBottom: 8,
   },
   confirmSub: {
     fontSize: 13,
-    color: '#718073',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
   },
   confirmBtnPrimary: {
     width: '100%',
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 10,
   },
   confirmBtnPrimaryText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
   confirmBtnSecondary: {
     width: '100%',
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 10,
   },
   confirmBtnSecondaryText: {
-    color: '#4A6B53',
+    color: colors.primaryText,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -180,7 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   confirmBtnCancelText: {
-    color: '#7E8B80',
+    color: colors.textMuted,
     fontSize: 13,
   },
   scopeContainer: {
@@ -190,7 +194,7 @@ const styles = StyleSheet.create({
   scopeLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#243328',
+    color: colors.text,
     marginBottom: 6,
   },
   scopeRow: {
@@ -199,28 +203,28 @@ const styles = StyleSheet.create({
   },
   scopePill: {
     flex: 1,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
     borderRadius: 999,
     paddingVertical: 8,
     alignItems: 'center',
   },
   scopePillSelected: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   scopePillText: {
-    color: '#34523C',
+    color: colors.primaryText,
     fontWeight: '600',
     fontSize: 13,
   },
   scopePillTextSelected: {
-    color: '#FFF',
+    color: colors.onPrimary,
   },
   scopeDateLabel: {
     fontSize: 12,
-    color: '#718073',
+    color: colors.textSecondary,
     marginTop: 6,
   },
 });

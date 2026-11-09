@@ -9,6 +9,8 @@ import { applyCatalogImport, deleteRecipes, exportRecipeBook, pickCatalogFile } 
 import { catalogRecipes, catalogVariants } from '../services/recipeCatalog';
 import { useCatalogVersion } from '../hooks/useCatalog';
 import { ExportFilter, ParsedCatalogFile, filterCatalog, withVariants } from '../services/catalogFormat';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 interface RecipeBookModalProps {
   visible: boolean;
@@ -25,6 +27,8 @@ interface FilterOption<T extends string> {
 
 export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModalProps) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
@@ -166,17 +170,17 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           <Ionicons
             name={checked ? 'checkbox' : 'square-outline'}
             size={22}
-            color={checked ? '#34523C' : '#8A9A8D'}
+            color={checked ? colors.primaryText : colors.textMuted}
           />
           <Text style={styles.rowTitle} numberOfLines={1}>
             {item.variant_of ? `${item.title} · ${t(`recipeBook.dietShort.${item.diet ?? 'omnivore'}`)}` : item.title}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setPreview(item)} hitSlop={10} accessibilityLabel={t('recipeBook.preview')}>
-          <Ionicons name="open-outline" size={18} color="#34523C" />
+          <Ionicons name="open-outline" size={18} color={colors.primaryText} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setPendingDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
-          <Ionicons name="trash-outline" size={18} color="#D9534F" />
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
         </TouchableOpacity>
       </View>
     );
@@ -236,7 +240,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
         <View style={styles.header}>
           <Text style={styles.title}>{t('recipeBook.title')}</Text>
           <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
-            <Ionicons name="close" size={24} color="#34523C" />
+            <Ionicons name="close" size={24} color={colors.primaryText} />
           </TouchableOpacity>
         </View>
 
@@ -244,7 +248,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           <Text style={styles.description}>{t('recipeBook.description')}</Text>
 
           <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)} activeOpacity={0.8}>
-            <Ionicons name="options-outline" size={16} color="#34523C" />
+            <Ionicons name="options-outline" size={16} color={colors.primaryText} />
             <Text style={styles.filterButtonText}>
               {t('recipeBook.filtersButton')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
             </Text>
@@ -278,9 +282,9 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             <Switch
               value={includeVariants}
               onValueChange={setIncludeVariants}
-              trackColor={{ false: '#D4DDD6', true: '#7FA186' }}
-              thumbColor="#FFFFFF"
-              ios_backgroundColor="#D4DDD6"
+              trackColor={{ false: colors.borderStrong, true: colors.primary }}
+              thumbColor={colors.onPrimary}
+              ios_backgroundColor={colors.borderStrong}
             />
           </View>
 
@@ -304,7 +308,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             disabled={busy || toExport.length === 0}
             activeOpacity={0.85}
           >
-            <Ionicons name="share-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+            <Ionicons name="share-outline" size={18} color={colors.onPrimary} style={styles.btnIcon} />
             <Text style={styles.primaryBtnText}>{t('recipeBook.exportSelected', { count: toExport.length })}</Text>
           </TouchableOpacity>
 
@@ -314,16 +318,16 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             disabled={busy || selected.length === 0}
             activeOpacity={0.85}
           >
-            <Ionicons name="trash-outline" size={18} color="#D9534F" style={styles.btnIcon} />
+            <Ionicons name="trash-outline" size={18} color={colors.danger} style={styles.btnIcon} />
             <Text style={styles.dangerBtnText}>{t('recipeBook.deleteSelected', { count: selected.length })}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryBtn} onPress={handleImport} disabled={busy} activeOpacity={0.85}>
-            <Ionicons name="folder-open-outline" size={18} color="#34523C" style={styles.btnIcon} />
+            <Ionicons name="folder-open-outline" size={18} color={colors.primaryText} style={styles.btnIcon} />
             <Text style={styles.secondaryBtnText}>{t('recipeBook.import')}</Text>
           </TouchableOpacity>
 
-          {busy ? <ActivityIndicator color="#34523C" style={styles.busy} /> : null}
+          {busy ? <ActivityIndicator color={colors.primaryText} style={styles.busy} /> : null}
           {message ? (
             <Text style={[styles.message, isError && styles.messageError]}>{message}</Text>
           ) : null}
@@ -334,7 +338,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             <View style={styles.header}>
               <Text style={styles.title}>{t('recipeBook.filtersTitle')}</Text>
               <TouchableOpacity onPress={() => setShowFilters(false)} hitSlop={12} accessibilityLabel={t('common.close')}>
-                <Ionicons name="close" size={24} color="#34523C" />
+                <Ionicons name="close" size={24} color={colors.primaryText} />
               </TouchableOpacity>
             </View>
             {renderChips(t('recipeBook.filterScope'), scopeOptions, filter.scope, v => changeFilter('scope', v))}
@@ -356,8 +360,8 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F9F6' },
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.surfaceAlt },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -365,9 +369,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A2E1F' },
+  title: { fontSize: 20, fontWeight: '800', color: colors.text },
   content: { flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
-  description: { fontSize: 14, color: '#5E6D60', lineHeight: 20, marginBottom: 10 },
+  description: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 10 },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,25 +380,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 16,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     marginBottom: 8,
   },
-  filterButtonText: { fontSize: 13, fontWeight: '700', color: '#34523C' },
+  filterButtonText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
   filterSheet: { padding: 20, paddingBottom: 28 },
   filterGroup: { marginBottom: 8 },
-  filterLabel: { fontSize: 11, fontWeight: '700', color: '#5E6D60', marginBottom: 4, textTransform: 'uppercase' },
+  filterLabel: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  chipActive: { backgroundColor: '#34523C', borderColor: '#34523C' },
-  chipText: { fontSize: 12, fontWeight: '700', color: '#34523C' },
-  chipTextActive: { color: '#FFFFFF' },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
+  chipTextActive: { color: colors.onPrimary },
   selectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,9 +406,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 6,
   },
-  selectionCount: { fontSize: 13, color: '#5E6D60' },
-  selectionToggle: { fontSize: 13, fontWeight: '700', color: '#34523C' },
-  list: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E3EAE4' },
+  selectionCount: { fontSize: 13, color: colors.textSecondary },
+  selectionToggle: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
+  list: { flex: 1, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,61 +416,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEF3EF',
+    borderBottomColor: colors.border,
   },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowTitle: { flex: 1, fontSize: 14, color: '#1A2E1F' },
-  empty: { padding: 16, fontSize: 13, color: '#5E6D60', textAlign: 'center' },
+  rowTitle: { flex: 1, fontSize: 14, color: colors.text },
+  empty: { padding: 16, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
   variantsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 10,
   },
-  variantsLabel: { fontSize: 13, color: '#1A2E1F', flex: 1, marginRight: 8 },
+  variantsLabel: { fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
   btnIcon: { marginRight: 8 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
   },
   disabledBtn: { opacity: 0.5 },
-  primaryBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  primaryBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
     borderRadius: 14,
     paddingVertical: 14,
   },
-  secondaryBtnText: { color: '#34523C', fontSize: 15, fontWeight: '800' },
+  secondaryBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: '800' },
   dangerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#E8B4B1',
+    borderColor: colors.danger,
     borderRadius: 14,
     paddingVertical: 12,
   },
-  confirmBox: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: '#FDECEA', borderWidth: 1, borderColor: '#E8B4B1' },
-  confirmText: { fontSize: 13, color: '#1A2E1F', lineHeight: 18 },
+  confirmBox: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger },
+  confirmText: { fontSize: 13, color: colors.text, lineHeight: 18 },
   confirmRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  confirmCancel: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D4DDD6' },
-  confirmCancelText: { fontSize: 14, fontWeight: '700', color: '#34523C' },
-  confirmDelete: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#D9534F' },
-  confirmDeleteText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-  dangerBtnText: { color: '#D9534F', fontSize: 14, fontWeight: '800' },
+  confirmCancel: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
+  confirmCancelText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
+  confirmDelete: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: colors.danger },
+  confirmDeleteText: { fontSize: 14, fontWeight: '800', color: colors.onPrimary },
+  dangerBtnText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
   busy: { marginTop: 12 },
-  message: { fontSize: 14, fontWeight: '600', color: '#34523C', marginTop: 12, lineHeight: 20 },
-  messageError: { color: '#D9534F' },
+  message: { fontSize: 14, fontWeight: '600', color: colors.primaryText, marginTop: 12, lineHeight: 20 },
+  messageError: { color: colors.danger },
 });

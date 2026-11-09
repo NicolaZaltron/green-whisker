@@ -18,9 +18,13 @@ import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
 import { useCatalogVersion } from '../../hooks/useCatalog';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 
 export default function FavoritesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const { favoriteIds, toggleFavorite, refreshFavorites } = useFavorites();
@@ -77,7 +81,7 @@ export default function FavoritesScreen() {
         />
       </View>
     ),
-    [numColumns, toggleFavorite]
+    [numColumns, toggleFavorite, styles]
   );
 
   return (
@@ -86,7 +90,7 @@ export default function FavoritesScreen() {
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={styles.iconBadge}>
-              <Ionicons name="heart" size={20} color="#D9534F" />
+              <Ionicons name="heart" size={20} color={colors.danger} />
             </View>
             <View>
               <Text style={styles.title}>{t('favorites.title')}</Text>
@@ -98,17 +102,17 @@ export default function FavoritesScreen() {
 
           {favoriteRecipes.length > 0 && (
             <View style={styles.searchBar}>
-              <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
+              <Ionicons name="search" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
               <TextInput
                 style={styles.searchInput}
                 placeholder={t('favorites.searchPlaceholder')}
-                placeholderTextColor="#8C988F"
+                placeholderTextColor={colors.textMuted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color="#7E8B80" />
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -142,7 +146,7 @@ export default function FavoritesScreen() {
                   onPress={() => router.push('/(tabs)')}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="compass-outline" size={18} color="#FFF" />
+                  <Ionicons name="compass-outline" size={18} color={colors.onPrimary} />
                   <Text style={styles.exploreBtnText}>{t('favorites.exploreRecipes')}</Text>
                 </TouchableOpacity>
               )}
@@ -160,10 +164,10 @@ export default function FavoritesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   mainWrapper: {
     flex: 1,
@@ -186,36 +190,36 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#FDF0EE',
+    backgroundColor: colors.dangerSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#718073',
+    color: colors.textSecondary,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 44,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     marginTop: 4,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -241,7 +245,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FAF0EB',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -249,12 +253,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#7E8B80',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -262,18 +266,18 @@ const styles = StyleSheet.create({
   exploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 14,
     gap: 8,
-    shadowColor: '#4A6B53',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
   },
   exploreBtnText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
   },

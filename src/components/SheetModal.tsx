@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 // Scheda che sale dal basso, con gli stessi angoli arrotondati e lo stesso sfondo dei filtri avanzati.
 // Il tocco fuori dalla scheda la chiude; lo spazio sotto è quello della barra di sistema.
@@ -21,6 +23,8 @@ export function SheetModal({
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (fullScreen) {
     return (
       // Traslucide su Android: lo sfondo arriva sotto la status bar e la barra di navigazione, come nella home
@@ -32,7 +36,7 @@ export function SheetModal({
         onRequestClose={onClose}
       >
         <View style={[styles.fullScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          {children}
+          <View style={styles.fullScreenContent}>{children}</View>
         </View>
       </Modal>
     );
@@ -49,22 +53,24 @@ export function SheetModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  // Stessa larghezza massima della home (1200px), centrata anche sulle schede a tutto schermo
+  fullScreenContent: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   fullScreen: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.15,
     shadowRadius: 10,

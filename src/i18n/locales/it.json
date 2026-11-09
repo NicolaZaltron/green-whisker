@@ -343,7 +343,11 @@
     "open": "Menu",
     "language": "Lingua",
     "recipeBook": "Ricettario",
-    "aiSettings": "Impostazioni AI"
+    "aiSettings": "Impostazioni AI",
+    "theme": "Tema",
+    "theme_light": "Chiaro",
+    "theme_dark": "Scuro",
+    "theme_system": "Sistema"
   },
   "recipeBook": {
     "title": "Ricettario",

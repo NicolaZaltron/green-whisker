@@ -21,6 +21,8 @@ import {
   PantryMatchResult
 } from '../services/pantryService';
 import { addShoppingItems } from '../db/database';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 interface PantryViewProps {
   onSelectRecipe: (recipe: Recipe) => void;
@@ -28,6 +30,8 @@ interface PantryViewProps {
 }
 
 export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastMessage }) => {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useTranslation();
   const { width } = useResponsiveDimensions();
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
@@ -161,7 +165,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Header Info */}
       <View style={styles.headerBox}>
         <View style={styles.headerTitleRow}>
-          <MaterialCommunityIcons name="fridge-outline" size={20} color="#4A6B53" style={{ marginRight: 6 }} />
+          <MaterialCommunityIcons name="fridge-outline" size={20} color={colors.primaryText} style={{ marginRight: 6 }} />
           <Text style={styles.headerTitle}>{t('pantry.title')}</Text>
         </View>
         <Text style={styles.headerSubtitle}>
@@ -172,11 +176,11 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Input Box with Autocomplete */}
       <View style={styles.inputCard}>
         <View style={styles.inputRow}>
-          <Ionicons name="add-circle-outline" size={20} color="#7E8B80" style={{ marginRight: 8 }} />
+          <Ionicons name="add-circle-outline" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.textInput}
             placeholder={t('pantry.inputPlaceholder')}
-            placeholderTextColor="#8C988F"
+            placeholderTextColor={colors.textMuted}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleAddIngredient(inputText)}
@@ -201,7 +205,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
                   onPress={() => handleAddIngredient(item)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="add" size={12} color="#4A6B53" style={{ marginRight: 2 }} />
+                  <Ionicons name="add" size={12} color={colors.primaryText} style={{ marginRight: 2 }} />
                   <Text style={styles.suggestionChipText}>{item}</Text>
                 </TouchableOpacity>
               ))}
@@ -230,7 +234,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
                     style={styles.removeChipBtn}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <Ionicons name="close" size={14} color="#FFFFFF" />
+                    <Ionicons name="close" size={14} color={colors.onPrimary} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -253,7 +257,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
                 onPress={() => handleAddIngredient(chip)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="add" size={12} color="#556658" style={{ marginRight: 3 }} />
+                <Ionicons name="add" size={12} color={colors.textSecondary} style={{ marginRight: 3 }} />
                 <Text style={styles.quickChipText}>{chip}</Text>
               </TouchableOpacity>
             ))}
@@ -269,7 +273,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
           <Ionicons
             name={assumeStaples ? 'checkbox' : 'square-outline'}
             size={18}
-            color={assumeStaples ? '#4A6B53' : '#8E9C91'}
+            color={assumeStaples ? colors.primaryText : colors.textMuted}
             style={{ marginRight: 8 }}
           />
           <Text style={styles.staplesText}>
@@ -287,7 +291,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             </Text>
             {readyCount > 0 && (
               <View style={styles.readyBadge}>
-                <Ionicons name="checkmark-circle" size={12} color="#1B6334" style={{ marginRight: 3 }} />
+                <Ionicons name="checkmark-circle" size={12} color={colors.primaryText} style={{ marginRight: 3 }} />
                 <Text style={styles.readyBadgeText}>{t('pantry.readyBadge', { count: readyCount })}</Text>
               </View>
             )}
@@ -331,7 +335,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
   const listEmptyElement = selectedIngredients.length === 0 ? (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconCircle}>
-        <Ionicons name="basket-outline" size={42} color="#8E9C91" />
+        <Ionicons name="basket-outline" size={42} color={colors.textMuted} />
       </View>
       <Text style={styles.emptyTitle}>{t('pantry.emptyTitle')}</Text>
       <Text style={styles.emptySubtitle}>
@@ -340,7 +344,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
     </View>
   ) : filteredResults.length === 0 ? (
     <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={38} color="#8E9C91" />
+      <Ionicons name="search-outline" size={38} color={colors.textMuted} />
       <Text style={styles.emptyTitle}>{t('pantry.noResultsFilterTitle')}</Text>
       <Text style={styles.emptySubtitle}>
         {t('pantry.noResultsFilterSub')}
@@ -353,7 +357,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Feedback Toast Notification */}
       {feedbackToast && (
         <View style={styles.toastBanner}>
-          <Ionicons name="cart" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Ionicons name="cart" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
           <Text style={styles.toastText}>{feedbackToast}</Text>
         </View>
       )}
@@ -379,7 +383,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   root: {
     flex: 1,
   },
@@ -395,7 +399,7 @@ const styles = StyleSheet.create({
     top: 10,
     left: 20,
     right: 20,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -403,23 +407,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 6,
   },
   toastText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 13,
     fontWeight: '700',
   },
   headerBox: {
-    backgroundColor: '#F0F5F1',
+    backgroundColor: colors.primarySoft,
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#DFE8E1',
+    borderColor: colors.border,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -429,21 +433,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#243328',
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#556658',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   inputCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     marginBottom: 16,
-    shadowColor: '#1A2E1F',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -452,7 +456,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F6F2',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
@@ -460,16 +464,16 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 13,
-    color: '#243328',
+    color: colors.text,
   },
   addBtn: {
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
   },
   addBtnText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -477,12 +481,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F0ECE4',
+    borderTopColor: colors.border,
   },
   suggestionsTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
@@ -494,21 +498,21 @@ const styles = StyleSheet.create({
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 8,
   },
   suggestionChipText: {
     fontSize: 12,
-    color: '#34523C',
+    color: colors.primaryText,
     fontWeight: '600',
   },
   selectedSection: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0ECE4',
+    borderTopColor: colors.border,
   },
   selectedHeader: {
     flexDirection: 'row',
@@ -519,12 +523,12 @@ const styles = StyleSheet.create({
   selectedCountText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#34523C',
+    color: colors.primaryText,
   },
   clearAllText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#C05621',
+    color: colors.danger,
   },
   selectedChipsWrap: {
     flexDirection: 'row',
@@ -534,14 +538,14 @@ const styles = StyleSheet.create({
   selectedChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
     paddingLeft: 10,
     paddingRight: 6,
     paddingVertical: 5,
     borderRadius: 20,
   },
   selectedChipText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 12,
     fontWeight: '600',
     marginRight: 4,
@@ -558,12 +562,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0ECE4',
+    borderTopColor: colors.border,
   },
   quickTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginBottom: 6,
   },
   quickScroll: {
@@ -572,14 +576,14 @@ const styles = StyleSheet.create({
   quickChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3EFEA',
+    backgroundColor: colors.surfaceMuted,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
   },
   quickChipText: {
     fontSize: 12,
-    color: '#445246',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   staplesToggleRow: {
@@ -588,11 +592,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F0ECE4',
+    borderTopColor: colors.border,
   },
   staplesText: {
     fontSize: 11,
-    color: '#657367',
+    color: colors.textSecondary,
     flex: 1,
   },
   resultsHeader: {
@@ -607,12 +611,12 @@ const styles = StyleSheet.create({
   resultsCount: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   readyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -620,7 +624,7 @@ const styles = StyleSheet.create({
   readyBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#1B6334',
+    color: colors.primaryText,
   },
   filtersRow: {
     flexDirection: 'row',
@@ -630,38 +634,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   filterPillActive: {
-    backgroundColor: '#4A6B53',
-    borderColor: '#4A6B53',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   filterPillTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     marginTop: 8,
   },
   emptyIconCircle: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#F3EFEA',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -669,13 +673,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#243328',
+    color: colors.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#718073',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 320,

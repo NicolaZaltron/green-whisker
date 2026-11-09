@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { PlannerPreferences, savePlannerPreferences } from '../../services/plannerService';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 export interface PlannerPreferencesModalProps {
   visible: boolean;
@@ -31,6 +33,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   onClearWeek,
 }) => {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!prefs) return null;
 
   const handleServingsChange = async (delta: number) => {
@@ -71,7 +75,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
         <View style={styles.prefsHeader}>
           <Text style={styles.prefsTitle}>{t('planner.preferencesModal.title')}</Text>
           <TouchableOpacity onPress={onClose} style={styles.prefsCloseBtn}>
-            <Ionicons name="close" size={22} color="#2B332B" />
+            <Ionicons name="close" size={22} color={colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -86,14 +90,14 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
                 style={styles.stepperBtn}
                 onPress={() => handleServingsChange(-1)}
               >
-                <Ionicons name="remove" size={16} color="#4A6B53" />
+                <Ionicons name="remove" size={16} color={colors.primaryText} />
               </TouchableOpacity>
               <Text style={styles.stepperVal}>{prefs.servings}</Text>
               <TouchableOpacity
                 style={styles.stepperBtn}
                 onPress={() => handleServingsChange(1)}
               >
-                <Ionicons name="add" size={16} color="#4A6B53" />
+                <Ionicons name="add" size={16} color={colors.primaryText} />
               </TouchableOpacity>
             </View>
           </View>
@@ -148,7 +152,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="trash-outline" size={16} color="#D9534F" />
+            <Ionicons name="trash-outline" size={16} color={colors.danger} />
             <Text style={styles.clearWeekBtnText}>{t('planner.preferencesModal.clearWeek')}</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -157,10 +161,10 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   prefsSafeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   prefsHeader: {
     height: 54,
@@ -169,18 +173,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#ECE7DF',
+    borderBottomColor: colors.border,
   },
   prefsTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
   },
   prefsCloseBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -194,16 +198,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EDE8',
+    borderBottomColor: colors.border,
   },
   prefLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2B332B',
+    color: colors.text,
   },
   prefSub: {
     fontSize: 12,
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginTop: 2,
   },
   prefStepper: {
@@ -215,14 +219,14 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperVal: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     minWidth: 24,
     textAlign: 'center',
   },
@@ -230,18 +234,18 @@ const styles = StyleSheet.create({
     width: 46,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#DDD8CE',
+    backgroundColor: colors.borderStrong,
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   toggleOn: {
-    backgroundColor: '#4A6B53',
+    backgroundColor: colors.primary,
   },
   toggleThumb: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.onPrimary,
     alignSelf: 'flex-start',
   },
   toggleThumbOn: {
@@ -253,12 +257,12 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 24,
     padding: 14,
-    backgroundColor: '#FDF0EE',
+    backgroundColor: colors.dangerSoft,
     borderRadius: 12,
     justifyContent: 'center',
   },
   clearWeekBtnText: {
-    color: '#D9534F',
+    color: colors.danger,
     fontSize: 14,
     fontWeight: '700',
   },

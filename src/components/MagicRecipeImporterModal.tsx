@@ -1,5 +1,5 @@
 import { SheetModal } from './SheetModal';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   StyleSheet,
   Switch,
@@ -27,6 +27,8 @@ import { upsertCatalogRecipes } from '../db/database';
 import { refreshCatalog } from '../services/recipeCatalog';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 // Revisione di una ricetta generata (es. una variante): il form è lo stesso dell'import AI
 export interface ReviewRequest {
@@ -78,6 +80,8 @@ export function MagicRecipeImporterModal({
   initialUrl,
 }: MagicRecipeImporterModalProps) {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [activeTab, setActiveTab] = useState<'text' | 'photo'>('text');
   
   // Input states
@@ -426,7 +430,7 @@ export function MagicRecipeImporterModal({
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <View style={styles.sparkleIcon}>
-                <Ionicons name="sparkles" size={18} color="#34523C" />
+                <Ionicons name="sparkles" size={18} color={colors.primaryText} />
               </View>
               <View>
                 <Text style={styles.headerTitle}>
@@ -440,7 +444,7 @@ export function MagicRecipeImporterModal({
               </View>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close" size={20} color="#4A584D" />
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -457,7 +461,7 @@ export function MagicRecipeImporterModal({
                   <Ionicons
                     name="document-text"
                     size={17}
-                    color={activeTab === 'text' ? '#34523C' : '#7A8A7E'}
+                    color={activeTab === 'text' ? colors.primaryText : colors.textMuted}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'text' && styles.tabLabelActive]}>
                     {t('recipeImporter.tabText')}
@@ -472,7 +476,7 @@ export function MagicRecipeImporterModal({
                   <Ionicons
                     name="camera"
                     size={17}
-                    color={activeTab === 'photo' ? '#34523C' : '#7A8A7E'}
+                    color={activeTab === 'photo' ? colors.primaryText : colors.textMuted}
                   />
                   <Text style={[styles.tabLabel, activeTab === 'photo' && styles.tabLabelActive]}>
                     {t('recipeImporter.tabPhoto')}
@@ -483,7 +487,7 @@ export function MagicRecipeImporterModal({
               {/* Error Box */}
               {errorMsg && (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle" size={18} color="#C0392B" />
+                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
                   <Text style={styles.errorText}>{errorMsg}</Text>
                 </View>
               )}
@@ -494,7 +498,7 @@ export function MagicRecipeImporterModal({
                   <View style={styles.inputHeaderRow}>
                     <Text style={styles.sectionTitle}>{t('recipeImporter.pasteTextTitle')}</Text>
                     <TouchableOpacity style={styles.pasteButton} onPress={handlePasteFromClipboard} activeOpacity={0.75}>
-                      <Ionicons name="clipboard-outline" size={13} color="#34523C" />
+                      <Ionicons name="clipboard-outline" size={13} color={colors.primaryText} />
                       <Text style={styles.pasteButtonText}>{t('recipeImporter.paste')}</Text>
                     </TouchableOpacity>
                   </View>
@@ -506,7 +510,7 @@ export function MagicRecipeImporterModal({
                     multiline
                     numberOfLines={8}
                     placeholder={t('recipeImporter.pastePlaceholder')}
-                    placeholderTextColor="#9CA89E"
+                    placeholderTextColor={colors.textMuted}
                     value={inputText}
                     onChangeText={setInputText}
                     textAlignVertical="top"
@@ -525,7 +529,7 @@ export function MagicRecipeImporterModal({
                         onPress={() => setCapturedPages([])}
                         activeOpacity={0.7}
                       >
-                        <Ionicons name="trash-outline" size={13} color="#C0392B" />
+                        <Ionicons name="trash-outline" size={13} color={colors.danger} />
                         <Text style={styles.clearPagesText}>{t('recipeImporter.removeAll')}</Text>
                       </TouchableOpacity>
                     )}
@@ -558,7 +562,7 @@ export function MagicRecipeImporterModal({
                               activeOpacity={0.8}
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
-                              <Ionicons name="close" size={14} color="#FFF" />
+                              <Ionicons name="close" size={14} color={colors.onPrimary} />
                             </TouchableOpacity>
                           </View>
                         ))}
@@ -572,7 +576,7 @@ export function MagicRecipeImporterModal({
                             onPress={handleTakePhoto}
                             activeOpacity={0.75}
                           >
-                            <Ionicons name="camera-outline" size={18} color="#34523C" />
+                            <Ionicons name="camera-outline" size={18} color={colors.primaryText} />
                             <Text style={styles.appendPageBtnText}>{t('recipeImporter.takePageN', { n: capturedPages.length + 1 })}</Text>
                           </TouchableOpacity>
 
@@ -581,7 +585,7 @@ export function MagicRecipeImporterModal({
                             onPress={handlePickImage}
                             activeOpacity={0.75}
                           >
-                            <Ionicons name="images-outline" size={18} color="#34523C" />
+                            <Ionicons name="images-outline" size={18} color={colors.primaryText} />
                             <Text style={styles.appendPageBtnText}>{t('recipeImporter.pickFromGallery')}</Text>
                           </TouchableOpacity>
                         </View>
@@ -589,7 +593,7 @@ export function MagicRecipeImporterModal({
 
                       <View style={styles.pagesHintBox}>
                         <View style={styles.bannerIconSlot}>
-                          <Ionicons name="information-circle-outline" size={16} color="#4A6B53" />
+                          <Ionicons name="information-circle-outline" size={16} color={colors.primaryText} />
                         </View>
                         <Text style={styles.pagesHintText}>
                           {capturedPages.length === 1
@@ -601,13 +605,13 @@ export function MagicRecipeImporterModal({
                   ) : (
                     <View style={styles.photoActionsRow}>
                       <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto} activeOpacity={0.75}>
-                        <Ionicons name="camera-outline" size={30} color="#34523C" />
+                        <Ionicons name="camera-outline" size={30} color={colors.primaryText} />
                         <Text style={styles.photoActionLabel}>{t('recipeImporter.takeFirstPage')}</Text>
                         <Text style={styles.photoActionSub}>{t('recipeImporter.withCamera')}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage} activeOpacity={0.75}>
-                        <Ionicons name="images-outline" size={30} color="#34523C" />
+                        <Ionicons name="images-outline" size={30} color={colors.primaryText} />
                         <Text style={styles.photoActionLabel}>{t('recipeImporter.chooseFromGallery')}</Text>
                         <Text style={styles.photoActionSub}>{t('recipeImporter.multiPages')}</Text>
                       </TouchableOpacity>
@@ -619,25 +623,29 @@ export function MagicRecipeImporterModal({
               {/* VARIANTI: scegli quali versioni generare dopo l'originale */}
               <View style={styles.dietCard}>
                 <DietSwitchRow
-                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? '#FFFFFF' : '#34523C'} />}
+                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? colors.onPrimary : colors.primaryText} />}
                   title={t('recipeImporter.vegetarianVersion')}
                   hint={t('recipeImporter.vegetarianHint')}
                   value={wantVegetarian}
                   disabled={loading}
                   onValueChange={setWantVegetarian}
+                  styles={styles}
+                  colors={colors}
                 />
                 <View style={styles.dietDivider} />
                 <DietSwitchRow
-                  icon={<Ionicons name="leaf" size={18} color={wantVegan ? '#FFFFFF' : '#34523C'} />}
+                  icon={<Ionicons name="leaf" size={18} color={wantVegan ? colors.onPrimary : colors.primaryText} />}
                   title={t('recipeImporter.veganVersion')}
                   hint={t('recipeImporter.veganHint')}
                   value={wantVegan}
                   disabled={loading}
                   onValueChange={setWantVegan}
+                  styles={styles}
+                  colors={colors}
                 />
                 <View style={styles.dietSummary}>
                   <View style={styles.bannerIconSlot}>
-                    <Ionicons name="information-circle-outline" size={16} color="#34523C" />
+                    <Ionicons name="information-circle-outline" size={16} color={colors.primaryText} />
                   </View>
                   <Text style={styles.dietSummaryText}>{t(VARIANT_SUMMARY[variantSummaryKey])}</Text>
                 </View>
@@ -652,12 +660,12 @@ export function MagicRecipeImporterModal({
               >
                 {loading ? (
                   <View style={styles.loadingRow}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
+                    <ActivityIndicator size="small" color={colors.onPrimary} />
                     <Text style={styles.parseButtonText}>{loadingMessage}</Text>
                   </View>
                 ) : (
                   <View style={styles.loadingRow}>
-                    <Ionicons name="sparkles" size={18} color="#FFFFFF" />
+                    <Ionicons name="sparkles" size={18} color={colors.onPrimary} />
                     <Text style={styles.parseButtonText}>
                       {activeTab === 'photo' && capturedPages.length > 1
                         ? t('recipeImporter.extractFromPages', { count: capturedPages.length })
@@ -671,7 +679,7 @@ export function MagicRecipeImporterModal({
             // REVIEW & EDIT PARSED RECIPE SCREEN
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.successBanner}>
-                <Ionicons name="checkmark-circle" size={20} color="#34523C" />
+                <Ionicons name="checkmark-circle" size={20} color={colors.primaryText} />
                 <Text style={styles.successBannerText}>{t('recipeImporter.extractSuccess')}</Text>
               </View>
 
@@ -730,7 +738,7 @@ export function MagicRecipeImporterModal({
               {/* Slot Planner */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.plannerSlot')}</Text>
-                <SegmentedSelector options={SLOTS.map(s => ({ ...s, label: t(s.label) }))} value={editSlot} onChange={setEditSlot} />
+                <SegmentedSelector options={SLOTS.map(s => ({ ...s, label: t(s.label) }))} value={editSlot} onChange={setEditSlot} styles={styles} />
               </View>
 
               {/* Dieta: calcolata dagli ingredienti, correggibile a mano */}
@@ -738,7 +746,7 @@ export function MagicRecipeImporterModal({
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.diet')}</Text>
                   {dietChosenByHand ? (
-                    <Text style={{ fontSize: 11, color: '#5E6D60' }}>{t('recipeImporter.fields.dietByHand')}</Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('recipeImporter.fields.dietByHand')}</Text>
                   ) : null}
                 </View>
                 <SegmentedSelector
@@ -748,6 +756,7 @@ export function MagicRecipeImporterModal({
                     { value: 'vegan' as RecipeDiet, label: t('recipeImporter.diet.vegan') },
                   ]}
                   value={editDiet}
+                  styles={styles}
                   onChange={value => {
                     setEditDiet(value);
                     setDietChosenByHand(true);
@@ -780,6 +789,7 @@ export function MagicRecipeImporterModal({
                   <SegmentedSelector
                     options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ value: d, label: t(`recipeImporter.difficultyShort.${d}`) }))}
                     value={editDifficulty}
+                    styles={styles}
                     onChange={setEditDifficulty}
                   />
                 </View>
@@ -793,7 +803,7 @@ export function MagicRecipeImporterModal({
                   {substitutions.map((s, index) => (
                     <View key={`${s.from}-${index}`} style={styles.substitutionRow}>
                       <Text style={styles.substitutionFrom}>{s.from}</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#34523C" />
+                      <Ionicons name="arrow-forward" size={14} color={colors.primaryText} />
                       <Text style={styles.substitutionTo}>{s.to}</Text>
                     </View>
                   ))}
@@ -812,14 +822,14 @@ export function MagicRecipeImporterModal({
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Text style={{ fontSize: 12, color: '#ef4444', fontWeight: '600' }}>{t('recipeImporter.remove')}</Text>
+                      <Text style={{ fontSize: 12, color: colors.danger, fontWeight: '600' }}>{t('recipeImporter.remove')}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
                 <TextInput
                   style={styles.singleLineInput}
                   placeholder="https://..."
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={colors.textMuted}
                   value={editImageUrl}
                   onChangeText={(text) => {
                     setEditImageUrl(text);
@@ -830,16 +840,16 @@ export function MagicRecipeImporterModal({
                 />
                 <View style={styles.imageActionsRow}>
                   <TouchableOpacity style={styles.imageActionBtn} onPress={openGoogleImageSearch} activeOpacity={0.75}>
-                    <Ionicons name="search-outline" size={14} color="#34523C" />
+                    <Ionicons name="search-outline" size={14} color={colors.primaryText} />
                     <Text style={styles.imageActionText}>{t('recipeImporter.searchGoogleImages')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.imageActionBtn} onPress={handlePasteImageUrl} activeOpacity={0.75}>
-                    <Ionicons name="clipboard-outline" size={14} color="#34523C" />
+                    <Ionicons name="clipboard-outline" size={14} color={colors.primaryText} />
                     <Text style={styles.imageActionText}>{t('recipeImporter.pasteLink')}</Text>
                   </TouchableOpacity>
                 </View>
                 {editImageUrl && !imageLoadError ? (
-                  <View style={{ marginTop: 8, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: '#f1f5f9', borderWidth: 1, borderColor: '#e2e8f0' }}>
+                  <View style={{ marginTop: 8, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }}>
                     <ExpoImage
                       source={{ uri: editImageUrl }}
                       style={{ width: '100%', height: '100%' }}
@@ -850,9 +860,9 @@ export function MagicRecipeImporterModal({
                     />
                   </View>
                 ) : editImageUrl && imageLoadError ? (
-                  <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="image-outline" size={18} color="#ef4444" />
-                    <Text style={{ fontSize: 12, color: '#b91c1c', flex: 1 }}>
+                  <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="image-outline" size={18} color={colors.danger} />
+                    <Text style={{ fontSize: 12, color: colors.danger, flex: 1 }}>
                       {t('recipeImporter.previewUnavailable')}
                     </Text>
                   </View>
@@ -906,7 +916,7 @@ export function MagicRecipeImporterModal({
                   <TextInput
                     style={styles.singleLineInput}
                     placeholder={t('recipeImporter.retryPlaceholder')}
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor={colors.textMuted}
                     value={retryInstructions}
                     onChangeText={setRetryInstructions}
                     autoCapitalize="sentences"
@@ -917,7 +927,7 @@ export function MagicRecipeImporterModal({
                     disabled={retrying}
                     activeOpacity={0.75}
                   >
-                    <Ionicons name="refresh" size={14} color="#34523C" />
+                    <Ionicons name="refresh" size={14} color={colors.primaryText} />
                     <Text style={styles.imageActionText}>{retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -927,18 +937,18 @@ export function MagicRecipeImporterModal({
               <View style={styles.actionsFooter}>
                 {review ? (
                   <TouchableOpacity style={styles.resetButton} onPress={discardReview} activeOpacity={0.75}>
-                    <Ionicons name="trash-outline" size={18} color="#556459" />
+                    <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
                     <Text style={styles.resetButtonText}>{t('recipeImporter.discard')}</Text>
                   </TouchableOpacity>
                 ) : !editingRecipe && (
                   <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
-                    <Ionicons name="arrow-back" size={18} color="#556459" />
+                    <Ionicons name="arrow-back" size={18} color={colors.textSecondary} />
                     <Text style={styles.resetButtonText}>{t('recipeImporter.restart')}</Text>
                   </TouchableOpacity>
                 )}
 
                 <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
-                  <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                  <Ionicons name="checkmark-circle" size={20} color={colors.onPrimary} />
                   <Text style={styles.saveRecipeBtnText}>
                     {review ? t('recipeImporter.saveVariant') : wantedVariants.length > 0 && !editingRecipe ? t('recipeImporter.saveAndCheckVariants') : t('recipeImporter.saveToRecipeBook')}
                   </Text>
@@ -952,10 +962,10 @@ export function MagicRecipeImporterModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -963,9 +973,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderBottomWidth: 1,
-    borderBottomColor: '#ECE7DF',
+    borderBottomColor: colors.border,
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -976,27 +986,27 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4E2D8',
+    borderColor: colors.borderStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#7A8A7E',
+    color: colors.textMuted,
     marginTop: 1,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFEAE2',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1006,7 +1016,7 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#EFEAE2',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     padding: 4,
     marginBottom: 16,
@@ -1021,8 +1031,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabItemActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#2B332B',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -1031,17 +1041,17 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#7A8A7E',
+    color: colors.textMuted,
   },
   tabLabelActive: {
-    color: '#34523C',
+    color: colors.primaryText,
     fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDF2EE',
-    borderColor: '#F6D3C7',
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
@@ -1051,17 +1061,17 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
     fontSize: 13,
-    color: '#C0392B',
+    color: colors.danger,
     fontWeight: '600',
   },
   inputSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     marginBottom: 20,
-    shadowColor: '#2B332B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -1076,16 +1086,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#6E7E72',
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 14,
   },
-  dietHintText: { fontSize: 12, color: '#5E6D60', marginTop: 6 },
-  reviewWarning: { fontSize: 13, fontWeight: '600', color: '#B45309', backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginBottom: 12, lineHeight: 18 },
+  dietHintText: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
+  reviewWarning: { fontSize: 13, fontWeight: '600', color: (isDark ? '#FCD34D' : '#B45309'), backgroundColor: (isDark ? '#3D2E0E' : '#FEF3C7'), borderRadius: 10, padding: 10, marginBottom: 12, lineHeight: 18 },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8 },
   disabledBtn: { opacity: 0.5 },
   imageActionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
@@ -1096,18 +1106,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  imageActionText: { fontSize: 12, fontWeight: '700', color: '#34523C' },
+  imageActionText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
   pasteButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4E2D8',
+    borderColor: colors.borderStrong,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
@@ -1115,28 +1125,28 @@ const styles = StyleSheet.create({
   pasteButtonText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#34523C',
+    color: colors.primaryText,
   },
   textAreaInput: {
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#E3DCD2',
+    borderColor: colors.border,
     borderRadius: 14,
     padding: 14,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
     minHeight: 170,
     lineHeight: 21,
   },
   singleLineInput: {
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#E3DCD2',
+    borderColor: colors.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 11,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
   },
   photoActionsRow: {
     flexDirection: 'row',
@@ -1146,10 +1156,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderColor: '#C8DACD',
+    borderColor: colors.borderStrong,
     borderRadius: 16,
     paddingVertical: 26,
     gap: 8,
@@ -1157,18 +1167,18 @@ const styles = StyleSheet.create({
   photoActionLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2B332B',
+    color: colors.text,
   },
   photoActionSub: {
     fontSize: 11,
-    color: '#7A8A7E',
+    color: colors.textMuted,
     marginTop: -2,
   },
   clearPagesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FDF2EE',
+    backgroundColor: colors.dangerSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -1176,7 +1186,7 @@ const styles = StyleSheet.create({
   clearPagesText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#C0392B',
+    color: colors.danger,
   },
   pagesContainer: {
     gap: 12,
@@ -1191,11 +1201,11 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     position: 'relative',
-    shadowColor: '#2B332B',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -1209,7 +1219,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(52, 82, 60, 0.9)',
+    backgroundColor: `${colors.primary}E6`,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1217,7 +1227,7 @@ const styles = StyleSheet.create({
   pageBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   pageDeleteBtn: {
     position: 'absolute',
@@ -1226,7 +1236,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1240,20 +1250,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4E2D8',
+    borderColor: colors.borderStrong,
     paddingVertical: 11,
     borderRadius: 12,
   },
   appendPageBtnSecondary: {
-    backgroundColor: '#FAF8F5',
-    borderColor: '#ECE7DF',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   appendPageBtnText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#34523C',
+    color: colors.primaryText,
   },
   // Icona allineata alla prima riga di testo: stessa altezza della riga (lineHeight 17)
   bannerIconSlot: {
@@ -1264,7 +1274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1272,17 +1282,17 @@ const styles = StyleSheet.create({
   pagesHintText: {
     flex: 1,
     fontSize: 12,
-    color: '#26422E',
+    color: colors.text,
     lineHeight: 17,
     fontWeight: '500',
   },
   parseButton: {
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#34523C',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1296,10 +1306,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E3EAE4',
-    shadowColor: '#1A2E1F',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
@@ -1312,7 +1322,7 @@ const styles = StyleSheet.create({
   },
   dietDivider: {
     height: 1,
-    backgroundColor: '#EEF3EF',
+    backgroundColor: colors.border,
     marginVertical: 12,
   },
   dietIconCircle: {
@@ -1321,10 +1331,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
   },
   dietIconCircleActive: {
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
   },
   dietTextBox: {
     flex: 1,
@@ -1332,11 +1342,11 @@ const styles = StyleSheet.create({
   dietTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A2E1F',
+    color: colors.text,
   },
   dietHint: {
     fontSize: 12,
-    color: '#5E6D60',
+    color: colors.textSecondary,
     lineHeight: 17,
     marginTop: 2,
   },
@@ -1347,30 +1357,30 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 10,
     borderRadius: 12,
-    backgroundColor: '#F1F6F2',
+    backgroundColor: colors.primarySoft,
   },
   dietSummaryText: {
     flex: 1,
     fontSize: 12,
-    color: '#34523C',
+    color: colors.primaryText,
     lineHeight: 17,
   },
   substitutionsCard: {
     marginBottom: 15,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E3EAE4',
+    borderColor: colors.border,
   },
   substitutionsTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A2E1F',
+    color: colors.text,
   },
   substitutionsNote: {
     fontSize: 12,
-    color: '#5E6D60',
+    color: colors.textSecondary,
     marginTop: 2,
     marginBottom: 10,
   },
@@ -1382,18 +1392,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 6,
     borderRadius: 12,
-    backgroundColor: '#F1F6F2',
+    backgroundColor: colors.primarySoft,
   },
   substitutionFrom: {
     flex: 1,
     fontSize: 13,
-    color: '#5E6D60',
+    color: colors.textSecondary,
   },
   substitutionTo: {
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A2E1F',
+    color: colors.text,
   },
   loadingRow: {
     flexDirection: 'row',
@@ -1401,7 +1411,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   parseButtonText: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -1409,8 +1419,8 @@ const styles = StyleSheet.create({
   successBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF0EB',
-    borderColor: '#C8DACD',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.borderStrong,
     borderWidth: 1,
     borderRadius: 14,
     padding: 14,
@@ -1421,7 +1431,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#26422E',
+    color: colors.text,
     lineHeight: 18,
   },
   fieldGroup: {
@@ -1430,7 +1440,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#3B483E',
+    color: colors.text,
     marginBottom: 6,
   },
   chipsScroll: {
@@ -1439,23 +1449,23 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 13,
     paddingVertical: 7,
-    backgroundColor: '#EFEAE2',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#E3DCD2',
+    borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   chipText: {
     fontSize: 12,
-    color: '#556459',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   rowThree: {
@@ -1463,10 +1473,10 @@ const styles = StyleSheet.create({
   },
   diffSelector: {
     flexDirection: 'row',
-    backgroundColor: '#EFEAE2',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E3DCD2',
+    borderColor: colors.border,
     height: 42,
   },
   diffItem: {
@@ -1476,15 +1486,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   diffItemActive: {
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
   },
   diffItemText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6E7E72',
+    color: colors.textSecondary,
   },
   diffItemTextActive: {
-    color: '#ffffff',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   actionsFooter: {
@@ -1497,9 +1507,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EFEAE2',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E3DCD2',
+    borderColor: colors.border,
     paddingVertical: 14,
     borderRadius: 14,
     gap: 6,
@@ -1507,18 +1517,18 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#556459',
+    color: colors.textSecondary,
   },
   saveRecipeBtn: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 14,
     gap: 6,
-    shadowColor: '#34523C',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1527,19 +1537,23 @@ const styles = StyleSheet.create({
   saveRecipeBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
 });
+
+type Styles = ReturnType<typeof makeStyles>;
 
 // Selettore a segmenti: stile unico per slot, difficoltà e dieta
 function SegmentedSelector<T extends string>({
   options,
   value,
   onChange,
+  styles,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  styles: Styles;
 }) {
   return (
     <View style={styles.diffSelector}>
@@ -1566,6 +1580,8 @@ function DietSwitchRow({
   value,
   disabled,
   onValueChange,
+  styles,
+  colors,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -1573,6 +1589,8 @@ function DietSwitchRow({
   value: boolean;
   disabled: boolean;
   onValueChange: (value: boolean) => void;
+  styles: Styles;
+  colors: Palette;
 }) {
   return (
     <View style={styles.dietRow}>
@@ -1585,9 +1603,9 @@ function DietSwitchRow({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: '#D4DDD6', true: '#7FA186' }}
-        thumbColor="#FFFFFF"
-        ios_backgroundColor="#D4DDD6"
+        trackColor={{ false: colors.borderStrong, true: colors.primary }}
+        thumbColor={colors.onPrimary}
+        ios_backgroundColor={colors.borderStrong}
       />
     </View>
   );

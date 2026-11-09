@@ -13,6 +13,8 @@ import { Image } from 'expo-image';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
 import {
   getMealPlans,
@@ -48,6 +50,8 @@ import { useCatalogVersion } from '../../hooks/useCatalog';
 
 export default function PlannerScreen() {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [weekOffset, setWeekOffset] = useState(0);
   const weekResult = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
   const weekDays = weekResult.days;
@@ -313,7 +317,7 @@ export default function PlannerScreen() {
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={styles.iconBadge}>
-              <Ionicons name="calendar" size={20} color="#4A6B53" />
+              <Ionicons name="calendar" size={20} color={colors.primaryText} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{t('planner.title')}</Text>
@@ -328,7 +332,7 @@ export default function PlannerScreen() {
                   onPress={handleGenerateShopping}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="cart" size={15} color="#FFF" />
+                  <Ionicons name="cart" size={15} color={colors.onPrimary} />
                   <Text style={styles.genShoppingBtnText}>{t('planner.shoppingBtn')}</Text>
                 </TouchableOpacity>
               )}
@@ -337,7 +341,7 @@ export default function PlannerScreen() {
                 onPress={() => setShowPrefsModal(true)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="options" size={18} color="#4A6B53" />
+                <Ionicons name="options" size={18} color={colors.primaryText} />
               </TouchableOpacity>
             </View>
           </View>
@@ -359,7 +363,7 @@ export default function PlannerScreen() {
             disabled={weekOffset <= -1}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={18} color={weekOffset <= -1 ? '#C5CEC7' : '#4A6B53'} />
+            <Ionicons name="chevron-back" size={18} color={weekOffset <= -1 ? colors.textMuted : colors.primaryText} />
           </TouchableOpacity>
           <Text style={styles.weekNavLabel}>{weekLabel}</Text>
           <TouchableOpacity
@@ -368,7 +372,7 @@ export default function PlannerScreen() {
             disabled={weekOffset >= 1}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-forward" size={18} color={weekOffset >= 1 ? '#C5CEC7' : '#4A6B53'} />
+            <Ionicons name="chevron-forward" size={18} color={weekOffset >= 1 ? colors.textMuted : colors.primaryText} />
           </TouchableOpacity>
         </View>
 
@@ -435,10 +439,10 @@ export default function PlannerScreen() {
                   disabled={isGenerating}
                 >
                   {isGenerating ? (
-                    <ActivityIndicator size="small" color="#FFF" />
+                    <ActivityIndicator size="small" color={colors.onPrimary} />
                   ) : (
                     <>
-                      <MaterialCommunityIcons name="chef-hat" size={16} color="#FFF" style={{ marginRight: 5 }} />
+                      <MaterialCommunityIcons name="chef-hat" size={16} color={colors.onPrimary} style={{ marginRight: 5 }} />
                       <Text style={styles.generateBtnText}>{t('planner.generateBtn')}</Text>
                     </>
                   )}
@@ -453,10 +457,10 @@ export default function PlannerScreen() {
                       disabled={isGenerating}
                     >
                       {isGenerating ? (
-                        <ActivityIndicator size="small" color="#FFF" />
+                        <ActivityIndicator size="small" color={colors.onPrimary} />
                       ) : (
                         <>
-                          <MaterialCommunityIcons name="chef-hat" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                          <MaterialCommunityIcons name="chef-hat" size={15} color={colors.onPrimary} style={{ marginRight: 4 }} />
                           <Text style={styles.completeBtnText}>{t('planner.completeBtn')} ({maxMeals - weekPlansCount})</Text>
                         </>
                       )}
@@ -469,10 +473,10 @@ export default function PlannerScreen() {
                     disabled={isGenerating}
                   >
                     {isGenerating ? (
-                      <ActivityIndicator size="small" color="#4A6B53" />
+                      <ActivityIndicator size="small" color={colors.primaryText} />
                     ) : (
                       <>
-                        <Ionicons name="refresh" size={14} color="#4A6B53" />
+                        <Ionicons name="refresh" size={14} color={colors.primaryText} />
                         <Text style={styles.regenBtnText}>{t('planner.regenBtn')}</Text>
                       </>
                     )}
@@ -483,7 +487,7 @@ export default function PlannerScreen() {
                     activeOpacity={0.8}
                     disabled={isGenerating}
                   >
-                    <Ionicons name="trash-outline" size={15} color="#D9534F" />
+                    <Ionicons name="trash-outline" size={15} color={colors.danger} />
                     <Text style={styles.deleteBtnText}>{t('planner.deleteBtn')}</Text>
                   </TouchableOpacity>
                 </View>
@@ -493,15 +497,15 @@ export default function PlannerScreen() {
 
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
-            const colors = SLOT_COLORS[slot];
+            const slotColors = SLOT_COLORS[slot];
             return (
               <MealSlotCard
                 key={slot}
                 slot={slot}
                 label={t(`planner.slots.${slot}`).toUpperCase()}
                 icon={SLOT_ICONS[slot]}
-                color={colors.color}
-                bgColor={colors.bgColor}
+                color={isDark ? slotColors.darkColor : slotColors.color}
+                bgColor={isDark ? slotColors.darkBgColor : slotColors.bgColor}
                 items={dayItems[slot] ?? []}
                 onAdd={() => handleOpenPicker(slot)}
                 onSwap={entryId => handleOpenSwapPicker(slot, entryId)}
@@ -579,7 +583,7 @@ export default function PlannerScreen() {
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={16} color="#FFF" style={{ marginRight: 6 }} />
+          <Ionicons name="checkmark-circle" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
           <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       )}
@@ -624,6 +628,8 @@ const MealSlotCard = React.memo(function MealSlotCard({
   onDeleteSide,
 }: MealSlotCardProps) {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const visibleItems = items.filter((item): item is DayMealItem & { recipe: Recipe } => item.recipe !== null);
 
   return (
@@ -658,7 +664,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
                   </Text>
                 }
                 placeholderIcon="restaurant-outline"
-                placeholderColor="#A3B2A6"
+                placeholderColor={colors.textMuted}
                 onView={() => onView(recipe)}
                 onSwap={() => onSwap(entry.id)}
                 onDelete={() => onDelete(entry.id)}
@@ -670,12 +676,12 @@ const MealSlotCard = React.memo(function MealSlotCard({
                   servings={entry.servings}
                   categoryLabel={
                     <View style={styles.sideBadgeRow}>
-                      <Ionicons name="leaf" size={11} color="#3A8C7E" />
+                      <Ionicons name="leaf" size={11} color={sideTeal(isDark)} />
                       <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
                     </View>
                   }
                   placeholderIcon="leaf-outline"
-                  placeholderColor="#3A8C7E"
+                  placeholderColor={sideTeal(isDark)}
                   onView={() => onView(sideRecipe)}
                   onSwap={() => onSwapSide(entry.id)}
                   onDelete={() => onDeleteSide(entry.id)}
@@ -721,6 +727,8 @@ function MealRow({
   onDelete: () => void;
 }) {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
   return (
     <View style={side ? styles.sideMealCard : styles.mealCard}>
@@ -735,23 +743,23 @@ function MealRow({
         {categoryLabel}
         <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
         <View style={styles.mealMeta}>
-          <Ionicons name="time-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+          <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
           <Text style={styles.mealMetaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
           <Text style={styles.mealMetaDivider}>·</Text>
-          <Ionicons name="people-outline" size={12} color="#7E8B80" style={{ marginRight: 3 }} />
+          <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
           <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
         </View>
       </View>
 
       <View style={styles.mealActions}>
         <TouchableOpacity style={styles.viewMealBtn} onPress={onView} activeOpacity={0.7}>
-          <Ionicons name="book-outline" size={17} color="#4A6B53" />
+          <Ionicons name="book-outline" size={17} color={colors.primaryText} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.swapMealBtn} onPress={onSwap} activeOpacity={0.7}>
-          <Ionicons name="swap-horizontal" size={17} color="#7E8B80" />
+          <Ionicons name="swap-horizontal" size={17} color={colors.textMuted} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={17} color="#D9534F" />
+          <Ionicons name="trash-outline" size={17} color={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -759,46 +767,51 @@ function MealRow({
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FBF9F5' },
-  mainWrapper: { flex: 1, width: '100%', maxWidth: 900, alignSelf: 'center' },
+// Colori dati/brand che non hanno un token: variante scura per il tema dark
+const sideTeal = (isDark: boolean) => (isDark ? '#5FB8A8' : '#3A8C7E'); // categoria contorno
+const completeOchre = (isDark: boolean) => (isDark ? '#9A5A26' : '#C07A3A'); // azione "completa"
+const deleteBorderPink = (isDark: boolean) => (isDark ? '#5A3634' : '#E8B4B1'); // bordo elimina
+
+const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
+  mainWrapper: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
 
   header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBadge: {
     width: 38, height: 38, borderRadius: 12,
-    backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 22, fontWeight: '800', color: '#243328', letterSpacing: -0.5 },
-  subtitle: { fontSize: 12, fontWeight: '500', color: '#718073' },
+  title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
+  subtitle: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   genShoppingBtn: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#4A6B53', paddingHorizontal: 10, paddingVertical: 7,
+    backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 7,
     borderRadius: 10, gap: 5,
   },
-  genShoppingBtnText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
+  genShoppingBtnText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
   prefsBtn: {
     width: 36, height: 36, borderRadius: 18,
-    backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
 
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
   progressBar: {
     flex: 1, height: 4, borderRadius: 2,
-    backgroundColor: '#E5EDE7', overflow: 'hidden',
+    backgroundColor: colors.primarySoft, overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: '#4A6B53', borderRadius: 2 },
-  progressLabel: { fontSize: 11, color: '#7E8B80', fontWeight: '600' },
+  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
+  progressLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
 
   toastBanner: {
     position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 100, elevation: 6,
-    backgroundColor: '#3E5C46', flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16,
     borderRadius: 14,
-    shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
+    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
   },
-  toastText: { color: '#FFF', fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  toastText: { color: colors.onPrimary, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
 
   weekNav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -806,60 +819,60 @@ const styles = StyleSheet.create({
   },
   weekNavBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
-  weekNavBtnDisabled: { backgroundColor: '#F2F1EE' },
-  weekNavLabel: { fontSize: 13, fontWeight: '700', color: '#2B332B' },
+  weekNavBtnDisabled: { backgroundColor: colors.surfaceMuted },
+  weekNavLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
 
   daysBarWrapper: { paddingVertical: 4 },
   daysBar: { flexDirection: 'row', paddingHorizontal: 16, gap: 6 },
   dayChip: {
     flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14,
-    backgroundColor: '#FFFFFF', alignItems: 'center',
-    borderWidth: 1, borderColor: '#ECE7DF',
+    backgroundColor: colors.surface, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border,
   },
-  dayChipSelected: { backgroundColor: '#4A6B53', borderColor: '#4A6B53' },
-  dayChipName: { fontSize: 10, fontWeight: '600', color: '#7E8B80', textTransform: 'uppercase' },
-  dayChipNameSelected: { color: '#FFFFFF' },
-  dayChipNum: { fontSize: 17, fontWeight: '700', color: '#2B332B', marginTop: 3 },
-  dayChipNumSelected: { color: '#FFFFFF' },
+  dayChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dayChipName: { fontSize: 10, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
+  dayChipNameSelected: { color: colors.onPrimary },
+  dayChipNum: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 3 },
+  dayChipNumSelected: { color: colors.onPrimary },
   // Giorno corrente: bordo verde dello stesso spessore dei giorni, continuo con il bordo del pulsante
-  dayChipToday: { borderColor: '#4A6B53' },
+  dayChipToday: { borderColor: colors.primary },
   mealDotRow: { flexDirection: 'row', gap: 3, marginTop: 4 },
-  mealDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#4A6B53' },
-  mealDotSelected: { backgroundColor: '#FFF' },
+  mealDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.primary },
+  mealDotSelected: { backgroundColor: colors.onPrimary },
 
   scrollContent: { flex: 1, paddingHorizontal: 20 },
   dayHeader: {
     marginTop: 12, marginBottom: 14,
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
   },
-  dayHeading: { fontSize: 17, fontWeight: '700', color: '#2B332B' },
-  daySub: { fontSize: 12, color: '#7E8B80', marginTop: 2 },
+  dayHeading: { fontSize: 17, fontWeight: '700', color: colors.text },
+  daySub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   dayActions: { marginTop: 4, marginBottom: 8 },
   generateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#4A6B53', paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 10, shadowColor: '#4A6B53', shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+    backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 10, shadowColor: colors.shadow, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
-  generateBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  generateBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
   completeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#C07A3A', paddingHorizontal: 11, paddingVertical: 8,
-    borderRadius: 10, shadowColor: '#C07A3A', shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+    backgroundColor: completeOchre(isDark), paddingHorizontal: 11, paddingVertical: 8,
+    borderRadius: 10, shadowColor: colors.shadow, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
-  completeBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  completeBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
   regenBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#EAF0EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
   },
-  regenBtnText: { color: '#4A6B53', fontSize: 13, fontWeight: '700' },
+  regenBtnText: { color: colors.primaryText, fontSize: 13, fontWeight: '700' },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#EAF0EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: '#E8B4B1',
+    backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: deleteBorderPink(isDark),
   },
-  deleteBtnText: { color: '#D9534F', fontSize: 13, fontWeight: '700' },
+  deleteBtnText: { color: colors.danger, fontSize: 13, fontWeight: '700' },
 
   slotContainer: { marginBottom: 16 },
   slotCardsGroup: { gap: 16 },
@@ -874,38 +887,38 @@ const styles = StyleSheet.create({
   slotBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
   mealCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
-    borderWidth: 1, borderColor: '#ECE7DF',
-    shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.surface, borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   sideMealCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 12,
-    borderWidth: 1, borderColor: '#ECE7DF',
-    shadowColor: '#1A2E1F', shadowOffset: { width: 0, height: 2 },
+    backgroundColor: colors.surface, borderRadius: 16, padding: 12,
+    borderWidth: 1, borderColor: colors.border,
+    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03, shadowRadius: 5, elevation: 1,
   },
   mealImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
-  mealImagePlaceholder: { backgroundColor: '#EAE5DC', alignItems: 'center', justifyContent: 'center' },
+  mealImagePlaceholder: { backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1 },
   mealCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   sideBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  sideMealCategory: { fontSize: 10, fontWeight: '700', color: '#3A8C7E', letterSpacing: 0.5 },
-  mealTitle: { fontSize: 14, fontWeight: '700', color: '#2B332B', marginTop: 2, lineHeight: 19 },
+  sideMealCategory: { fontSize: 10, fontWeight: '700', color: sideTeal(isDark), letterSpacing: 0.5 },
+  mealTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2, lineHeight: 19 },
   mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  mealMetaText: { fontSize: 11, color: '#7E8B80', fontWeight: '500' },
-  mealMetaDivider: { fontSize: 11, color: '#C5CEC7', marginHorizontal: 4 },
+  mealMetaText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
+  mealMetaDivider: { fontSize: 11, color: colors.textMuted, marginHorizontal: 4 },
   mealActions: { flexDirection: 'row', gap: 6 },
-  viewMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EAF0EB', alignItems: 'center', justifyContent: 'center' },
-  swapMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F5F3EF', alignItems: 'center', justifyContent: 'center' },
-  deleteMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#FDF0EE', alignItems: 'center', justifyContent: 'center' },
+  viewMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  swapMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  deleteMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' },
   emptySlot: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFFFFF', borderRadius: 16,
+    backgroundColor: colors.surface, borderRadius: 16,
     paddingVertical: 18, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: '#ECE7DF', borderStyle: 'dashed', gap: 12,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', gap: 12,
   },
   addSlotCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  emptySlotText: { fontSize: 14, fontWeight: '600', color: '#7E8B80' },
+  emptySlotText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
 });

@@ -33,7 +33,7 @@ import {
   SHOPPING_DEPARTMENTS,
   ShoppingDepartment,
   DEPARTMENT_ICONS,
-  DEPARTMENT_COLORS,
+  departmentColors,
 } from '../../constants/shoppingDepartments';
 import { classifyShoppingDepartment } from '../../utils/shoppingClassifier';
 import {
@@ -41,6 +41,9 @@ import {
   copyRecipeToClipboard,
   formatShoppingListShareText,
 } from '../../utils/shareHelper';
+import { useTheme } from '../../context/ThemeContext';
+import { SheetModal } from '../../components/SheetModal';
+import type { Palette } from '../../theme/palette';
 
 interface DepartmentSection {
   department: ShoppingDepartment;
@@ -53,6 +56,8 @@ interface DepartmentSection {
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [newItemText, setNewItemText] = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<ShoppingDepartment | 'ALL'>('ALL');
@@ -110,6 +115,7 @@ export default function ShoppingScreen() {
   }, [newItemText, manualDeptOverride]);
 
   const completedCount = useMemo(() => items.filter(i => i.checked).length, [items]);
+  const detectedColors = departmentColors(detectedDept, isDark);
 
   // Raggruppamento per i 15 reparti del supermercato
   const groupedSections: DepartmentSection[] = useMemo(() => {
@@ -275,7 +281,7 @@ export default function ShoppingScreen() {
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <View style={styles.iconBadge}>
-              <Ionicons name="cart" size={22} color="#34523C" />
+              <Ionicons name="cart" size={22} color={colors.primaryText} />
             </View>
             <View style={styles.titleTextContainer}>
               <Text style={styles.title} numberOfLines={1}>{t('shopping.title')}</Text>
@@ -298,7 +304,7 @@ export default function ShoppingScreen() {
                 activeOpacity={0.7}
                 accessibilityLabel={t('shopping.syncWeekPlan')}
               >
-                <Ionicons name="calendar-outline" size={17} color="#34523C" />
+                <Ionicons name="calendar-outline" size={17} color={colors.primaryText} />
               </TouchableOpacity>
 
               {items.length > 0 && (
@@ -309,7 +315,7 @@ export default function ShoppingScreen() {
                     activeOpacity={0.7}
                     accessibilityLabel={t('recipeDetail.share')}
                   >
-                    <Ionicons name="share-outline" size={17} color="#34523C" />
+                    <Ionicons name="share-outline" size={17} color={colors.primaryText} />
                   </TouchableOpacity>
 
                   {completedCount > 0 && (
@@ -319,17 +325,17 @@ export default function ShoppingScreen() {
                       activeOpacity={0.7}
                       accessibilityLabel={t('shopping.removeCompleted')}
                     >
-                      <Ionicons name="checkmark-done-outline" size={18} color="#2E663B" />
+                      <Ionicons name="checkmark-done-outline" size={18} color={colors.primaryText} />
                     </TouchableOpacity>
                   )}
 
                   <TouchableOpacity
-                    style={[styles.headerActionBtn, { borderColor: '#EBDAD5' }]}
                     onPress={handleClearAll}
+                    style={[styles.headerActionBtn, { borderColor: colors.border }]}
                     activeOpacity={0.7}
                     accessibilityLabel={t('shopping.clearAll')}
                   >
-                    <Ionicons name="trash-outline" size={16} color="#D9534F" />
+                    <Ionicons name="trash-outline" size={16} color={colors.danger} />
                   </TouchableOpacity>
                 </>
               )}
@@ -342,7 +348,7 @@ export default function ShoppingScreen() {
               <TextInput
                 style={styles.input}
                 placeholder={t('shopping.addCustomPlaceholder')}
-                placeholderTextColor="#8C988F"
+                placeholderTextColor={colors.textMuted}
                 value={newItemText}
                 onChangeText={text => {
                   setNewItemText(text);
@@ -358,7 +364,7 @@ export default function ShoppingScreen() {
                 disabled={!newItemText.trim()}
                 activeOpacity={0.8}
               >
-                <Ionicons name="add" size={22} color="#FFF" />
+                <Ionicons name="add" size={22} color={colors.onPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -370,8 +376,8 @@ export default function ShoppingScreen() {
                   style={[
                     styles.detectedDeptBadge,
                     {
-                      backgroundColor: DEPARTMENT_COLORS[detectedDept]?.bg || '#EAF0EB',
-                      borderColor: DEPARTMENT_COLORS[detectedDept]?.border || '#CDE5CF',
+                      backgroundColor: detectedColors.bg,
+                      borderColor: detectedColors.border,
                     },
                   ]}
                   onPress={() => setShowDeptPickerModal(true)}
@@ -380,17 +386,17 @@ export default function ShoppingScreen() {
                   <Ionicons
                     name={(DEPARTMENT_ICONS[detectedDept] as any) || 'basket-outline'}
                     size={13}
-                    color={DEPARTMENT_COLORS[detectedDept]?.text || '#34523C'}
+                    color={detectedColors.text}
                   />
                   <Text
                     style={[
                       styles.detectedDeptText,
-                      { color: DEPARTMENT_COLORS[detectedDept]?.text || '#34523C' },
+                      { color: detectedColors.text },
                     ]}
                   >
                     {t('shoppingDepartments.' + detectedDept, { defaultValue: detectedDept })}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color="#7E8B80" />
+                  <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             )}
@@ -423,7 +429,7 @@ export default function ShoppingScreen() {
 
               {groupedSections.map(sec => {
                 const isActive = selectedDeptFilter === sec.department;
-                const colors = DEPARTMENT_COLORS[sec.department];
+                const deptColors = departmentColors(sec.department, isDark);
                 const iconName = (DEPARTMENT_ICONS[sec.department] as any) || 'basket-outline';
 
                 return (
@@ -432,8 +438,8 @@ export default function ShoppingScreen() {
                     style={[
                       styles.filterPill,
                       isActive && {
-                        backgroundColor: colors.bg,
-                        borderColor: colors.border,
+                        backgroundColor: deptColors.bg,
+                        borderColor: deptColors.border,
                       },
                     ]}
                     onPress={() =>
@@ -444,18 +450,18 @@ export default function ShoppingScreen() {
                     <Ionicons
                       name={iconName}
                       size={14}
-                      color={isActive ? colors.text : '#5A6B5E'}
+                      color={isActive ? deptColors.text : colors.textSecondary}
                     />
                     <Text
                       style={[
                         styles.filterPillText,
-                        isActive && { color: colors.text, fontWeight: '700' },
+                        isActive && { color: deptColors.text, fontWeight: '700' },
                       ]}
                     >
                       {t('shoppingDepartments.' + sec.department, { defaultValue: sec.department })} ({sec.total})
                     </Text>
                     {sec.isAllChecked && (
-                      <Ionicons name="checkmark-circle" size={13} color="#34523C" />
+                      <Ionicons name="checkmark-circle" size={13} color={colors.primaryText} />
                     )}
                   </TouchableOpacity>
                 );
@@ -474,16 +480,12 @@ export default function ShoppingScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#34523C"
-              colors={['#34523C']}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
           renderSectionHeader={({ section }) => {
-            const colors = DEPARTMENT_COLORS[section.department] || {
-              bg: '#EAF0EB',
-              text: '#34523C',
-              border: '#CCE7D4',
-            };
+            const deptColors = departmentColors(section.department, isDark);
             const iconName =
               (DEPARTMENT_ICONS[section.department] as any) || 'basket-outline';
             const isCollapsed = Boolean(collapsedDepts[section.department]);
@@ -498,8 +500,8 @@ export default function ShoppingScreen() {
                   onPress={() => toggleCollapse(section.department)}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.sectionIconCircle, { backgroundColor: colors.bg }]}>
-                    <Ionicons name={iconName} size={17} color={colors.text} />
+                  <View style={[styles.sectionIconCircle, { backgroundColor: deptColors.bg }]}>
+                    <Ionicons name={iconName} size={17} color={deptColors.text} />
                   </View>
 
                   <View style={{ flex: 1 }}>
@@ -507,7 +509,7 @@ export default function ShoppingScreen() {
                       <Text style={styles.sectionTitle}>{t('shoppingDepartments.' + section.department, { defaultValue: section.department })}</Text>
                       {section.isAllChecked && (
                         <View style={styles.completedBadge}>
-                          <Ionicons name="checkmark" size={11} color="#FFF" />
+                          <Ionicons name="checkmark" size={11} color={colors.onPrimary} />
                           <Text style={styles.completedBadgeText}>{t('shopping.completed')}</Text>
                         </View>
                       )}
@@ -521,7 +523,7 @@ export default function ShoppingScreen() {
                     <Ionicons
                       name={isCollapsed ? 'chevron-down' : 'chevron-up'}
                       size={18}
-                      color="#8A998D"
+                      color={colors.textMuted}
                     />
                   </View>
                 </TouchableOpacity>
@@ -544,7 +546,7 @@ export default function ShoppingScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-                    {item.checked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                    {item.checked && <Ionicons name="checkmark" size={13} color={colors.onPrimary} />}
                   </View>
                   <View style={styles.itemRowContent}>
                     <Text
@@ -567,7 +569,7 @@ export default function ShoppingScreen() {
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={16} color="#CBD5D0" />
+                  <Ionicons name="close" size={16} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             );
@@ -575,7 +577,7 @@ export default function ShoppingScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconCircle}>
-                <Ionicons name="basket-outline" size={44} color="#34523C" />
+                <Ionicons name="basket-outline" size={44} color={colors.primaryText} />
               </View>
               <Text style={styles.emptyTitle}>
                 {selectedDeptFilter !== 'ALL'
@@ -592,17 +594,17 @@ export default function ShoppingScreen() {
                 onPress={() => router.push('/(tabs)')}
                 activeOpacity={0.8}
               >
-                <Ionicons name="restaurant-outline" size={18} color="#FFF" />
+                <Ionicons name="restaurant-outline" size={18} color={colors.onPrimary} />
                 <Text style={styles.exploreBtnText}>{t('shopping.browseRecipes')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.exploreBtn, { backgroundColor: '#EAF0EB', marginTop: 10, shadowOpacity: 0 }]}
-                onPress={handleSyncWeekPlan}
+                style={[styles.exploreBtn, { backgroundColor: colors.primarySoft, marginTop: 10, shadowOpacity: 0 }]}
+                onPress={requestSync}
                 activeOpacity={0.8}
               >
-                <Ionicons name="calendar-outline" size={18} color="#34523C" />
-                <Text style={[styles.exploreBtnText, { color: '#34523C' }]}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primaryText} />
+                <Text style={[styles.exploreBtnText, { color: colors.primaryText }]}>
                   {t('shopping.syncWeekPlan')}
                 </Text>
               </TouchableOpacity>
@@ -629,13 +631,13 @@ export default function ShoppingScreen() {
                   onPress={() => setShowDeptPickerModal(false)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <Ionicons name="close" size={20} color="#666" />
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
                 {SHOPPING_DEPARTMENTS.map(dept => {
-                  const colors = DEPARTMENT_COLORS[dept];
+                  const deptColors = departmentColors(dept, isDark);
                   const iconName = (DEPARTMENT_ICONS[dept] as any) || 'basket-outline';
                   const isSelected = detectedDept === dept;
 
@@ -644,7 +646,7 @@ export default function ShoppingScreen() {
                       key={dept}
                       style={[
                         styles.deptOptionRow,
-                        isSelected && { backgroundColor: colors.bg, borderColor: colors.border },
+                        isSelected && { backgroundColor: deptColors.bg, borderColor: deptColors.border },
                       ]}
                       onPress={() => {
                         setManualDeptOverride(dept);
@@ -652,19 +654,19 @@ export default function ShoppingScreen() {
                       }}
                       activeOpacity={0.7}
                     >
-                      <View style={[styles.deptOptionIcon, { backgroundColor: colors.bg }]}>
-                        <Ionicons name={iconName} size={18} color={colors.text} />
+                      <View style={[styles.deptOptionIcon, { backgroundColor: deptColors.bg }]}>
+                        <Ionicons name={iconName} size={18} color={deptColors.text} />
                       </View>
                       <Text
                         style={[
                           styles.deptOptionText,
-                          isSelected && { color: colors.text, fontWeight: '700' },
+                          isSelected && { color: deptColors.text, fontWeight: '700' },
                         ]}
                       >
                         {t('shoppingDepartments.' + dept, { defaultValue: dept })}
                       </Text>
                       {isSelected && (
-                        <Ionicons name="checkmark" size={18} color={colors.text} />
+                        <Ionicons name="checkmark" size={18} color={deptColors.text} />
                       )}
                     </TouchableOpacity>
                   );
@@ -677,7 +679,7 @@ export default function ShoppingScreen() {
         {/* Floating Toast Notification */}
         {feedbackToast && (
           <View style={styles.toast}>
-            <Ionicons name="information-circle" size={18} color="#FFF" />
+            <Ionicons name="information-circle" size={18} color={colors.background} />
             <Text style={styles.toastText}>{feedbackToast}</Text>
           </View>
         )}
@@ -686,15 +688,15 @@ export default function ShoppingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.background,
   },
   mainWrapper: {
     flex: 1,
     width: '100%',
-    maxWidth: 900,
+    maxWidth: 1200,
     alignSelf: 'center',
   },
   header: {
@@ -712,7 +714,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -724,13 +726,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#67786B',
+    color: colors.textSecondary,
     marginTop: 1,
   },
   headerActions: {
@@ -745,25 +747,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E8E3DB',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.03,
     shadowRadius: 2,
     elevation: 1,
   },
   headerActionBtnCompleted: {
-    backgroundColor: '#EAF5EE',
-    borderColor: '#C8E2D0',
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.borderStrong,
   },
   inputContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 10,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
@@ -776,25 +778,25 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 10,
     paddingHorizontal: 12,
     height: 42,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#EAE5DC',
-    color: '#243328',
+    borderColor: colors.border,
+    color: colors.text,
   },
   addBtn: {
     width: 42,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addBtnDisabled: {
-    backgroundColor: '#C4CDC6',
+    backgroundColor: colors.borderStrong,
     opacity: 0.6,
   },
   detectedDeptRow: {
@@ -807,7 +809,7 @@ const styles = StyleSheet.create({
   detectedDeptLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#718073',
+    color: colors.textMuted,
   },
   detectedDeptBadge: {
     flexDirection: 'row',
@@ -830,24 +832,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E8E3DB',
+    borderColor: colors.border,
   },
   filterPillActive: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterPillText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   filterPillTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
   },
   listContent: {
     paddingHorizontal: 16,
@@ -862,16 +864,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 9,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   sectionHeaderAllChecked: {
-    backgroundColor: '#F7FAF7',
-    borderColor: '#D7E5D9',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.borderStrong,
   },
   sectionIconCircle: {
     width: 32,
@@ -888,26 +890,26 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
     fontSize: 11,
     fontWeight: '500',
-    color: '#718073',
+    color: colors.textMuted,
     marginTop: 1,
   },
   completedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
   completedBadgeText: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     fontSize: 9,
     fontWeight: '700',
   },
@@ -917,22 +919,22 @@ const styles = StyleSheet.create({
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
   },
   itemCardChecked: {
-    backgroundColor: '#F8FAF8',
-    borderColor: '#E6EAE7',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
   },
   checkArea: {
     flexDirection: 'row',
@@ -944,14 +946,14 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#2D3830',
+    borderColor: colors.text,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
   checkboxChecked: {
-    backgroundColor: '#34523C',
-    borderColor: '#34523C',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   itemRowContent: {
     flex: 1,
@@ -963,24 +965,24 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1C261F',
+    color: colors.text,
     flexShrink: 1,
     letterSpacing: -0.2,
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
-    color: '#9EABA1',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   itemQty: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#8A998D',
+    color: colors.textMuted,
     marginLeft: 12,
   },
   itemQtyChecked: {
     textDecorationLine: 'line-through',
-    color: '#B5C2B9',
+    color: colors.textMuted,
   },
   deleteBtn: {
     padding: 4,
@@ -996,7 +998,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -1004,13 +1006,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#243328',
+    color: colors.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#718073',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 20,
@@ -1018,24 +1020,24 @@ const styles = StyleSheet.create({
   exploreBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     paddingHorizontal: 18,
     paddingVertical: 11,
     borderRadius: 12,
     gap: 8,
-    shadowColor: '#34523C',
+    shadowColor: colors.primary,
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 3,
   },
   exploreBtnText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -1043,10 +1045,10 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 18,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 6,
@@ -1058,12 +1060,12 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0ECE4',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
   },
   deptOptionRow: {
     flexDirection: 'row',
@@ -1087,7 +1089,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#2B332B',
+    color: colors.text,
   },
   toast: {
     position: 'absolute',
@@ -1095,20 +1097,29 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#243328',
+    backgroundColor: colors.text,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 25,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 4,
     zIndex: 999,
   },
   toastText: {
-    color: '#FFF',
+    color: colors.background,
     fontSize: 13,
     fontWeight: '600',
   },
+  confirmSheet: { padding: 20, paddingBottom: 28 },
+  confirmTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  confirmBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginBottom: 20 },
+  confirmRow: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
+  confirmCancelBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.surfaceAlt },
+  confirmCancelText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
+  confirmOkBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.primary },
+  confirmOkBtnDanger: { backgroundColor: colors.danger },
+  confirmOkText: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },
 });

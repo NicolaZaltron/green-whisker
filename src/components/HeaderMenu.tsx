@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 import { RecipeBookModal } from './RecipeBookModal';
 import { AISettingsModal } from './AISettingsModal';
 
@@ -14,6 +16,8 @@ interface HeaderMenuProps {
 
 export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
   const { t, i18n } = useTranslation();
+  const { mode: themeMode, setMode: setThemeMode, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   // Stessa colonna centrale di 1200px del resto dell'app: il popup resta dentro di essa anche su web
   const { width } = useWindowDimensions();
@@ -36,7 +40,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
         activeOpacity={0.8}
         accessibilityLabel={t('menu.open')}
       >
-        <MaterialCommunityIcons name="chef-hat" size={20} color="#34523C" />
+        <MaterialCommunityIcons name="chef-hat" size={20} color={colors.primaryText} />
       </TouchableOpacity>
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -56,6 +60,25 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
                   >
                     <Text style={[styles.langText, active && styles.langTextActive]}>
                       {lng === 'en' ? '🇬🇧 EN' : '🇮🇹 IT'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.sectionLabel}>{t('menu.theme')}</Text>
+            <View style={styles.langRow}>
+              {(['light', 'dark', 'system'] as const).map(option => {
+                const active = themeMode === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.langBtn, active && styles.langBtnActive]}
+                    onPress={() => setThemeMode(option)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.langText, active && styles.langTextActive]}>
+                      {t(`menu.theme_${option}`)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -89,54 +112,56 @@ function MenuItem({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon} size={18} color="#34523C" style={styles.menuItemIcon} />
+      <Ionicons name={icon} size={18} color={colors.primaryText} style={styles.menuItemIcon} />
       <Text style={styles.menuItemText}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   menuBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  backdrop: { flex: 1, backgroundColor: 'rgba(26, 46, 31, 0.15)' },
+  backdrop: { flex: 1, backgroundColor: colors.overlay },
   popup: {
     position: 'absolute',
     width: 240,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: '#1A2E1F',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: '#5E6D60', marginBottom: 8 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 },
   langRow: { flexDirection: 'row', gap: 8 },
   langBtn: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  langBtnActive: { backgroundColor: '#34523C', borderColor: '#34523C' },
-  langText: { fontSize: 13, fontWeight: '700', color: '#34523C' },
-  langTextActive: { color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: '#EAF0EB', marginVertical: 12 },
+  langBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
+  langTextActive: { color: colors.onPrimary },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 12 },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
   menuItemIcon: { marginRight: 10 },
-  menuItemText: { fontSize: 15, fontWeight: '600', color: '#1A2E1F' },
+  menuItemText: { fontSize: 15, fontWeight: '600', color: colors.text },
 });

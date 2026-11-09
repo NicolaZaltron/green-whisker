@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 // Barra di navigazione flottante in stile Material You
 const BAR_HEIGHT = 64;
@@ -15,7 +17,14 @@ const FADE_TOP = 10;
 const MAX_CONTENT_WIDTH = 1200;
 
 // Contenuto di ogni scheda: icona sopra, nome sotto. La scheda attiva ha una pillola verde.
-function tabContent(name: React.ComponentProps<typeof Ionicons>['name'], color: string, focused: boolean, title: string) {
+function tabContent(
+  name: React.ComponentProps<typeof Ionicons>['name'],
+  color: string,
+  focused: boolean,
+  title: string,
+  colors: Palette,
+  styles: ReturnType<typeof makeStyles>,
+) {
   if (!focused) {
     return (
       <View style={styles.inactive}>
@@ -26,7 +35,7 @@ function tabContent(name: React.ComponentProps<typeof Ionicons>['name'], color: 
   }
   return (
     <View style={styles.pill}>
-      <Ionicons name={name} color="#34523C" size={20} />
+      <Ionicons name={name} color={colors.primaryText} size={20} />
       <Text style={styles.pillText} numberOfLines={1}>{title}</Text>
     </View>
   );
@@ -45,6 +54,8 @@ function TabButton({
   onLongPress?: (event: any) => void;
   accessibilityState?: object;
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityRole="tab"
@@ -61,10 +72,12 @@ function TabButton({
 // Sfondo della barra: la sfumatura sale sopra la barra (trasparente in alto, bianca in basso),
 // la pillola bianca occupa esattamente l'area delle voci
 function TabBarBackground({ fadeHeight }: { fadeHeight: number }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={StyleSheet.absoluteFill}>
       <LinearGradient
-        colors={['rgba(255, 255, 255,0)', 'rgba(255,255,255,80)', 'rgba(255,255,255,80)']}
+        colors={[`${colors.background}00`, colors.background, colors.background]}
         locations={[0, 0.7, 1]}
         style={[styles.fade, { height: fadeHeight }]}
       />
@@ -75,6 +88,8 @@ function TabBarBackground({ fadeHeight }: { fadeHeight: number }) {
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sideInset = Math.max((width - MAX_CONTENT_WIDTH) / 2, 0);
@@ -89,6 +104,7 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarBackground: () => <TabBarBackground fadeHeight={fadeHeight} />,
         tabBarButton: props => <TabButton {...props} />,
         tabBarStyle: {
@@ -119,35 +135,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: t('tabs.explore'),
-          tabBarIcon: ({ color, focused }) => tabContent('leaf', color as string, focused, t('tabs.explore')),
+          tabBarIcon: ({ color, focused }) => tabContent('leaf', color as string, focused, t('tabs.explore'), colors, styles),
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
           title: t('tabs.favorites'),
-          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'heart' : 'heart-outline', color as string, focused, t('tabs.favorites')),
+          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'heart' : 'heart-outline', color as string, focused, t('tabs.favorites'), colors, styles),
         }}
       />
       <Tabs.Screen
         name="shopping"
         options={{
           title: t('tabs.shopping'),
-          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'cart' : 'cart-outline', color as string, focused, t('tabs.shopping')),
+          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'cart' : 'cart-outline', color as string, focused, t('tabs.shopping'), colors, styles),
         }}
       />
       <Tabs.Screen
         name="planner"
         options={{
           title: t('tabs.planner'),
-          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'calendar' : 'calendar-outline', color as string, focused, t('tabs.planner')),
+          tabBarIcon: ({ color, focused }) => tabContent(focused ? 'calendar' : 'calendar-outline', color as string, focused, t('tabs.planner'), colors, styles),
         }}
       />
     </Tabs>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   tabButton: {
     flex: 1,
     height: BAR_HEIGHT,
@@ -167,8 +183,8 @@ const styles = StyleSheet.create({
     left: BAR_SIDE_MARGIN,
     right: BAR_SIDE_MARGIN,
     borderRadius: BAR_HEIGHT / 2,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#1A2E1F',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
@@ -193,11 +209,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     // Stesso raggio della barra: forma a capsula
     borderRadius: BAR_HEIGHT / 2,
-    backgroundColor: '#DDE8DF',
+    backgroundColor: colors.primarySoft,
   },
   pillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#34523C',
+    color: colors.primaryText,
   },
 });

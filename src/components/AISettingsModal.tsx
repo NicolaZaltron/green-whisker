@@ -1,11 +1,13 @@
 import { SheetModal } from './SheetModal';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { AIProvider, PROVIDER_DEFAULTS, getEnvAIConfig } from '../services/aiService';
 import { AISettings, ProviderSettings, loadAISettings, saveAISettings } from '../services/settingsService';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 const PROVIDER_IDS = Object.keys(PROVIDER_DEFAULTS) as AIProvider[];
 const AI_STUDIO_KEYS_URL = 'https://aistudio.google.com/api-keys';
@@ -28,6 +30,8 @@ interface AISettingsModalProps {
 
 export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [settings, setSettings] = useState<AISettings>({ providers: {} });
   const [provider, setProvider] = useState<AIProvider>('gemini');
   const [fields, setFields] = useState<ProviderSettings>({});
@@ -114,7 +118,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
         <View style={styles.header}>
           <Text style={styles.title}>{t('aiSettings.title')}</Text>
           <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
-            <Ionicons name="close" size={24} color="#34523C" />
+            <Ionicons name="close" size={24} color={colors.primaryText} />
           </TouchableOpacity>
         </View>
 
@@ -140,20 +144,20 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
             <View style={styles.guide}>
               <Text style={styles.guideTitle}>{t('aiSettings.guide.title')}</Text>
               <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(AI_STUDIO_KEYS_URL)} activeOpacity={0.85}>
-                <Ionicons name="open-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="open-outline" size={16} color={colors.onPrimary} />
                 <Text style={styles.linkBtnText}>{t('aiSettings.guide.open')}</Text>
               </TouchableOpacity>
 
-              <GuideStep n={1}><Text style={styles.guideText}>{t('aiSettings.guide.step1')}</Text></GuideStep>
-              <GuideStep n={2}><Text style={styles.guideText}>{t('aiSettings.guide.step2')}</Text></GuideStep>
-              <GuideStep n={3}>
+              <GuideStep n={1} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step1')}</Text></GuideStep>
+              <GuideStep n={2} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step2')}</Text></GuideStep>
+              <GuideStep n={3} colors={colors}>
                 <Text style={styles.guideText}>{t('aiSettings.guide.step3')}</Text>
                 <TouchableOpacity style={styles.copyNameBtn} onPress={copyKeyName} activeOpacity={0.8}>
-                  <Ionicons name="copy-outline" size={15} color="#34523C" />
+                  <Ionicons name="copy-outline" size={15} color={colors.primaryText} />
                   <Text style={styles.copyNameText}>{t('aiSettings.guide.copyName', { name: AI_STUDIO_KEY_NAME })}</Text>
                 </TouchableOpacity>
               </GuideStep>
-              <GuideStep n={4}><Text style={styles.guideText}>{t('aiSettings.guide.step4')}</Text></GuideStep>
+              <GuideStep n={4} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step4')}</Text></GuideStep>
             </View>
           )}
 
@@ -168,7 +172,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
               autoCorrect={false}
             />
             <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowKey(s => !s)} hitSlop={8}>
-              <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={20} color="#5E6D60" />
+              <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
           <Text style={styles.hint}>{keyStatus}</Text>
@@ -187,6 +191,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
               presets={GEMINI_MODEL_PRESETS}
               selected={fields.simpleModel}
               onSelect={preset => setFields(f => ({ ...f, simpleModel: preset }))}
+              colors={colors}
             />
           )}
           <Text style={styles.hint}>{t('aiSettings.simpleOpsHint')}</Text>
@@ -205,6 +210,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
               presets={GEMINI_MODEL_PRESETS}
               selected={fields.complexModel}
               onSelect={preset => setFields(f => ({ ...f, complexModel: preset }))}
+              colors={colors}
             />
           )}
           <Text style={styles.hint}>{t('aiSettings.complexOpsHint')}</Text>
@@ -246,11 +252,14 @@ function ModelPresetChips({
   presets,
   selected,
   onSelect,
+  colors,
 }: {
   presets: string[];
   selected?: string;
   onSelect: (preset: string) => void;
+  colors: Palette;
 }) {
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.chips, styles.presetChips]}>
       {presets.map(preset => {
@@ -270,7 +279,8 @@ function ModelPresetChips({
   );
 }
 
-function GuideStep({ n, children }: { n: number; children: React.ReactNode }) {
+function GuideStep({ n, children, colors }: { n: number; children: React.ReactNode; colors: Palette }) {
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.stepRow}>
       <View style={styles.stepBadge}>
@@ -281,26 +291,26 @@ function GuideStep({ n, children }: { n: number; children: React.ReactNode }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   guide: {
     marginTop: 18,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: '#F1F6F2',
+    backgroundColor: colors.primarySoft,
   },
-  guideTitle: { fontSize: 14, fontWeight: '800', color: '#1A2E1F', marginBottom: 12 },
-  guideText: { fontSize: 13, color: '#1A2E1F', lineHeight: 18 },
+  guideTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 12 },
+  guideText: { fontSize: 13, color: colors.text, lineHeight: 18 },
   linkBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 10,
     marginBottom: 14,
   },
-  linkBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
+  linkBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
   stepRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   stepBadge: {
     width: 24,
@@ -308,9 +318,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
   },
-  stepBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  stepBadgeText: { color: colors.onPrimary, fontSize: 12, fontWeight: '800' },
   stepBody: { flex: 1 },
   copyNameBtn: {
     flexDirection: 'row',
@@ -321,12 +331,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  copyNameText: { fontSize: 13, fontWeight: '700', color: '#34523C' },
-  safeArea: { flex: 1, backgroundColor: '#F7F9F6' },
+  copyNameText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
+  safeArea: { flex: 1, backgroundColor: colors.surfaceAlt },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -334,31 +344,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  title: { fontSize: 20, fontWeight: '800', color: '#1A2E1F' },
+  title: { fontSize: 20, fontWeight: '800', color: colors.text },
   content: { paddingHorizontal: 20, paddingBottom: 40 },
-  label: { fontSize: 13, fontWeight: '700', color: '#5E6D60', marginTop: 18, marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 18, marginBottom: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: '#EAF0EB',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  chipActive: { backgroundColor: '#34523C', borderColor: '#34523C' },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   presetChips: { marginTop: 8 },
-  chipText: { fontSize: 13, fontWeight: '700', color: '#34523C' },
-  chipTextActive: { color: '#FFFFFF' },
+  chipText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
+  chipTextActive: { color: colors.onPrimary },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#1A2E1F',
+    color: colors.text,
   },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   inputFlex: { flex: 1 },
@@ -368,21 +378,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#D4DDD6',
+    borderColor: colors.borderStrong,
   },
-  hint: { fontSize: 12, color: '#5E6D60', marginTop: 6 },
-  privacy: { fontSize: 12, color: '#5E6D60', marginTop: 22, lineHeight: 18 },
-  message: { fontSize: 13, fontWeight: '700', color: '#34523C', marginTop: 12 },
+  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
+  privacy: { fontSize: 12, color: colors.textSecondary, marginTop: 22, lineHeight: 18 },
+  message: { fontSize: 13, fontWeight: '700', color: colors.primaryText, marginTop: 12 },
   primaryBtn: {
     marginTop: 18,
-    backgroundColor: '#34523C',
+    backgroundColor: colors.primary,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  primaryBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  primaryBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
   secondaryBtn: { marginTop: 12, paddingVertical: 12, alignItems: 'center' },
-  secondaryBtnText: { color: '#D9534F', fontSize: 14, fontWeight: '700' },
+  secondaryBtnText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
 });

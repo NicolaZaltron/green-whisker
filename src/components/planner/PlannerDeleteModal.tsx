@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 export interface PlannerDeleteModalProps {
   visible: boolean;
@@ -9,8 +11,6 @@ export interface PlannerDeleteModalProps {
   onDeleteWeek: () => void;
   onExit: () => void;
 }
-
-const DESTRUCTIVE_COLOR = '#D9534F';
 
 /**
  * Dialog asking the user whether to delete the day plan or the whole week plan.
@@ -22,13 +22,15 @@ export const PlannerDeleteModal: React.FC<PlannerDeleteModalProps> = ({
   onExit,
 }) => {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onExit}>
       <View style={styles.confirmOverlay}>
         <View style={styles.confirmBox}>
           <View style={styles.confirmIconWrap}>
-            <Ionicons name="trash-outline" size={36} color={DESTRUCTIVE_COLOR} />
+            <Ionicons name="trash-outline" size={36} color={colors.danger} />
           </View>
           <Text style={styles.confirmTitle}>{t('planner.deleteModal.title')}</Text>
           <Text style={styles.confirmSub}>{t('planner.deleteModal.sub')}</Text>
@@ -55,16 +57,16 @@ export const PlannerDeleteModal: React.FC<PlannerDeleteModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   confirmOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   confirmBox: {
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
     borderRadius: 20,
     padding: 24,
     width: '100%',
@@ -75,7 +77,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FBE9E8',
+    backgroundColor: colors.dangerSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -83,26 +85,26 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#243328',
+    color: colors.text,
     marginBottom: 8,
   },
   confirmSub: {
     fontSize: 13,
-    color: '#718073',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 19,
     marginBottom: 20,
   },
   confirmBtnDestructive: {
     width: '100%',
-    backgroundColor: DESTRUCTIVE_COLOR,
+    backgroundColor: colors.danger,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 10,
   },
   confirmBtnDestructiveText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -110,7 +112,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   confirmBtnCancelText: {
-    color: '#7E8B80',
+    color: colors.textMuted,
     fontSize: 13,
   },
 });

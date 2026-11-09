@@ -19,6 +19,8 @@ import {
   getRecipesForSlot,
   isAuthenticSideDish,
 } from '../../services/plannerService';
+import { useTheme } from '../../context/ThemeContext';
+import type { Palette } from '../../theme/palette';
 
 export interface RecipePickerModalProps {
   visible: boolean;
@@ -41,6 +43,8 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [query, setQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'recommended' | 'all'>('recommended');
 
@@ -120,7 +124,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
       <SafeAreaView style={styles.pickerSafeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.pickerHeader}>
           <TouchableOpacity style={styles.pickerCloseBtn} onPress={handleClose}>
-            <Ionicons name="close" size={24} color="#2B332B" />
+            <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.pickerHeaderTitle}>
             {targetType === 'side'
@@ -143,7 +147,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
             <Ionicons
               name={targetType === 'side' ? 'leaf-outline' : (SLOT_ICONS[targetSlot] as any)}
               size={14}
-              color={filterMode === 'recommended' ? '#FFF' : '#4A6B53'}
+              color={filterMode === 'recommended' ? colors.onPrimary : colors.primaryText}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -167,7 +171,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
             <Ionicons
               name="restaurant-outline"
               size={14}
-              color={filterMode === 'all' ? '#FFF' : '#7E8B80'}
+              color={filterMode === 'all' ? colors.onPrimary : colors.textMuted}
               style={{ marginRight: 5 }}
             />
             <Text
@@ -182,7 +186,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
         </View>
 
         <View style={styles.pickerSearch}>
-          <Ionicons name="search" size={18} color="#7E8B80" style={{ marginRight: 8 }} />
+          <Ionicons name="search" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
           <TextInput
             style={styles.pickerInput}
             placeholder={
@@ -190,7 +194,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                 ? t('planner.pickerModal.searchSidePlaceholder')
                 : t('planner.pickerModal.searchSlotPlaceholder', { slot: t(`planner.slots.${targetSlot}`).toLowerCase() })
             }
-            placeholderTextColor="#8C988F"
+            placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
             autoFocus
@@ -219,7 +223,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                   cachePolicy="disk"
                 />
               ) : (
-                <View style={[styles.pickerThumb, { backgroundColor: '#EAE5DC' }]} />
+                <View style={[styles.pickerThumb, { backgroundColor: colors.surfaceMuted }]} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.pickerItemCat}>{t('categories.' + item.category, { defaultValue: item.category })}</Text>
@@ -228,7 +232,7 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
                   {item.times?.total_minutes || 30} min • {t('common.servings', { count: item.servings || 4 })}
                 </Text>
               </View>
-              <Ionicons name="add-circle" size={24} color="#4A6B53" />
+              <Ionicons name="add-circle" size={24} color={colors.primaryText} />
             </TouchableOpacity>
           )}
         />
@@ -237,10 +241,10 @@ export const RecipePickerModal: React.FC<RecipePickerModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   pickerSafeArea: {
     flex: 1,
-    backgroundColor: '#FBF9F5',
+    backgroundColor: colors.background,
   },
   pickerHeader: {
     height: 54,
@@ -249,20 +253,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#ECE7DF',
+    borderBottomColor: colors.border,
   },
   pickerCloseBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pickerHeaderTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
   },
   pickerFilterBar: {
     flexDirection: 'row',
@@ -277,49 +281,49 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
-    backgroundColor: '#EFECE6',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   pickerFilterChipActive: {
-    backgroundColor: '#4A6B53',
-    borderColor: '#4A6B53',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   pickerFilterChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#657367',
+    color: colors.textSecondary,
   },
   pickerFilterChipTextActive: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontWeight: '700',
   },
   pickerSearch: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginVertical: 12,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 44,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
   },
   pickerInput: {
     flex: 1,
     fontSize: 14,
-    color: '#2B332B',
+    color: colors.text,
   },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#ECE7DF',
+    borderColor: colors.border,
     gap: 12,
   },
   pickerThumb: {
@@ -330,18 +334,18 @@ const styles = StyleSheet.create({
   pickerItemCat: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
     textTransform: 'uppercase',
   },
   pickerItemTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     marginTop: 1,
   },
   pickerItemMeta: {
     fontSize: 11,
-    color: '#7E8B80',
+    color: colors.textMuted,
     marginTop: 2,
   },
 });

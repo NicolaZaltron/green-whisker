@@ -343,7 +343,11 @@
     "open": "Menu",
     "language": "Language",
     "recipeBook": "Recipe book",
-    "aiSettings": "AI settings"
+    "aiSettings": "AI settings",
+    "theme": "Theme",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "System"
   },
   "recipeBook": {
     "title": "Recipe book",

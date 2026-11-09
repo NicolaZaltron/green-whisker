@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import { Recipe } from '../types/recipe';
 import { VariantDiet } from '../services/catalogFormat';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../context/ThemeContext';
+import type { Palette } from '../theme/palette';
 
 export interface PantryMatchInfo {
   percentage: number;
@@ -36,6 +38,8 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
   pantryMatch,
   onAddMissingToShopping,
 }) => {
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const { t } = useTranslation();
   // Synchronous O(1) favorite status lookup without mount query cascades
   const favContext = useFavoritesSafe();
@@ -66,7 +70,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
           />
         ) : (
           <View style={[styles.image, styles.placeholder]}>
-            <Ionicons name="leaf-outline" size={36} color="#A3B2A6" />
+            <Ionicons name="leaf-outline" size={36} color={colors.textMuted} />
           </View>
         )}
 
@@ -86,19 +90,19 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
           <Ionicons
             name={favorite ? 'heart' : 'heart-outline'}
             size={18}
-            color={favorite ? '#D9534F' : '#4A6B53'}
+            color={favorite ? colors.danger : colors.primaryText}
           />
         </TouchableOpacity>
 
         {variantDiets && variantDiets.length > 0 && (
           <View style={styles.variantButton} accessibilityLabel={t('recipeCard.hasVariants')}>
-            <Ionicons name="layers-outline" size={18} color="#4A6B53" />
+            <Ionicons name="layers-outline" size={18} color={colors.primaryText} />
           </View>
         )}
 
         {recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 && (
           <View style={styles.fastPill}>
-            <Ionicons name="flash" size={11} color="#FFF" />
+            <Ionicons name="flash" size={11} color={colors.onPrimary} />
             <Text style={styles.fastPillText}>{t('recipeCard.fast')}</Text>
           </View>
         )}
@@ -113,7 +117,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
             <Ionicons
               name={pantryMatch.missingCount === 0 ? 'checkmark-circle' : 'basket-outline'}
               size={13}
-              color={pantryMatch.missingCount === 0 ? '#1B6334' : '#995200'}
+              color={pantryMatch.missingCount === 0 ? colors.primaryText : isDark ? '#F2B66D' : '#995200'}
               style={{ marginRight: 4 }}
             />
             <Text style={[
@@ -133,14 +137,14 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
 
         <View style={styles.footer}>
           <View style={styles.metaRow}>
-            <Ionicons name="time-outline" size={14} color="#6C786E" style={{ marginRight: 3 }} />
+            <Ionicons name="time-outline" size={14} color={colors.textSecondary} style={{ marginRight: 3 }} />
             <Text style={styles.metaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
           </View>
 
           <View style={styles.dot} />
 
           <View style={styles.metaRow}>
-            <Ionicons name="people-outline" size={14} color="#6C786E" style={{ marginRight: 3 }} />
+            <Ionicons name="people-outline" size={14} color={colors.textSecondary} style={{ marginRight: 3 }} />
             <Text style={styles.metaText}>{recipe.servings}</Text>
           </View>
 
@@ -158,7 +162,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="cart-outline" size={13} color="#4A6B53" style={{ marginRight: 5 }} />
+            <Ionicons name="cart-outline" size={13} color={colors.primaryText} style={{ marginRight: 5 }} />
             <Text style={styles.addMissingText}>
               {pantryMatch.missingCount === 1
                 ? t('recipeCard.addMissingSingle', { number: pantryMatch.missingCount })
@@ -171,16 +175,16 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
   );
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#EFEBE4',
-    shadowColor: '#1A2E1F',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
   imageWrapper: {
     width: '100%',
     height: 160,
-    backgroundColor: '#EAE5DC',
+    backgroundColor: colors.surfaceMuted,
     position: 'relative',
   },
   image: {
@@ -204,11 +208,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     left: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    backgroundColor: colors.surface,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 3,
     elevation: 1,
@@ -216,20 +220,20 @@ const styles = StyleSheet.create({
   categoryPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4A6B53',
+    color: colors.primaryText,
     textTransform: 'uppercase',
   },
   variantButton: {
     position: 'absolute',
     top: 52,
     right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: colors.surface,
     width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
@@ -238,13 +242,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backgroundColor: colors.surface,
     width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 2,
@@ -262,7 +266,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   fastPillText: {
-    color: '#FFF',
+    color: colors.onPrimary,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -272,7 +276,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#2B332B',
+    color: colors.text,
     lineHeight: 22,
     marginBottom: 10,
   },
@@ -287,18 +291,18 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6C786E',
+    color: colors.textSecondary,
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#B5C0B7',
+    backgroundColor: colors.textMuted,
     marginHorizontal: 8,
   },
   diffBadge: {
     marginLeft: 'auto',
-    backgroundColor: '#F3F5F3',
+    backgroundColor: isDark ? '#27302A' : '#F3F5F3',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
   diffText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#556658',
+    color: colors.textSecondary,
   },
   pantryBadge: {
     flexDirection: 'row',
@@ -318,37 +322,37 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pantryBadgeFull: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: colors.primarySoft,
   },
   pantryBadgePartial: {
-    backgroundColor: '#FFF4E5',
+    backgroundColor: isDark ? '#3A2E1C' : '#FFF4E5',
   },
   pantryBadgeText: {
     fontSize: 11,
     fontWeight: '700',
   },
   pantryBadgeTextFull: {
-    color: '#1B6334',
+    color: colors.primaryText,
   },
   pantryBadgeTextPartial: {
-    color: '#995200',
+    color: isDark ? '#F2B66D' : '#995200',
   },
   addMissingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F5F1',
+    backgroundColor: colors.primarySoft,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#D8E4DA',
+    borderColor: colors.borderStrong,
   },
   addMissingText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#34523C',
+    color: colors.primaryText,
   },
 });
 
