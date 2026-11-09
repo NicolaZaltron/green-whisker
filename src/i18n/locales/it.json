@@ -206,7 +206,19 @@
     "clearCompletedConfirmSub": "Sei sicuro di voler rimuovere tutti gli elementi contrassegnati come presi?",
     "clearedToast": "Lista della spesa svuotata",
     "updatedToast": "Spesa aggiornata e unificata",
-    "addedToDept": "Aggiunto in \"{{dept}}\""
+    "addedToDept": "Aggiunto in \"{{dept}}\"",
+    "confirm": {
+      "syncTitle": "Aggiungi dal calendario",
+      "syncBody": "Aggiunge alla lista gli ingredienti dei pasti pianificati nella settimana corrente che non sono già in lista. Se una quantità è già presente, aggiunge solo la differenza.",
+      "completedTitle": "Rimuovi spuntati",
+      "completedBody_one": "Rimuove dalla lista {{count}} elemento spuntato. Gli altri restano.",
+      "completedBody_other": "Rimuove dalla lista {{count}} elementi spuntati. Gli altri restano.",
+      "clearTitle": "Svuota lista",
+      "clearBody_one": "Elimina l'unico elemento della lista. L'operazione non si può annullare.",
+      "clearBody_other": "Elimina tutti i {{count}} elementi della lista. L'operazione non si può annullare.",
+      "confirmButton": "Conferma"
+    },
+    "syncNothingNew": "Nessun ingrediente nuovo da aggiungere"
   },
   "recipeDetail": {
     "prepTime": "Prep: {{time}}",

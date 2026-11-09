@@ -63,6 +63,8 @@ export default function ShoppingScreen() {
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<ShoppingDepartment | 'ALL'>('ALL');
   const [manualDeptOverride, setManualDeptOverride] = useState<ShoppingDepartment | null>(null);
   const [showDeptPickerModal, setShowDeptPickerModal] = useState(false);
+  // Azione in attesa di conferma nella modale descrittiva
+  const [pendingAction, setPendingAction] = useState<'sync' | 'clearCompleted' | 'clearAll' | null>(null);
   const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -181,32 +183,17 @@ export default function ShoppingScreen() {
     await deleteShoppingItem(id);
   };
 
-  const handleClearCompleted = async () => {
-    if (completedCount === 0) return;
+  const performClearCompleted = async () => {
     setItems(prev => prev.filter(item => !item.checked));
     await clearCheckedShoppingItems();
     showToast(t('shopping.removeCompleted'));
   };
 
-  const handleClearAll = () => {
-    if (items.length === 0) return;
-    Alert.alert(
-      t('shopping.clearConfirmTitle'),
-      t('shopping.clearConfirmSub'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('shopping.clearAll'),
-          style: 'destructive',
-          onPress: async () => {
-            setItems([]);
-            await clearAllShoppingItems();
-            setSelectedDeptFilter('ALL');
-            showToast(t('shopping.clearedToast'));
-          },
-        },
-      ]
-    );
+  const performClearAll = async () => {
+    setItems([]);
+    await clearAllShoppingItems();
+    setSelectedDeptFilter('ALL');
+    showToast(t('shopping.clearedToast'));
   };
 
   const handleAddManual = async () => {
@@ -250,7 +237,24 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handleSyncWeekPlan = async () => {
+  // Le azioni distruttive o di massa si aprono prima in una modale descrittiva
+  const requestSync = () => setPendingAction('sync');
+  const requestClearCompleted = () => {
+    if (completedCount > 0) setPendingAction('clearCompleted');
+  };
+  const requestClearAll = () => {
+    if (items.length > 0) setPendingAction('clearAll');
+  };
+
+  const confirmPendingAction = async () => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === 'sync') await performSync();
+    if (action === 'clearCompleted') await performClearCompleted();
+    if (action === 'clearAll') await performClearAll();
+  };
+
+  const performSync = async () => {
     try {
       const plans = await getMealPlans();
       const { days } = getWeekDays(0);
@@ -265,9 +269,9 @@ export default function ShoppingScreen() {
       const map: Record<string, Recipe> = {};
       [...catalogRecipes, ...catalogVariants].forEach(r => { map[r.id] = r; });
 
-      await aggregateAndAddToShopping(weekPlans, map);
+      const added = await aggregateAndAddToShopping(weekPlans, map);
       await loadItems();
-      showToast(t('shopping.syncSuccess'));
+      showToast(added > 0 ? t('shopping.syncSuccess') : t('shopping.syncNothingNew'));
     } catch (e) {
       console.error('Error syncing week plan to shopping list:', e);
       showToast(t('common.error'));
@@ -300,7 +304,7 @@ export default function ShoppingScreen() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.headerActionBtn}
-                onPress={handleSyncWeekPlan}
+                onPress={requestSync}
                 activeOpacity={0.7}
                 accessibilityLabel={t('shopping.syncWeekPlan')}
               >
@@ -321,7 +325,7 @@ export default function ShoppingScreen() {
                   {completedCount > 0 && (
                     <TouchableOpacity
                       style={[styles.headerActionBtn, styles.headerActionBtnCompleted]}
-                      onPress={handleClearCompleted}
+                      onPress={requestClearCompleted}
                       activeOpacity={0.7}
                       accessibilityLabel={t('shopping.removeCompleted')}
                     >
@@ -330,8 +334,8 @@ export default function ShoppingScreen() {
                   )}
 
                   <TouchableOpacity
-                    onPress={handleClearAll}
                     style={[styles.headerActionBtn, { borderColor: colors.border }]}
+                    onPress={requestClearAll}
                     activeOpacity={0.7}
                     accessibilityLabel={t('shopping.clearAll')}
                   >
@@ -684,6 +688,32 @@ export default function ShoppingScreen() {
           </View>
         )}
       </View>
+      <SheetModal visible={pendingAction !== null} onClose={() => setPendingAction(null)} autoHeight>
+        <View style={styles.confirmSheet}>
+          <Text style={styles.confirmTitle}>
+            {pendingAction === 'sync' && t('shopping.confirm.syncTitle')}
+            {pendingAction === 'clearCompleted' && t('shopping.confirm.completedTitle')}
+            {pendingAction === 'clearAll' && t('shopping.confirm.clearTitle')}
+          </Text>
+          <Text style={styles.confirmBody}>
+            {pendingAction === 'sync' && t('shopping.confirm.syncBody')}
+            {pendingAction === 'clearCompleted' && t('shopping.confirm.completedBody', { count: completedCount })}
+            {pendingAction === 'clearAll' && t('shopping.confirm.clearBody', { count: items.length })}
+          </Text>
+          <View style={styles.confirmRow}>
+            <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setPendingAction(null)} activeOpacity={0.85}>
+              <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmOkBtn, pendingAction === 'clearAll' && styles.confirmOkBtnDanger]}
+              onPress={confirmPendingAction}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.confirmOkText}>{t('shopping.confirm.confirmButton')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SheetModal>
     </SafeAreaView>
   );
 }

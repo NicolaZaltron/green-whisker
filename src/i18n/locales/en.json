@@ -206,7 +206,19 @@
     "clearCompletedConfirmSub": "Are you sure you want to remove all checked items?",
     "clearedToast": "Shopping list cleared",
     "updatedToast": "Shopping list updated and consolidated",
-    "addedToDept": "Added to \"{{dept}}\""
+    "addedToDept": "Added to \"{{dept}}\"",
+    "confirm": {
+      "syncTitle": "Add from calendar",
+      "syncBody": "Adds the ingredients of this week's planned meals that are not already on the list. If a quantity is already there, only the difference is added.",
+      "completedTitle": "Remove checked",
+      "completedBody_one": "Removes {{count}} checked item from the list. The others stay.",
+      "completedBody_other": "Removes {{count}} checked items from the list. The others stay.",
+      "clearTitle": "Clear list",
+      "clearBody_one": "Deletes the only item on the list. This cannot be undone.",
+      "clearBody_other": "Deletes all {{count}} items on the list. This cannot be undone.",
+      "confirmButton": "Confirm"
+    },
+    "syncNothingNew": "No new ingredients to add"
   },
   "recipeDetail": {
     "prepTime": "Prep: {{time}}",

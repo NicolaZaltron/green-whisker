@@ -1,6 +1,7 @@
 import { Recipe, MealPlanEntry, IngredientItem } from '../types/recipe';
-import { addShoppingItems, saveMealPlanEntriesBulk, getKV, setKV } from '../db/database';
+import { addShoppingItems, getShoppingItems, saveMealPlanEntriesBulk, getKV, setKV } from '../db/database';
 import { scaleIngredient } from '../utils/servingsScaler';
+import { cleanSupermarketIngredientName, normalizeIngredientKey } from '../utils/ingredientAggregator';
 import { catalogRecipes } from './recipeCatalog';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -907,6 +908,73 @@ export async function manualGeneratePlan(
 // LISTA DELLA SPESA AGGREGATA
 // ─────────────────────────────────────────────────────────────────────────────
 
+type ShoppingCandidate = {
+  recipeId: string;
+  recipeTitle: string;
+  name: string;
+  unit: string;
+  amount: number | null;
+  ingredientText: string;
+};
+
+// Stessa chiave usata dalla lista della spesa: "spicchi d'aglio", "Aglio" e "aglio" sono lo stesso ingrediente
+const shoppingKey = (name: string) => normalizeIngredientKey(cleanSupermarketIngredientName(name));
+
+/**
+ * Tiene solo ciò che manca nella lista della spesa:
+ * - ingrediente assente: aggiunto per intero;
+ * - ingrediente presente con la stessa unità e quantità numeriche: aggiunta solo la differenza;
+ * - ingrediente presente senza quantità confrontabile: non aggiunto.
+ */
+async function keepOnlyMissingForShopping(candidates: ShoppingCandidate[]): Promise<ShoppingCandidate[]> {
+  const existing = await getShoppingItems();
+  // Quantità già in lista per ingrediente: la lista può avere più voci per lo stesso ingrediente
+  const have = new Map<string, { amount: number | null; unit: string }>();
+  for (const item of existing) {
+    const key = shoppingKey(item.name || item.ingredient_text);
+    const unit = (item.unit || '').toLowerCase();
+    const current = have.get(key);
+    if (!current) {
+      have.set(key, { amount: item.amount, unit });
+    } else if (current.amount !== null && item.amount !== null && current.unit === unit) {
+      current.amount += item.amount;
+    } else {
+      current.amount = null;
+    }
+  }
+
+  // Quantità richieste dal planner, sommate per ingrediente e unità
+  const needed = new Map<string, { amount: number | null; unit: string; first: ShoppingCandidate; all: ShoppingCandidate[] }>();
+  for (const c of candidates) {
+    const key = shoppingKey(c.name);
+    const unit = (c.unit || '').toLowerCase();
+    const entry = needed.get(key);
+    if (!entry) {
+      needed.set(key, { amount: c.amount, unit, first: c, all: [c] });
+    } else {
+      entry.all.push(c);
+      if (entry.amount !== null && c.amount !== null && entry.unit === unit) entry.amount += c.amount;
+      else entry.amount = null;
+    }
+  }
+
+  const result: ShoppingCandidate[] = [];
+  for (const [key, need] of needed) {
+    const present = have.get(key);
+    if (!present) {
+      result.push(...need.all);
+      continue;
+    }
+    if (need.amount !== null && present.amount !== null && present.unit === need.unit) {
+      const diff = Math.round((need.amount - present.amount) * 100) / 100;
+      if (diff > 0) {
+        result.push({ ...need.first, amount: diff, unit: need.unit, ingredientText: `${diff} ${need.unit} ${need.first.name}`.trim() });
+      }
+    }
+  }
+  return result;
+}
+
 /**
  * Aggrega ingredienti di tutti i pasti pianificati sommando quantità omogenee
  * e li inserisce nella spesa per categoria.
@@ -958,10 +1026,12 @@ export async function aggregateAndAddToShopping(
     }
   }
 
-  if (itemsToAdd.length === 0) return 0;
+  // Si aggiunge solo ciò che non è già in lista: niente duplicati di ingredienti o quantità
+  const toAdd = await keepOnlyMissingForShopping(itemsToAdd);
+  if (toAdd.length === 0) return 0;
 
-  await addShoppingItems(itemsToAdd);
-  return itemsToAdd.length;
+  await addShoppingItems(toAdd);
+  return toAdd.length;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
