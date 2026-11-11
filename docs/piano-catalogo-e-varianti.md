@@ -207,3 +207,12 @@ nell'import AI. Vanno provati con Expo Go prima della build.
 - Il ricettario di 835 ricette va importato una volta dal file `assets/ricette.json` (menu → Ricettario → Importa).
 - Lo script `scripts/test_planner_simulation.js` legge ancora il file locale: è uno strumento di sviluppo.
 - Il report `node scripts/diet_report.js` stampa l'elenco dei casi da rivedere: non lo salvo in `docs/` perché contiene titoli di ricette.
+
+---
+
+## Aggiornamenti decisi (dopo l'audit)
+
+- **F8.4 (avviso "originale modificato")**: rimosso dal piano. Non serve.
+- **F8.6 (cuore dei preferiti)**: il cuore vale solo per la ricetta principale. Le varianti non mostrano il cuore: sono parte della principale e non compaiono come schede separate nella UI dei ricettari.
+- **F8.7 (badge nel planner)**: da confermare. Oggi il suffisso "(vegana)" nel titolo è la sola indicazione; resta da decidere se basta.
+- **F10 (test su telefono)**: da fare in questo ordine: importare un file esportato dall'app con la versione attuale; reimportare lo stesso file (non deve duplicare); esportare con e senza filtro dieta.

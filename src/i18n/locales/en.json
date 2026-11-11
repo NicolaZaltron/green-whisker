@@ -155,7 +155,8 @@
       "recommended": "Recommended ({{count}})",
       "all": "All ({{count}})",
       "searchSidePlaceholder": "Search side dish or salad...",
-      "searchSlotPlaceholder": "Search for {{slot}}..."
+      "searchSlotPlaceholder": "Search for {{slot}}...",
+      "titleWithDate": "{{slot}} on {{day}}"
     },
     "addMeal": "Add meal",
     "scope": {
@@ -219,6 +220,7 @@
     },
     "syncNothingNew": "No new products to add",
     "quantityPrompt": "Quantity to add to the list",
+    "quantityChoosePrompt": "Choose the quantity to add to the list or enter it manually",
     "quantityEditTitle": "Edit quantity",
     "quantityUnit": "Unit",
     "quantitySave": "Save",
@@ -636,8 +638,9 @@
     "unitMismatch": "unit differs from the list",
     "empty": "No meals planned from today onward.",
     "back": "Back",
-    "save": "Save",
-    "saveError": "Could not save the selection. Please try again."
+    "save": "Add selected",
+    "saveError": "Could not save the selection. Please try again.",
+    "noIngredients": "The recipes planned for this period have no ingredients to add."
   },
   "mealPicker": {
     "recipes": "Recipes",
@@ -670,11 +673,15 @@
     "add": "Add",
     "count": "Quantity",
     "empty": "No items for this meal",
+    "loading": "Loading...",
     "out": "Eating out",
-    "added": "{{name}} added. You can add more to this meal.",
+    "added": "{{name}} added.",
     "suggestedForMeal": "Suggested for this meal",
     "allRecipes": "All recipes",
-    "plannedHere": "Already planned for this meal"
+    "plannedHere": "Already planned for this meal",
+    "alertSummary": "Already planned for this meal",
+    "mealComplete": "Close planning",
+    "addMore": "Add more to this meal"
   },
   "readyMeals": {
     "categories": {

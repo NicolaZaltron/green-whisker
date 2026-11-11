@@ -12,6 +12,7 @@ import {
   accumulateSupermarketItem,
   mergeRecipeTitles,
   ConsolidatedSupermarketItem,
+  unitGroupKey,
 } from '../utils/ingredientAggregator';
 
 let dbInstance: any = null;
@@ -488,10 +489,12 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
 
   for (const item of unchecked) {
     const cleanName = cleanSupermarketIngredientName(item.name || item.ingredient_text);
-    const key = normalizeIngredientKey(cleanName);
-    if (isNonPurchasableItem(cleanName, key)) {
+    const baseKey = normalizeIngredientKey(cleanName);
+    if (isNonPurchasableItem(cleanName, baseKey)) {
       continue;
     }
+    // Unità non sommabili (es. 500 g e 1 confezione) restano in gruppi separati
+    const key = `${baseKey}|${unitGroupKey(item.unit)}`;
     const category = classifyShoppingDepartment(cleanName, item.category);
 
     if (!groupMap.has(key)) {

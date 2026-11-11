@@ -74,6 +74,18 @@ const parseQuantityText = (text: string): number | null => {
   return text.trim() === '' || Number.isNaN(parsed) || parsed < 0 ? null : parsed;
 };
 
+// Quantità rapide mostrate come pillole nella richiesta di quantità
+const QUICK_QUANTITIES: readonly { amount: number; unit: string }[] = [
+  { amount: 500, unit: 'g' },
+  { amount: 1, unit: 'kg' },
+  { amount: 2, unit: 'kg' },
+  { amount: 1, unit: 'l' },
+  { amount: 1, unit: 'pezzo' },
+  { amount: 1, unit: 'confezione' },
+  { amount: 1, unit: 'rotolo' },
+  { amount: 1, unit: 'vasetto' },
+];
+
 // Numero massimo di suggerimenti mostrati sotto la barra di testo
 const MAX_SUGGESTIONS = 8;
 
@@ -320,7 +332,15 @@ export default function ShoppingScreen() {
     showToast(t('shopping.addedToDept', { dept: chosenDept }));
   };
 
-  const handleAddManual = () => addItemByName(newItemText);
+  // Un nome digitato apre la richiesta di quantità (predefinito 1, nessuna unità)
+  const handleAddManual = () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) return;
+    setQtyAmountText('1');
+    setQtyUnitText('');
+    setUnitMenuOpen(false);
+    setQuantityTarget({ mode: 'add', name: trimmed, unit: '' });
+  };
 
   // Un suggerimento apre la richiesta di quantità (predefinito 1)
   const openQuantityAdd = (entry: CatalogSuggestion) => {
@@ -349,6 +369,13 @@ export default function ShoppingScreen() {
     }
     await updateShoppingItemQuantity(quantityTarget.item.id, quantityTarget.item.name, amount, unit);
     loadItems();
+  };
+
+  // Una pillola aggiunge subito il prodotto con quantità e unità scelte
+  const addWithQuickQuantity = async (name: string, amount: number, unit: string) => {
+    setQuantityTarget(null);
+    setUnitMenuOpen(false);
+    await addItemByName(name, amount, unit);
   };
 
   // Suggerimenti filtrati sui caratteri digitati: prima quelli che iniziano con la query, poi quelli che la contengono
@@ -870,12 +897,29 @@ export default function ShoppingScreen() {
       </SheetModal>
       <SheetModal visible={quantityTarget !== null} onClose={() => setQuantityTarget(null)} autoHeight>
         <View style={styles.confirmSheet}>
-          <Text style={styles.confirmTitle}>
+          <Text style={styles.qtyProductName}>
             {quantityTarget?.mode === 'add' ? quantityTarget.name : quantityTarget?.mode === 'edit' ? quantityTarget.item.name : ''}
           </Text>
           <Text style={styles.confirmBody}>
-            {quantityTarget?.mode === 'add' ? t('shopping.quantityPrompt') : t('shopping.quantityEditTitle')}
+            {quantityTarget?.mode === 'add' ? t('shopping.quantityChoosePrompt') : t('shopping.quantityEditTitle')}
           </Text>
+          {quantityTarget?.mode === 'add' && (
+            <View style={styles.quickPillsRow}>
+              {QUICK_QUANTITIES.map(quick => {
+                const quickUnit = unitLabel(quick.unit, t, quick.amount);
+                return (
+                  <TouchableOpacity
+                    key={`${quick.amount}-${quick.unit}`}
+                    style={styles.quickPill}
+                    onPress={() => addWithQuickQuantity(quantityTarget.name, quick.amount, quick.unit)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.quickPillText}>{`${quick.amount} ${quickUnit}`}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           <View style={styles.qtyInputRow}>
             <AppTextField
               style={styles.qtyAmountInput}
@@ -894,6 +938,11 @@ export default function ShoppingScreen() {
                 {unitLabel(qtyUnitText, t) || t('shopping.unitNone')}
               </Text>
               <Ionicons name={unitMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.confirmOkBtn, styles.qtyConfirmBtn]} onPress={confirmQuantity} activeOpacity={0.85}>
+              <Text style={styles.confirmOkText}>
+                {quantityTarget?.mode === 'add' ? t('shopping.quantityAdd') : t('shopping.quantitySave')}
+              </Text>
             </TouchableOpacity>
           </View>
           {unitMenuOpen && (
@@ -921,11 +970,6 @@ export default function ShoppingScreen() {
           <View style={styles.confirmRow}>
             <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setQuantityTarget(null)} activeOpacity={0.85}>
               <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.confirmOkBtn} onPress={confirmQuantity} activeOpacity={0.85}>
-              <Text style={styles.confirmOkText}>
-                {quantityTarget?.mode === 'add' ? t('shopping.quantityAdd') : t('shopping.quantitySave')}
-              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1277,7 +1321,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  qtyInputRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  qtyProductName: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  quickPillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  quickPill: {
+    height: 34,
+    borderRadius: 17,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickPillText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  qtyInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  qtyConfirmBtn: { height: 44, justifyContent: 'center', alignItems: 'center' },
   qtyAmountInput: { width: 96 },
   qtyUnitInput: { flex: 1, height: 44 },
   qtyUnitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },

@@ -1,211 +1,147 @@
-# Checklist Ottimizzazione Tempi di Caricamento
+# Piano di ottimizzazione delle performance (riscritto)
 
-> Data: 2026-11-11
-> Branch: `feature/improve-shopping-list-and-planner`
-> Dati app: 835 ricette, 723 ingredienti, 26 piatti pronti
+Destinatario: un agente locale (qwen3.6). Esegui un passo alla volta. Ogni passo ha: obiettivo, file, azioni, verifica. **Se una misura non è disponibile, non indovinare: marca il passo come `BLOCCATO-MISURA` e passa oltre.**
 
----
+## 0. Contesto e decisioni già prese (leggere prima)
 
-## 🔴 Priorità ALTA — Impatto maggiore, rischio minore
+- L'**avvio** dell'app è accettabile. Non ottimizzarlo in questo piano.
+- Il problema reale è il **ritardo tra tap e azione** nel planner, in particolare nel meal picker (cambio scheda Ricette / Ingredienti / Pronti / Fuori casa, ricerca, aggiunta), e le **transizioni** tra schede, soprattutto verso planner e lista della spesa.
+- Obiettivo misurabile: **un tap nel planner deve produrre l'effetto visibile in meno di 300 ms** in build di release, su un telefono di fascia media.
+- Il catalogo ricette resta **completo in memoria** (serve a ricerca, filtri dieta e raggruppamento varianti). Non paginarlo.
+- Le varianti non hanno il cuore nei preferiti: non toccare la logica dei preferiti.
+- Import ed export del ricettario funzionano: non toccarli.
+- Non usare `InteractionManager` (rimosso in React Native 0.88). Usare `requestIdleCallback` (globale in RN) solo dove serve.
+- Non committare. Lavorare nel working tree. Backup prima di ogni modifica in `work/backup/`.
 
-### [ ] 1. Lazy-loading del catalogo (paginazione)
-
-**Problema:** `initCatalog()` + `loadCatalog()` caricano **tutte le 835 ricette** in una singola query `SELECT json_data FROM catalog ORDER BY created_at DESC` ad ogni avvio.
-
-**File coinvolti:**
-- `src/app/_layout.tsx` (righe 67–76: sequenza di init)
-- `src/services/recipeCatalog.ts` (`loadCatalog()` → `getCatalogRecipes()`)
-- `src/db/database.ts` (`getCatalogRecipes()`, righe ~1206–1223)
-
-**Cosa fare:**
-- [ ] Creare `src/db/catalogDb.ts` con `getCatalogRecipesPaginated(offset, limit)` che usa `LIMIT ? OFFSET ?`
-- [ ] Modificare `recipeCatalog.ts` per caricare le prime ~50 ricette ad avvio, e le altre on-demand quando l'utente scorre
-- [ ] Mantenere `catalogRecipes` come array in-memory (già esiste), ma riempirlo progressivamente
-- [ ] Aggiungere un contatore `loadedCount` per tracciare quante ricette sono state caricate
-
-**Stima impatto:** Riduce il caricamento iniziale da ~2-3s a <500ms.
+### Vincoli di misura (obbligatori)
+- Le misure in **sviluppo** non sono valide (Hermes non ottimizzato, StrictMode). Ogni verifica di prestazione va fatta in **build di release**. Se non puoi produrla, marca `BLOCCATO-MISURA`.
+- La build di release si fa con EAS, usando un profilo già presente in `eas.json` (es. `npx eas-cli@latest build --profile preview --platform android`). Se l'agente non può eseguire EAS, lascia la misura all'utente e documentala.
 
 ---
 
-### [ ] 2. Lazy-loading degli ingredienti
+## 1. Strumentazione temporanea (passo di misura)
 
-**Problema:** `listIngredients()` in `src/db/ingredientsDb.ts` (righe ~165–195) esegue `SELECT * FROM ingredients` + `SELECT * FROM ingredient_nutrients` su **tutti i 723 ingredienti** ad ogni avvio e ad ogni cambio di tab.
+Obiettivo: misurare, non cambiare comportamento.
 
-**File coinvolti:**
-- `src/db/ingredientsDb.ts` (`listIngredients()`, righe ~165–195)
-- `src/app/(tabs)/planner.tsx` (righe ~115–125: `useEffect` su `catalogVersion`)
-- `src/app/(tabs)/shopping.tsx` (righe ~145–165: `loadCatalog` locale)
+- [ ] 1.1 Crea `src/utils/perfMark.ts` con una funzione `perfMark(label: string)` che, solo se `__DEV__` o una costante `PERF_ENABLED = true` locale, registra `Date.now()` in un array globale e stampa con `console.log('[perf]', label, delta)`. Quando `PERF_ENABLED` è falso non deve fare nulla. Default: `false`.
+- [ ] 1.2 Aggiungi `perfMark` ai punti seguenti, senza altre modifiche:
+  - `src/components/planner/MealPickerModal.tsx`: all'inizio di `handleTabChange`, poi in un `useEffect` che parte dopo il cambio di `tab` (marca `picker-tab-changed`).
+  - `src/app/(tabs)/planner.tsx`: all'inizio di `handleOpenPicker` (`picker-open`), e nella funzione che registra un'aggiunta (`add-start`, `add-end`).
+  - `src/app/(tabs)/_layout.tsx` (solo se possibile): un listener `tabPress` di expo-router (`tab-press:<nome>`).
+- [ ] 1.3 Verifica: `npx tsc --noEmit` zero errori.
 
-**Cosa fare:**
-- [ ] Modificare `listIngredients()` per supportare paginazione: `listIngredientsPaginated(offset, limit)`
-- [ ] Aggiungere `ingredientsCache` con versioning (già esiste parzialmente, righe ~24–27) per evitare ricarichi
-- [ ] Nel planner, caricare solo i primi 100 ingredienti ad avvio e caricare gli altri on-demand
-- [ ] Aggiungere `getIngredientById(id)` ottimizzato con cache per lookup individuali
-
-**Stima impatto:** Riduce il caricamento ingredienti da ~500ms a <100ms.
+**Uscita**: la strumentazione è pronta; i numeri si leggono nei log della build di release (`PERF_ENABLED = true` solo per la misura, poi di nuovo `false`).
 
 ---
 
-### [ ] 3. Sostituire `SELECT *` con colonne necessarie
+## 2. Misure di base (BLOCCATO-MISURA se non in release)
 
-**Problema:** Multiple query usano `SELECT *` invece di selezionare solo le colonne necessarie.
+Per ogni scenario, ripeti 5 volte e registra la mediana in `work/perf/baseline.md`:
 
-**File coinvolti:**
-- `src/db/ingredientsDb.ts` (righe ~175, ~180): `SELECT * FROM ingredients`, `SELECT * FROM ingredient_nutrients`
-- `src/db/readyMealsDb.ts` (righe ~145): `SELECT * FROM ready_meals`
-- `src/db/simpleItemsDb.ts` (righe ~125): `SELECT * FROM simple_items`
+| ID | Scenario | Punto di inizio | Punto di fine |
+|----|----------|-----------------|---------------|
+| S1 | Apri il picker da uno slot | `picker-open` | primo frame della lista (Modal `onShow` o primo `onLayout`) |
+| S2 | Cambia scheda nel picker: Ricette → Ingredienti | `picker-tab-changed` | prima riga visibile della nuova scheda |
+| S3 | Cambia scheda nel picker: Ingredienti → Pronti → Fuori casa | come S2 | come S2 |
+| S4 | Scrivi una lettera nella ricerca del picker | `onChangeText` | risultati visibili |
+| S5 | Aggiungi una ricetta al pasto (chiudi la modale o resta aperta) | `add-start` | `add-end` e banner visibile |
+| S6 | Cambia scheda principale: Esplora → Preferiti → Planner | `tab-press` | prima UI della scheda |
+| S7 | Cambia scheda principale: Planner → Lista della spesa | `tab-press` | prima UI della scheda |
 
-**Cosa fare:**
-- [ ] Sostituire `SELECT * FROM ingredients` con `SELECT id, name, type, tags, edible_alone, default_amount, default_unit, purchase_amount, purchase_unit, density_g_per_ml, created_at, updated_at FROM ingredients`
-- [ ] Sostituire `SELECT * FROM ingredient_nutrients` con `SELECT ingredient_id, nutrient, value FROM ingredient_nutrients`
-- [ ] Sostituire `SELECT * FROM ready_meals` con colonne esplicite
-- [ ] Sostituire `SELECT * FROM simple_items` con colonne esplicite
+- [ ] 2.1 Esegui S1..S7 e scrivi `work/perf/baseline.md` con la tabella dei tempi mediani.
+- [ ] 2.2 Scrivi la data, il commit, il dispositivo e il tipo di build in cima al file.
+- [ ] 2.3 Verifica: il file contiene 7 righe con 5 misure ciascuna. Se una misura manca, marca la riga `BLOCCATO-MISURA`.
 
-**Stima impatto:** Riduzione memoria e tempo di parsing del 20-30%.
-
----
-
-## 🟡 Priorità MEDIA — Impatto significativo
-
-### [ ] 4. Evitare ricaricamento completo del catalogo ad ogni cambio di tab
-
-**Problema:** `planner.tsx` e `shopping.tsx` ricaricano **tutti** gli ingredienti e piatti pronti ad ogni cambio di `catalogVersion` (anche se è cambiata solo 1 ricetta).
-
-**File coinvolti:**
-- `src/app/(tabs)/planner.tsx` (righe ~115–125: `useEffect` con `Promise.all([listIngredients(), listReadyMeals()])`)
-- `src/app/(tabs)/shopping.tsx` (righe ~145–165: `loadCatalog` locale)
-
-**Cosa fare:**
-- [ ] Modificare `recipeCatalog.ts` per esporre un metodo `getChangedRecipes(sinceVersion?)` che ritorna solo le ricette cambiate
-- [ ] Nel planner, invece di ricaricare tutto, fare un merge incrementale: `ingredients = prev.map(e => changedIngredients.find(c => c.id === e.id) ?? e)`
-- [ ] Stesso approccio per `readyMeals`
-- [ ] Aggiungere un flag `isFirstLoad` per distinguere il primo caricamento dai ricarichi
-
-**Stima impatto:** I ricarichi di tab passano da ~500ms a <50ms.
+**Uscita**: baseline confrontabile. Nessuna ottimizzazione prima di questo passo.
 
 ---
 
-### [ ] 5. Virtualizzare il planner con `SectionList`
+## 3. Planner e meal picker: rendering (priorità alta)
 
-**Problema:** Il planner usa `TabScrollView` (wrappea `ScrollView`) che non fa virtualizzazione. Mostra tutti i slot di tutte le settimane in memoria.
+Ogni punto è indipendente: fai un punto alla volta, misura, poi passa al successivo.
 
-**File coinvolti:**
-- `src/app/(tabs)/planner.tsx` (uso di `TabScrollView`)
-- `src/components/TabScrollViews.tsx` (definizioni di `TabScrollView`, `TabFlatList`, `TabSectionList`)
+### 3.A Picker: lista ricette calcolata una volta
+- [ ] 3.A.1 `MealPickerModal.tsx`: verifica che `sortedRecipes` dipenda solo da `allRecipes`, `query`, `favoriteIds`, e che `visibleRecipes` filtri solo per slot. Se una delle due dipendenze è sbagliata, correggila.
+- [ ] 3.A.2 Verifica: nel cambio di scheda Ingredienti/Pronti/Fuori casa, `sortedRecipes` non deve ricalcolarsi (strumenta con `perfMark` dentro il memo, temporaneo).
+- [ ] 3.A.3 Misura S2, S3. Confronta con la baseline.
 
-**Cosa fare:**
-- [ ] Sostituire `TabScrollView` con `TabSectionList` nel planner
-- [ ] Configurare `initialNumToRender={7}`, `maxToRenderPerBatch={7}`, `windowSize={3}`
-- [ ] Implementare `renderSectionHeader` per i giorni della settimana
-- [ ] Implementare `renderItem` per i singoli slot (colazione, pranzo, cena)
+### 3.B Picker: righe stabili e leggere
+- [ ] 3.B.1 Ogni riga usa `expo-image` con `cachePolicy="disk"`. Su liste lunghe cambia in `"memory-disk"` solo se la misura lo giustifica (vedi 6). Non cambiarlo a caso.
+- [ ] 3.B.2 Le icone `Ionicons` in una riga: riduci a quelle strettamente necessarie (il cuore e la freccia). Misura prima.
+- [ ] 3.B.3 Verifica: `renderRow` è memoizzato (`useCallback`) con dipendenze corrette. Lo `eslint` non deve dare nuovi warning `exhaustive-deps`.
 
-**Stima impatto:** Riduzione memoria del 60-70% sul planner, scroll più fluido.
+### 3.C Picker: ricerca senza ricalcolo completo
+- [ ] 3.C.1 La ricerca (S4) passa per `rankPickerMatches`. Aggiungi un `useDeferredValue` (React 18+) o un debounce di 120 ms su `query` per la lista, lasciando il campo di testo immediato.
+- [ ] 3.C.2 Verifica: il campo di testo reagisce subito; la lista si aggiorna entro 120 ms.
 
----
+### 3.D Picker: collator una sola volta
+- [ ] 3.D.1 `pickerRanking.ts` e `MealPickerModal.tsx` usano `localeCompare('it', ...)` in sort. Crea un `const collator = new Intl.Collator('it', { sensitivity: 'base' })` a livello di modulo e usa `collator.compare` nei sort. Verifica che l'ordine dei test in `scripts/test_picker_ranking.js` non cambi.
+- [ ] 3.D.2 Misura S1 e S4.
 
-### [ ] 6. Ottimizzare il caricamento delle immagini
+### 3.E Planner: conteggi e liste una volta
+- [ ] 3.E.1 `planner.tsx`: i conteggi per giorno e per slot (`planCounts`) dipendono solo da `plans`, `weekDays`, `selectedDate`. Verifica che non ci siano altri `plans.filter` nel JSX che si rifanno a ogni render: sostituiscili con i valori di `planCounts`.
+- [ ] 3.E.2 `MealSlotCard` riceve handler stabili (già fatto: verifica che non ci siano arrow inline nel JSX delle card).
+- [ ] 3.E.3 Misura S5 (aggiunta).
 
-**Problema:** Le immagini delle ricette vengono caricate al primo visualizzazione senza lazy-loading intelligente. `cachePolicy="disk"` è impostato ma non c'è pre-fetching.
-
-**File coinvolti:**
-- `src/components/RecipeCard.tsx` (righe ~55–60: `Image` con `cachePolicy="disk"`)
-- `src/components/RecipeModal.tsx` (uso di `Image` con `cachePolicy="disk"`)
-- `app/(tabs)/index.tsx`, `app/(tabs)/planner.tsx`, `components/planner/MealPickerModal.tsx`
-
-**Cosa fare:**
-- [ ] Cambiare `cachePolicy="disk"` → `cachePolicy="memory"` per caricamenti più veloci (le immagini sono già in cache dal sistema)
-- [ ] Aggiungere un `placeholder` leggero (SVG o data URI) per evitare flash bianchi
-- [ ] Implementare `Image.prefetch()` per le immagini visibili ma non ancora caricate (lazy prefetch)
-- [ ] Aggiungere `contentTransition="cross-dissolve"` per transizioni più morbide
-
-**Stima impatto:** Riduzione flash bianchi del 80%, percezione di velocità +30%.
+### 3.F Modale: montaggio condizionale
+- [ ] 3.F.1 Il picker è montato solo quando è aperto (`pickerVisible && ...`). Verifica sul dispositivo che la chiusura funzioni. Se l'animazione di uscita manca, valuta `animationType="slide"` con `visible` gestito dal padre senza smontaggio: decidi con una misura, non in astratto.
 
 ---
 
-## 🟢 Priorità BASSA — Migliorie incrementali
+## 4. Planner: lettura dati (priorità alta)
 
-### [ ] 7. Pre-caricamento intelligente (prefetching)
+- [ ] 4.1 `getMealPlans()` (`src/db/database.ts`, circa riga 719) legge **tutta** la tabella `meal_plan` senza filtri. Aggiungi un parametro opzionale `{ fromDate, toDate }` con `WHERE date BETWEEN ? AND ?`. Il default resta la lettura completa per compatibilità.
+- [ ] 4.2 Crea l'indice `idx_meal_plan_date` se non esiste già (verifica in `src/db/catalogSchema.ts`; esiste `meal_plan(date, slot)` secondo l'audit: NON duplicarlo).
+- [ ] 4.3 `planner.tsx` chiama `loadPlans()` dopo ogni aggiunta/cancellazione. Sostituisci con: caricare solo la settimana visibile (`fromDate`/`toDate` dei `weekDays`) e aggiornare lo stato locale senza ricaricare ingredienti e pronti (che già hanno una cache).
+- [ ] 4.4 Rimuovi `sameContent` basato su `JSON.stringify` in `planner.tsx`: confronta solo lunghezza e id, oppure lascia che React confronti per riferimento dopo `setPlans`.
+- [ ] 4.5 Misura S5 e il tempo di `loadPlans` (`perfMark` attorno alla chiamata).
 
-**Problema:** Non c'è alcun pre-caricamento. Le risorse vengono scaricate solo quando l'utente le richiede esplicitamente.
-
-**Cosa fare:**
-- [ ] Creare un hook `usePrefetchCatalog()` che, quando l'utente scorre, pre-carica la pagina successiva di ricette/ingredienti in background
-- [ ] Usare `InteractionManager.runAfterInteractions()` per non interferire con l'interazione utente
-- [ ] Aggiungere un threshold (es. quando l'utente scorre entro 200px dalla fine, pre-carica la pagina successiva)
-
-**Stima impatto:** Navigazione più fluida, soprattutto su dispositivi lenti.
+**Attenzione**: le viste di settimana diversa dalla corrente (settimana precedente o successiva) devono ancora funzionare: usa `fromDate`/`toDate` in base alla settimana mostrata, non solo a quella corrente.
 
 ---
 
-### [ ] 8. Migliorare il web fallback (localStorage)
+## 5. Transizioni tra schede (priorità media)
 
-**Problema:** Su web, tutte le operazioni usano localStorage che è **sincrono** e ha un limite di ~5MB.
-
-**File coinvolti:**
-- `src/db/database.ts` (tutte le funzioni hanno un branch `isWebFallback`)
-- `src/db/ingredientsDb.ts`, `src/db/readyMealsDb.ts`, `src/db/simpleItemsDb.ts`
-
-**Cosa fare:**
-- [ ] Valutare IndexedDB (async) come alternativa a localStorage per il web
-- [ ] Implementare chunking: dividere il catalogo in più chunk da 200 ricette ciascuno
-- [ ] Aggiungere un timeout di caricamento con feedback visivo all'utente
-
-**Stima impatto:** Web più responsive, evita blocchi del thread principale.
+- [ ] 5.1 `(tabs)/_layout.tsx` ha già `freezeOnBlur: true`. Verifica che sia effettivo: misura S6 e S7 prima e dopo, senza modifiche.
+- [ ] 5.2 Ogni scheda con `useFocusEffect` deve fare solo il lavoro necessario:
+  - `planner.tsx`: `getMealPlans` della settimana + preferenze. Ingredienti e pronti non si ricaricano al focus (già così: verifica).
+  - `shopping.tsx`: al focus, `loadItems()` senza consolidamento (già così dopo il primo focus: verifica).
+  - `favorites.tsx`: `refreshFavorites()` è no-op se nulla è cambiato (già così).
+- [ ] 5.3 Il lavoro non urgente (consolidamento spesa al primo focus, auto-generazione piano) va spostato con `requestIdleCallback`, che è globale in RN. Non usare `InteractionManager`.
+- [ ] 5.4 Misura S6, S7.
 
 ---
 
-### [ ] 9. Aggiungere indici database per query frequenti
+## 6. Immagini (priorità media, solo se la misura lo indica)
 
-**Problema:** Alcuni query potrebbero beneficiare di indici aggiuntivi.
-
-**File coinvolti:**
-- `src/db/catalogSchema.ts` (creazione indici esistenti)
-
-**Cosa fare:**
-- [ ] Aggiungere `CREATE INDEX IF NOT EXISTS idx_catalog_created ON catalog(created_at DESC)` (già esiste)
-- [ ] Valutare `CREATE INDEX IF NOT EXISTS idx_recipes_title ON catalog(json_data)` con una colonna computed per la ricerca testuale
-- [ ] Valutare indicizzazione su `meal_plan(date, slot, kind)` (già esiste parzialmente)
-
-**Stima impatto:** Query di ricerca +20-40% più veloci.
+- [ ] 6.1 Le miniature delle ricette nel picker (52 px) e nelle card usano `expo-image`. Verifica che le immagini abbiano una dimensione richiesta coerente con il display (es. `contentFit`, dimensione dell'URL o `recyclingKey` nella FlatList) senza cambiare l'aspetto.
+- [ ] 6.2 Se nelle misure S1/S2 il tempo è dominato dal caricamento immagini (confronta con un picker senza immagini in una build di test), aggiungi un `placeholder` leggero (colore di fondo) e `transition={0}`.
+- [ ] 6.3 Non cambiare `cachePolicy` senza una misura che lo giustifichi.
 
 ---
 
-### [ ] 10. Code caching delle immagini in background
+## 7. Shopping list (priorità bassa, dopo le misure)
 
-**Problema:** Le immagini vengono scaricate solo quando necessarie, senza un sistema di caching aggressivo.
-
-**Cosa fare:**
-- [ ] Configurare `ExpoImage` con `allowDiskCache: true` e `priority="high"` per le immagini visibili
-- [ ] Implementare un sistema di cache con dimensione massima (es. 50MB) e politica LRU
-- [ ] Invalidare la cache quando il catalogo viene aggiornato
-
-**Stima impatto:** Riduzione traffico di rete del 60% dopo la prima visita.
+- [ ] 7.1 `shopping.tsx`: `groupedSections` ricalcola a ogni cambio di `items`. Verifica con `perfMark` quanto costa a 100 voci e a 300 voci, in release.
+- [ ] 7.2 Se il costo è sopra 16 ms per frame: memoizza per reparto e ricalcola solo il reparto cambiato.
+- [ ] 7.3 Misura S7.
 
 ---
 
-## 📊 Riepilogo impatto stimato
+## 8. Chiusura e verifica
 
-| # | Modifica | Impatto | Rischio | Tempo stimato |
-|---|----------|---------|---------|---------------|
-| 1 | Lazy-loading catalogo | 🔴 Alto | Basso | 2-3 ore |
-| 2 | Lazy-loading ingredienti | 🔴 Alto | Basso | 1-2 ore |
-| 3 | SELECT * → colonne esplicite | 🔴 Alto | Basso | 1 ora |
-| 4 | Ricarichi incrementali | 🟡 Medio | Medio | 2-3 ore |
-| 5 | Virtualizzare planner | 🟡 Medio | Basso | 1-2 ore |
-| 6 | Ottimizzare immagini | 🟡 Medio | Basso | 1-2 ore |
-| 7 | Prefetching | 🟢 Basso | Basso | 2-3 ore |
-| 8 | Web fallback IndexedDB | 🟢 Basso | Medio | 3-4 ore |
-| 9 | Indici aggiuntivi | 🟢 Basso | Basso | 1 ora |
-| 10 | Cache immagini background | 🟢 Basso | Basso | 1-2 ore |
-
-**Totale tempo stimato:** ~15-21 ore
-**Riduzione caricamento iniziale attesa:** da ~3-5s a <1s
+- [ ] 8.1 Rimuovi la strumentazione temporanea (`perfMark` e le chiamate) o lasciala con `PERF_ENABLED = false` se è utile: decidi con l'utente.
+- [ ] 8.2 Ripeti le misure S1..S7 in release e scrivi `work/perf/after.md` con la tabella a confronto con `baseline.md`.
+- [ ] 8.3 Criterio di accettazione: S1, S2, S3, S4, S5 sotto 300 ms mediana in release. Se un criterio non è raggiunto, scrivi quale e non proseguire con altri punti senza conferma.
+- [ ] 8.4 `npx tsc --noEmit` zero errori; `npx expo lint` nessun errore nuovo; `for f in scripts/test_*.js; do NODE_PATH=$PWD/node_modules node $f >/tmp/o.txt 2>&1 || echo FAIL $f; done` nessun FAIL.
+- [ ] 8.5 Non committare.
 
 ---
 
-## ⚠️ Note
+## 9. Condizioni di arresto
 
-- Prima di iniziare qualsiasi refactoring, fare un commit del codice attuale come snapshot
-- Testare ogni modifica separatamente prima di procedere alla successiva
-- Mantenere la compatibilità con il web fallback (localStorage) durante tutte le modifiche
-- Misurare i tempi di caricamento con React Native Debugger o Flipper dopo ogni modifica
+Fermati e scrivi in `work/perf/blockers.md`:
+- non puoi produrre una build di release: indica `BLOCCATO-MISURA` per tutti i passi che la richiedono e termina;
+- una modifica rompe un test o `tsc`;
+- una modifica cambia l'ordine dei risultati del picker o il comportamento dei preferiti;
+- una modifica cambia il comportamento di import o export del ricettario.

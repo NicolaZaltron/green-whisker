@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   View,
@@ -7,6 +8,7 @@ import {
   FlatList,
   ScrollView,
   TouchableOpacity,
+  type ListRenderItemInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,16 +20,21 @@ import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 import { AppTextField } from '../../components/ui/AppTextField';
 import { formatTagLabel, unitLabel } from '../../constants/simpleTags';
+import { formatDayAndDate } from '../../utils/dates';
 import { OUT_OF_HOME_OPTIONS } from '../../constants/outOfHome';
 import { isRecipeForSlot } from '../../utils/recipeSlots';
-import { orderWithFavoritesFirst, rankPickerMatches } from '../../utils/pickerRanking';
+import { rankPickerMatches } from '../../utils/pickerRanking';
 import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits';
+import { getSortedPickerRecipes, uniquePickerRecipes } from '../../services/pickerRecipes';
+import { SLOT_COLORS, type MealSlot } from '../../services/plannerService';
+import { PlannedItemCard, plannedItemLabel, type DayMealItem } from './PlannedItemCards';
 
 export interface MealPickerModalProps {
   visible: boolean;
   targetSlot: string;
-  // Pasti già pianificati nello slot (giorno selezionato), solo a scopo di riferimento
-  plannedForSlot: { id: string; label: string }[];
+  targetDate: string;
+  // Pasti già pianificati nello slot (giorno selezionato), mostrati come schede di sola lettura
+  plannedForSlot: DayMealItem[];
   allRecipes: Recipe[];
   // Id delle ricette preferite: mostrate con il cuore e messe prima nei risultati di ricerca
   favoriteIds?: ReadonlySet<string>;
@@ -37,11 +44,14 @@ export interface MealPickerModalProps {
   onSelectIngredient: (ingredient: Ingredient, amount: number | null, unit: string) => void;
   onSelectReadyMeal: (meal: ReadyMeal, count: number) => void;
   onSelectOutOfHome: (label: string) => void;
+  onDeletePlanned?: (entryId: string) => void;
   onClose: () => void;
 }
 
 // Insieme vuoto stabile: un default nuovo a ogni render invaliderebbe le liste memorizzate
 const EMPTY_FAVORITE_IDS: ReadonlySet<string> = new Set<string>();
+
+// Schede pianificate in sola lettura nel picker: niente swap né eliminazione da qui
 
 type MealTab = 'all' | 'recipes' | 'ingredients' | 'ready' | 'out';
 const TABS: MealTab[] = ['all', 'ingredients', 'recipes', 'ready', 'out'];
@@ -66,6 +76,7 @@ type PickerRow =
 const MealPickerModal: React.FC<MealPickerModalProps> = ({
   visible,
   targetSlot,
+  targetDate,
   plannedForSlot,
   allRecipes,
   favoriteIds = EMPTY_FAVORITE_IDS,
@@ -75,11 +86,15 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   onSelectIngredient,
   onSelectReadyMeal,
   onSelectOutOfHome,
+  onDeletePlanned,
   onClose,
 }) => {
-  const { t } = useTranslation();
-  const { colors } = useTheme();
+  const { t, i18n } = useTranslation();
+  const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Colore dello slot, come nelle schede del planner
+  const slotColors = SLOT_COLORS[targetSlot as MealSlot];
+  const slotAccent = slotColors ? (isDark ? slotColors.darkColor : slotColors.color) : colors.primaryText;
 
   const [tab, setTab] = useState<MealTab>('all');
   const [query, setQuery] = useState('');
@@ -93,12 +108,49 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   const [countText, setCountText] = useState('1');
   // Ultimo pasto aggiunto: la modale resta aperta per aggiungere altro allo stesso slot
   const [added, setAdded] = useState<string | null>(null);
+  // Nome dell'ultima aggiunta mostrato nell'avviso: resta valorizzato durante la dissolvenza di chiusura
+  const [alertName, setAlertName] = useState('');
+  if (added !== null && added !== alertName) setAlertName(added);
   // Reset alla cambio di slot (la modale resta montata e cambia solo targetSlot)
   const [prevTargetSlot, setPrevTargetSlot] = useState(targetSlot);
   if (prevTargetSlot !== targetSlot) {
     setPrevTargetSlot(targetSlot);
     setShowAllRecipes(false);
   }
+
+  // Righe della lista calcolate solo a modale aperta e dopo il primo frame: così l'apertura è immediata
+  // e lo spinner resta visibile mentre si prepara la lista. Resta true tra un'apertura e l'altra
+  // finché la sorgente dati (ricette, preferiti, ingredienti, pronti) non cambia.
+  const [listReady, setListReady] = useState(false);
+  const preparedSourceRef = useRef<{
+    allRecipes: Recipe[];
+    favoriteIds: ReadonlySet<string>;
+    ingredients: Ingredient[];
+    readyMeals: ReadyMeal[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!visible || listReady) return;
+    const frame = requestAnimationFrame(() => {
+      preparedSourceRef.current = { allRecipes, favoriteIds, ingredients, readyMeals };
+      setListReady(true);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [visible, listReady, allRecipes, favoriteIds, ingredients, readyMeals]);
+
+  useEffect(() => {
+    const prepared = preparedSourceRef.current;
+    if (visible || !prepared) return;
+    const changed =
+      prepared.allRecipes !== allRecipes ||
+      prepared.favoriteIds !== favoriteIds ||
+      prepared.ingredients !== ingredients ||
+      prepared.readyMeals !== readyMeals;
+    if (changed) {
+      preparedSourceRef.current = null;
+      setListReady(false);
+    }
+  }, [visible, allRecipes, favoriteIds, ingredients, readyMeals]);
 
   const resetAll = useCallback(() => {
     setTab('all');
@@ -114,13 +166,13 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   }, []);
 
   // Dopo un'aggiunta si chiudono solo i passi in corso: scheda, ricerca e filtri restano
-  const finishAdd = (name: string) => {
+  const finishAdd = useCallback((name: string) => {
     setPending(null);
     setAmountText('');
     setUnitText('');
     setCountText('1');
     setAdded(name);
-  };
+  }, []);
 
   const handleClose = () => {
     resetAll();
@@ -133,29 +185,31 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setPending(null);
   };
 
-  // Ricette: senza duplicati, per lo slot (se attivo il filtro).
-  // Query vuota: preferite prima, poi le altre (alfabetico); con ricerca: preferite prima tra i match
-  const recipeList = useMemo(() => {
-    const seen = new Set<string>();
-    const unique = allRecipes.filter(r => {
-      if (!r || !r.id || seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
-    const slotFiltered =
-      tab === 'recipes' && !showAllRecipes
-        ? unique.filter(r => isRecipeForSlot(r, targetSlot))
-        : unique;
+  // Ricette: senza duplicati, ordinate (preferite prima) e filtrate per ricerca.
+  // Non dipende da tab/slot: il calcolo più costoso non si ripete a ogni cambio di scheda
+  // Query vuota: preferite prima, poi le altre (alfabetico), memorizzate in getSortedPickerRecipes;
+  // con ricerca: preferite prima tra i match
+  const sortedRecipes = useMemo(() => {
+    if (!listReady) return [];
     const q = query.toLowerCase().trim();
-    const matched = slotFiltered.filter(r => !q || r.title.toLowerCase().includes(q));
-    if (!q) return orderWithFavoritesFirst(matched, favoriteIds);
+    if (!q) return getSortedPickerRecipes(allRecipes, favoriteIds);
+    const matched = uniquePickerRecipes(allRecipes).filter(r => r.title.toLowerCase().includes(q));
     return matched.sort((a, b) => {
       const favA = favoriteIds.has(a.id);
       const favB = favoriteIds.has(b.id);
       if (favA !== favB) return favA ? -1 : 1;
       return a.title.localeCompare(b.title);
     });
-  }, [allRecipes, query, tab, showAllRecipes, targetSlot, favoriteIds]);
+  }, [allRecipes, query, favoriteIds, listReady]);
+
+  // Solo il filtro per slot (scheda Ricette, "Suggerite"); il filtro preserva l'ordine di sortedRecipes
+  const visibleRecipes = useMemo(
+    () =>
+      tab === 'recipes' && !showAllRecipes
+        ? sortedRecipes.filter(r => isRecipeForSlot(r, targetSlot))
+        : sortedRecipes,
+    [sortedRecipes, targetSlot, showAllRecipes, tab]
+  );
 
   // Ingredienti: solo quelli mangiabili così come sono
   const edibleIngredients = useMemo(
@@ -169,12 +223,13 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   );
 
   const ingredientList = useMemo(() => {
+    if (!listReady) return [];
     const q = query.toLowerCase().trim();
     return edibleIngredients
       .filter(i => (!tagFilter || i.tags.some(tag => tag === tagFilter)))
       .filter(i => !q || i.name.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [edibleIngredients, query, tagFilter]);
+  }, [edibleIngredients, query, tagFilter, listReady]);
 
   // Pronti: solo quelli previsti per questo slot
   const slotReadyMeals = useMemo(
@@ -189,12 +244,13 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   }, [slotReadyMeals]);
 
   const readyList = useMemo(() => {
+    if (!listReady) return [];
     const q = query.toLowerCase().trim();
     return slotReadyMeals
       .filter(m => !tagFilter || (m.tags as string[]).includes(tagFilter))
       .filter(m => !q || m.name.toLowerCase().includes(q))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [slotReadyMeals, query, tagFilter]);
+  }, [slotReadyMeals, query, tagFilter, listReady]);
 
   const tagOptions: string[] =
     tab === 'ingredients' ? ingredientTagOptions : tab === 'ready' ? readyTagOptions : [];
@@ -206,8 +262,9 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   }, [query]);
 
   const rows = useMemo<PickerRow[]>(() => {
+    if (!listReady) return [];
     const recipeRows = (): PickerRow[] =>
-      recipeList.map(recipe => ({ kind: 'recipe', key: `recipe-${recipe.id}`, recipe }));
+      visibleRecipes.map(recipe => ({ kind: 'recipe', key: `recipe-${recipe.id}`, recipe }));
     const ingredientRows = (): PickerRow[] =>
       ingredientList.map(ingredient => ({
         kind: 'ingredient',
@@ -242,30 +299,30 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     }
     // Tutti: ricette, ingredienti, pronti, fuori casa
     return [...recipeRows(), ...ingredientRows(), ...readyRows(), ...outRows()];
-  }, [tab, query, recipeList, ingredientList, readyList, outOfHomeList, favoriteIds]);
+  }, [tab, query, visibleRecipes, ingredientList, readyList, outOfHomeList, favoriteIds, listReady]);
 
-  const handleSelectRecipe = (recipe: Recipe) => {
+  const handleSelectRecipe = useCallback((recipe: Recipe) => {
     finishAdd(recipe.title);
     onSelectRecipe(recipe);
-  };
+  }, [finishAdd, onSelectRecipe]);
 
-  const handleSelectOutOfHome = (label: string) => {
+  const handleSelectOutOfHome = useCallback((label: string) => {
     finishAdd(label);
     onSelectOutOfHome(label);
-  };
+  }, [finishAdd, onSelectOutOfHome]);
 
-  const handleStartIngredient = (ingredient: Ingredient) => {
+  const handleStartIngredient = useCallback((ingredient: Ingredient) => {
     setPending({ kind: 'ingredient', ingredient });
     setAmountText(ingredient.default_amount != null ? String(ingredient.default_amount) : '');
     // Unità della porzione (default_unit) per coerenza con la quantità; purchase_unit solo come ripiego
     setUnitText(toSelectableUnit(ingredient.default_unit) || toSelectableUnit(ingredient.purchase_unit));
     setUnitMenuOpen(false);
-  };
+  }, []);
 
-  const handleStartReady = (meal: ReadyMeal) => {
+  const handleStartReady = useCallback((meal: ReadyMeal) => {
     setPending({ kind: 'ready', meal });
     setCountText('1');
-  };
+  }, []);
 
   const handleCancelPending = () => {
     setPending(null);
@@ -289,7 +346,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     onSelectReadyMeal(meal, count);
   };
 
-  const renderRow = (row: PickerRow) => {
+  const renderRow = useCallback(({ item: row }: ListRenderItemInfo<PickerRow>) => {
     if (row.kind === 'recipe') {
       const { recipe } = row;
       const minutes = recipe.times?.total_minutes ?? 0;
@@ -394,7 +451,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
         <Ionicons name="add-circle" size={24} color={colors.primaryText} />
       </TouchableOpacity>
     );
-  };
+  }, [styles, colors, t, favoriteIds, handleSelectRecipe, handleStartIngredient, handleStartReady, handleSelectOutOfHome]);
 
   const pendingName = pending
     ? pending.kind === 'ingredient'
@@ -416,7 +473,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
             <Ionicons name="close" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.pickerHeaderTitle}>
-            {t('planner.pickerModal.planForSlot', { slot: t(`planner.slots.${targetSlot}`) })}
+            {t('planner.pickerModal.titleWithDate', { slot: t(`planner.slots.${targetSlot}`), day: formatDayAndDate(targetDate, i18n.language) })}
           </Text>
           <View style={{ width: 36 }} />
         </View>
@@ -425,26 +482,21 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           <View style={styles.pickerPlanned}>
             <Text style={styles.pickerPlannedCaption}>{t('mealPicker.plannedHere')}</Text>
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
               style={styles.pickerPlannedScroll}
               contentContainerStyle={styles.pickerPlannedBar}
             >
               {plannedForSlot.map(item => (
-                <View key={item.id} style={styles.pickerPlannedChip}>
-                  <Text style={styles.pickerPlannedChipText} numberOfLines={1}>{item.label}</Text>
+                <View key={item.entry.id} style={styles.pickerPlannedCard}>
+                  <PlannedItemCard
+                    item={item}
+                    color={slotAccent}
+                    onDelete={() => onDeletePlanned?.(item.entry.id)}
+                  />
                 </View>
               ))}
             </ScrollView>
-          </View>
-        )}
-
-        {added !== null && (
-          <View style={styles.pickerAdded}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.primaryText} />
-            <Text style={styles.pickerAddedText} numberOfLines={2}>
-              {t('mealPicker.added', { name: added })}
-            </Text>
           </View>
         )}
 
@@ -609,19 +661,70 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           </View>
         )}
 
-        <FlatList
-          data={rows}
-          keyExtractor={row => row.key}
-          contentContainerStyle={{ padding: 16 }}
-          keyboardShouldPersistTaps="handled"
-          initialNumToRender={10}
-          maxToRenderPerBatch={12}
-          windowSize={5}
-          ListEmptyComponent={
-            <Text style={styles.pickerEmpty}>{t('mealPicker.empty')}</Text>
-          }
-          renderItem={({ item }) => renderRow(item)}
-        />
+        {listReady ? (
+          <FlatList
+            data={rows}
+            keyExtractor={row => row.key}
+            contentContainerStyle={{ padding: 16 }}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={10}
+            maxToRenderPerBatch={12}
+            windowSize={5}
+            removeClippedSubviews
+            ListEmptyComponent={
+              <Text style={styles.pickerEmpty}>{t('mealPicker.empty')}</Text>
+            }
+            renderItem={renderRow}
+          />
+        ) : (
+          <View style={styles.pickerLoading}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.pickerLoadingText}>{t('mealPicker.loading')}</Text>
+          </View>
+        )}
+
+        {/* Avviso dopo un'aggiunta: non si chiude da solo, scegliere una delle due azioni */}
+        <Modal
+          visible={added !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAdded(null)}
+        >
+          <View style={styles.alertBackdrop}>
+            <View style={styles.alertCard}>
+              <Ionicons name="checkmark-circle" size={32} color={colors.primary} style={styles.alertIcon} />
+              <Text style={styles.alertMessage}>{t('mealPicker.added', { name: alertName })}</Text>
+
+              <Text style={styles.alertSummary}>{t('mealPicker.alertSummary')}</Text>
+              {plannedForSlot.length > 0 && (
+                <ScrollView style={styles.alertList} showsVerticalScrollIndicator={false}>
+                  {plannedForSlot.map(item => (
+                    <Text key={item.entry.id} style={styles.alertListItem} numberOfLines={1}>
+                      {plannedItemLabel(item) ?? t('simpleItems.missing')}
+                    </Text>
+                  ))}
+                </ScrollView>
+              )}
+
+              <View style={styles.alertButtons}>
+                <TouchableOpacity
+                  style={[styles.alertButton, styles.pickerStepButtonPrimary]}
+                  onPress={handleClose}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.pickerStepButtonPrimaryText}>{t('mealPicker.mealComplete')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.alertButton, styles.pickerStepButtonSecondary]}
+                  onPress={() => setAdded(null)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.pickerStepButtonSecondaryText}>{t('mealPicker.addMore')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </Modal>
   );
@@ -650,23 +753,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pickerAdded: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-  },
-  pickerAddedText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primaryText,
   },
   pickerHeaderTitle: {
     fontSize: 16,
@@ -721,31 +807,76 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 6,
   },
-  // Altezza fissa, una sola riga di chip senza a capo
+  // Una sola riga di schede scorrevole orizzontalmente, altezza data dal contenuto
+  // Lista verticale a tutta larghezza, con altezza massima e scorrimento verticale
   pickerPlannedScroll: {
     flexGrow: 0,
-    flexShrink: 0,
-    height: 40,
+    flexShrink: 1,
+    maxHeight: 260,
   },
   pickerPlannedBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
     gap: 8,
   },
-  pickerPlannedChip: {
-    maxWidth: 220,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+  pickerPlannedCard: {
+    width: '100%',
+  },
+  alertBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  alertCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.surface,
     borderRadius: 16,
-    backgroundColor: colors.surfaceAlt,
+    padding: 20,
+    gap: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  pickerPlannedChipText: {
+  alertIcon: {
+    alignSelf: 'center',
+  },
+  alertMessage: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  alertSummary: {
     fontSize: 12,
     fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 8,
+  },
+  alertList: {
+    flexGrow: 0,
+    maxHeight: 240,
+  },
+  alertListItem: {
+    fontSize: 14,
     color: colors.text,
+    paddingVertical: 4,
+  },
+  alertButtons: {
+    gap: 8,
+    marginTop: 12,
+  },
+  alertButton: {
+    minHeight: 44,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pickerSearch: {
     marginTop: 10,
@@ -891,5 +1022,15 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 24,
+  },
+  pickerLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  pickerLoadingText: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
 });

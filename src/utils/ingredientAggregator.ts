@@ -52,6 +52,8 @@ const KITCHEN_UNITS = new Set([
 ]);
 
 const DISCRETE_UNITS: Record<string, { singular: string; plural: string }> = {
+  pezzo: { singular: 'pezzo', plural: 'pezzi' },
+  pezzi: { singular: 'pezzo', plural: 'pezzi' },
   rotolo: { singular: 'rotolo', plural: 'rotoli' },
   rotoli: { singular: 'rotolo', plural: 'rotoli' },
   confezione: { singular: 'confezione', plural: 'confezioni' },
@@ -77,6 +79,19 @@ const DISCRETE_UNITS: Record<string, { singular: string; plural: string }> = {
 };
 
 const KITCHEN_MEASURE_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|tazzine|tazzina|bicchieri|bicchiere|cubetti|cubetto|fette|fetta|rotoli|rotolo|panetti|panetto|vasetti|vasetto|barattoli|barattolo|scatolette|scatoletta|lattine|lattina)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
+
+/**
+ * Famiglia di unità per il raggruppamento: le unità a conteggio (confezione, pezzo, rotolo...) non si sommano
+ * tra loro né con peso o volume; peso (g, kg) e volume (ml, l) hanno gruppi separati. Unità vuota = gruppo proprio.
+ */
+export function unitGroupKey(rawUnit: string): string {
+  const unit = (rawUnit || '').trim().toLowerCase().replace(/\.$/, '');
+  if (!unit) return 'none';
+  if (DISCRETE_UNITS[unit]) return `count:${DISCRETE_UNITS[unit].singular}`;
+  // Peso e volume non si sommano tra loro: g/kg e ml/l restano ciascuno nel proprio gruppo
+  if (['ml', 'l', 'litro', 'litri', 'millilitri', 'millilitro'].includes(unit)) return 'volume';
+  return 'mass';
+}
 
 const WEIGHT_VOL_REGEX = /^(?:\d+(?:[.,]\d+)?|\d+\/\d+)\s*(?:g|gr|grammi|kg|chili|chilo|ml|millilitri|l|litri)\s*(?:di\s+|d')?/i;
 

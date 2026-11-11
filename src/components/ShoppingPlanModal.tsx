@@ -51,6 +51,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
 
   const [loading, setLoading] = useState(false);
   const [hasPlannedMeals, setHasPlannedMeals] = useState(false);
+  const [noIngredientsFound, setNoIngredientsFound] = useState(false);
   const [rows, setRows] = useState<ShoppingPreviewRow[]>([]);
   // Righe selezionate e quantità modificate dall'utente, indicizzate per row.key
   const [selected, setSelected] = useState<Record<string, boolean>>({});
@@ -87,7 +88,17 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
         const recipeRows = await Promise.all(recipeIds.map(id => listRecipeIngredients(id)));
         if (cancelled) return;
         const recipeIngredients: Record<string, Array<{ ingredient_name: string; amount: number | null; unit: string }>> = {};
-        recipeIds.forEach((id, idx) => { recipeIngredients[id] = recipeRows[idx]; });
+        recipeIds.forEach((id, idx) => {
+          // Ricette senza collegamenti nel database (es. create o importate): si usano gli ingredienti della ricetta
+          const linked = recipeRows[idx];
+          recipeIngredients[id] = linked.length > 0
+            ? linked
+            : (recipes[id]?.detailed_ingredients ?? []).map(item => ({
+                ingredient_name: item.ingredient,
+                amount: item.amount ?? null,
+                unit: item.unit ?? '',
+              }));
+        });
         const shopping: ShoppingItem[] = shoppingItems;
 
         const computed = computeShoppingPreview({
@@ -107,6 +118,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
         });
 
         setHasPlannedMeals(entries.length > 0);
+        setNoIngredientsFound(entries.length > 0 && computed.length === 0);
         setRows(computed);
         setSelected(initialSelected);
         setAmounts({});
@@ -276,7 +288,9 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
           </View>
         ) : rows.length === 0 || !hasPlannedMeals ? (
           <View style={styles.center}>
-            <Text style={styles.emptyText}>{t('shoppingPlan.empty')}</Text>
+            <Text style={styles.emptyText}>
+              {noIngredientsFound ? t('shoppingPlan.noIngredients') : t('shoppingPlan.empty')}
+            </Text>
           </View>
         ) : (
           <FlatList

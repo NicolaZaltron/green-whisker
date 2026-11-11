@@ -155,7 +155,8 @@
       "recommended": "Consigliate ({{count}})",
       "all": "Tutte ({{count}})",
       "searchSidePlaceholder": "Cerca contorno o insalata...",
-      "searchSlotPlaceholder": "Cerca per {{slot}}..."
+      "searchSlotPlaceholder": "Cerca per {{slot}}...",
+      "titleWithDate": "{{slot}} di {{day}}"
     },
     "addMeal": "Aggiungi pasto",
     "scope": {
@@ -196,8 +197,8 @@
     "emptyDeptTitle": "Nessun articolo in \"{{dept}}\"",
     "emptyDeptSub": "Prova a selezionare \"Tutti\" oppure aggiungi un nuovo prodotto per questo reparto.",
     "browseRecipes": "Sfoglia le ricette",
-    "syncWeekPlan": "Somma prodotti della settimana",
-    "syncSuccess": "Prodotti della settimana aggiunti alla spesa!",
+    "syncWeekPlan": "Aggiungi prodotti del piano settimanale",
+    "syncSuccess": "Prodotti del piano settimanale aggiunti alla spesa!",
     "syncNone": "Nessun prodotto da aggiungere dal piano.",
     "clearConfirmTitle": "Svuota lista della spesa",
     "clearConfirmSub": "Sei sicuro di voler eliminare tutti gli elementi dalla lista?",
@@ -219,6 +220,7 @@
     },
     "syncNothingNew": "Nessun prodotto nuovo da aggiungere",
     "quantityPrompt": "Quantità da aggiungere alla lista",
+    "quantityChoosePrompt": "Scegli la quantità da aggiungere alla lista o inseriscila manualmente",
     "quantityEditTitle": "Modifica quantità",
     "quantityUnit": "Unità",
     "quantitySave": "Salva",
@@ -636,8 +638,9 @@
     "unitMismatch": "unità diversa dalla lista",
     "empty": "Nessun pasto pianificato da oggi in avanti.",
     "back": "Indietro",
-    "save": "Salva",
-    "saveError": "Impossibile salvare la selezione. Riprova."
+    "save": "Aggiungi selezionati",
+    "saveError": "Impossibile salvare la selezione. Riprova.",
+    "noIngredients": "Le ricette pianificate in questo periodo non hanno ingredienti da aggiungere."
   },
   "mealPicker": {
     "recipes": "Ricette",
@@ -670,11 +673,15 @@
     "add": "Aggiungi",
     "count": "Quantità",
     "empty": "Nessun elemento per questo pasto",
+    "loading": "Caricamento...",
     "out": "Fuori casa",
-    "added": "{{name}} aggiunto. Puoi aggiungere altro a questo pasto.",
+    "added": "{{name}} aggiunto.",
     "suggestedForMeal": "Consigliate per questo pasto",
     "allRecipes": "Tutte le ricette",
-    "plannedHere": "Già pianificato per questo pasto"
+    "plannedHere": "Già pianificato per questo pasto",
+    "alertSummary": "Pasti già pianificati per questo pasto",
+    "mealComplete": "Chiudi pianificazione",
+    "addMore": "Aggiungi altro a questo pasto"
   },
   "readyMeals": {
     "categories": {
