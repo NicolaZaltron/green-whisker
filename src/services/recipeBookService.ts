@@ -4,6 +4,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Recipe } from '../types/recipe';
 import { deleteCatalogRecipes, removeRecipeReferences, upsertCatalogRecipes } from '../db/database';
+import { removeRecipeFromSimpleItems } from '../db/simpleItemsDb';
 import { refreshCatalog } from './recipeCatalog';
 import { ExportFilter, ParsedCatalogFile, CATALOG_NOT_LIST_ERROR, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
 import i18n from '../i18n';
@@ -83,6 +84,7 @@ export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: Import
 export async function deleteRecipes(ids: string[]): Promise<number> {
   const deleted = await deleteCatalogRecipes(ids);
   await removeRecipeReferences(deleted);
+  await removeRecipeFromSimpleItems(deleted);
   await refreshCatalog();
   return deleted.length;
 }

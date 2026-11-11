@@ -126,7 +126,8 @@ export function cleanSupermarketIngredientName(raw: string): string {
       const stem1 = w1.slice(0, w1.length - 1);
       for (let j = i + 1; j < words.length; j++) {
         const w2 = words[j].toLowerCase().replace(/[^a-z]/g, '');
-        if (w2.startsWith(stem1)) {
+        // Duplicato solo se è una variante singolare/plurale (es. peperoncino / peperoncini), non la stessa parola ripetuta (es. cous cous)
+        if (w2 !== w1 && Math.abs(w2.length - w1.length) <= 1 && w2.startsWith(stem1)) {
           name = words.slice(0, j).join(' ');
           break outer;
         }
@@ -145,6 +146,9 @@ export function cleanSupermarketIngredientName(raw: string): string {
 
   // 10c. Rimuovi espressioni generiche (es. "qualche cucchiaio", "un po' di")
   name = name.replace(/\b(?:qualche\s+cucchiaio|qualche\s+cucchiaino|qualche\s+cucchiaiata|un\s+po'\s*di|un\s+pizzico\s*di)\b/gi, ' ');
+
+  // 10d. Descrittori che non cambiano il prodotto (temperatura, a piacere, tagli)
+  name = name.replace(/\b(?:a\s+temperatura\s+ambiente|temperatura\s+ambiente|tiepid[oae]|fredd[oae]|a\s+piacere|anche\s+dealcolat[oaei]|grattugiat[oaei]|tritat[oaei])(?![a-z])/gi, ' ');
 
   // 11. Rimuovi 'q.b.', 'quanto basta'
   name = name.replace(/\b(?:q\.?b\.?|quanto basta)\b/gi, ' ');

@@ -10,6 +10,21 @@ import { initializeSearchIndex } from './searchService';
 export const catalogRecipes: Recipe[] = []; // ricette originali: ricerca, planner, spesa, preferiti
 export const catalogVariants: Recipe[] = []; // varianti: visibili solo nella scheda della ricetta
 
+// Indice per id su originali e varianti, ricostruito a ogni cambio di catalogo (vedi setCatalog)
+const recipeById = new Map<string, Recipe>();
+
+function rebuildRecipeIndex(): void {
+  recipeById.clear();
+  // Stesso ordine della vecchia mappa per schermata: le varianti sovrascrivono l'id, se duplicato
+  catalogRecipes.forEach(r => recipeById.set(r.id, r));
+  catalogVariants.forEach(r => recipeById.set(r.id, r));
+}
+
+/** Ricetta (originale o variante) per id, O(1). */
+export function getRecipeById(id: string): Recipe | undefined {
+  return recipeById.get(id);
+}
+
 let version = 0;
 const listeners = new Set<() => void>();
 
@@ -29,6 +44,7 @@ function setCatalog(all: Recipe[]): void {
   const originalIds = new Set(all.filter(r => !r.variant_of).map(r => r.id));
   catalogRecipes.splice(0, catalogRecipes.length, ...all.filter(r => !r.variant_of || !originalIds.has(r.variant_of)));
   catalogVariants.splice(0, catalogVariants.length, ...all.filter(r => r.variant_of && originalIds.has(r.variant_of)));
+  rebuildRecipeIndex();
   initializeSearchIndex(catalogRecipes);
   version++;
   listeners.forEach(listener => listener());

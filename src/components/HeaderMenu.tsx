@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
+import { saveLanguage } from '../services/preferencesService';
 import type { Palette } from '../theme/palette';
 import { RecipeBookModal } from './RecipeBookModal';
 import { AISettingsModal } from './AISettingsModal';
+import IngredientsModal from './IngredientsModal';
 
-type Panel = 'recipeBook' | 'aiSettings' | null;
+type Panel = 'recipeBook' | 'aiSettings' | 'ingredients' | null;
 
 interface HeaderMenuProps {
   onRecipesChanged: () => void;
@@ -55,7 +57,10 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
                   <TouchableOpacity
                     key={lng}
                     style={[styles.langBtn, active && styles.langBtnActive]}
-                    onPress={() => i18n.changeLanguage(lng)}
+                    onPress={() => {
+                      i18n.changeLanguage(lng);
+                      saveLanguage(lng).catch(e => console.warn('Impossibile salvare la lingua', e));
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.langText, active && styles.langTextActive]}>
@@ -88,6 +93,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
             <View style={styles.divider} />
 
             <MenuItem icon="book-outline" label={t('menu.recipeBook')} onPress={() => openPanel('recipeBook')} />
+            <MenuItem icon="nutrition-outline" label={t('ingredients.menuItem')} onPress={() => openPanel('ingredients')} />
             <MenuItem icon="key-outline" label={t('menu.aiSettings')} onPress={() => openPanel('aiSettings')} />
           </View>
         </View>
@@ -99,6 +105,11 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
         onChanged={onRecipesChanged}
       />
       <AISettingsModal visible={panel === 'aiSettings'} onClose={() => setPanel(null)} />
+      <IngredientsModal
+        visible={panel === 'ingredients'}
+        onClose={() => setPanel(null)}
+        onChanged={onRecipesChanged}
+      />
     </>
   );
 }

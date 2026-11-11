@@ -6,12 +6,14 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../db/database';
 import { loadCatalog } from '../services/recipeCatalog';
+import { seedIngredientsV2 } from '../services/ingredientsService';
+import { seedRecipeLinksV2, seedReadyMealsV2 } from '../services/catalogSeedService';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
 import { darkPalette, lightPalette } from '../theme/palette';
 import type { Palette } from '../theme/palette';
-import '../i18n';
+import { restoreSavedLanguage } from '../i18n';
 import { useTranslation } from 'react-i18next';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -51,15 +53,43 @@ export function ErrorBoundary({ error, retry }: { error: Error; retry: () => voi
 
 export default function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
+  const [startupFailed, setStartupFailed] = useState(false);
+  const { t } = useTranslation();
+  const scheme = useColorScheme();
+  const startupColors = scheme === 'dark' ? darkPalette : lightPalette;
 
   useEffect(() => {
     async function prepare() {
       try {
+        await restoreSavedLanguage().catch(e => console.warn('Ripristino della lingua non riuscito', e));
         // 1. Inizializza SQLite Database (attende la creazione di tabelle e indici)
-        await initDatabase();
+        try {
+          await initDatabase();
+        } catch (dbErr) {
+          // Su native non si continua con dati vuoti: mostriamo l'errore di avvio
+          console.error('Inizializzazione del database fallita:', dbErr);
+          setStartupFailed(true);
+          return;
+        }
 
         // 2. Carica il catalogo (e l'indice di ricerca) dal database
         await loadCatalog();
+
+        try {
+          await seedIngredientsV2();
+        } catch (seedErr) {
+          console.warn('Seed degli ingredienti non riuscito:', seedErr);
+        }
+        try {
+          await seedRecipeLinksV2();
+        } catch (seedErr) {
+          console.warn('Seed dei collegamenti ricetta-ingrediente non riuscito:', seedErr);
+        }
+        try {
+          await seedReadyMealsV2();
+        } catch (seedErr) {
+          console.warn('Seed dei piatti pronti non riuscito:', seedErr);
+        }
       } catch (err) {
         console.warn('Errore durante l\'inizializzazione dell\'app:', err);
       } finally {
@@ -73,6 +103,16 @@ export default function RootLayout() {
 
   if (!appIsReady) {
     return null;
+  }
+
+  if (startupFailed) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: startupColors.surfaceAlt }}>
+          <Text style={{ color: startupColors.text, fontSize: 16, textAlign: 'center' }}>{t('common.error')}</Text>
+        </View>
+      </SafeAreaProvider>
+    );
   }
 
   return (

@@ -10,6 +10,16 @@ interface FavoritesContextType {
 
 const FavoritesContext = createContext<FavoritesContextType | null>(null);
 
+// Stessi id (stessa dimensione e ogni id presente): evita di ridisegnare tutti i consumer
+function sameIds(prev: Set<string>, ids: string[]): boolean {
+  const next = new Set(ids);
+  if (next.size !== prev.size) return false;
+  for (const id of next) {
+    if (!prev.has(id)) return false;
+  }
+  return true;
+}
+
 export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
@@ -17,7 +27,8 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshFavorites = useCallback(async () => {
     try {
       const ids = await getFavoriteIds();
-      setFavoriteIds(new Set(ids));
+      // Se il contenuto è uguale tiene il Set precedente: nessun nuovo render
+      setFavoriteIds(prev => (sameIds(prev, ids) ? prev : new Set(ids)));
     } catch (e) {
       console.error('Failed to load favorites from database:', e);
     }

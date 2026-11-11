@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
 
+import { loadLanguage } from '../services/preferencesService';
 import it from './locales/it.json';
 import en from './locales/en.json';
 
@@ -29,5 +30,13 @@ i18n
       useSuspense: false, // Prevents issues with React Native Suspense during initial load
     },
   });
+
+// Ripristina la lingua scelta a mano nel menu, se presente (altrimenti resta quella del dispositivo)
+export async function restoreSavedLanguage(): Promise<void> {
+  const saved = await loadLanguage();
+  if (saved && saved !== i18n.language) {
+    await i18n.changeLanguage(saved);
+  }
+}
 
 export default i18n;

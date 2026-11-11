@@ -3,10 +3,10 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity
 } from 'react-native';
 import { TabFlatList } from '../../components/TabScrollViews';
+import { AppTextField } from '../../components/ui/AppTextField';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
@@ -14,7 +14,7 @@ import { Recipe } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
-import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
+import { getRecipeById } from '../../services/recipeCatalog';
 import { useCatalogVersion } from '../../hooks/useCatalog';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
@@ -39,21 +39,17 @@ export default function FavoritesScreen() {
     }, [refreshFavorites])
   );
 
-  // Mappa di tutte le ricette del catalogo, originali e varianti
-  const fullRecipeMap = useMemo(() => {
-    return new Map<string, Recipe>([...catalogRecipes, ...catalogVariants].map(r => [r.id, r]));
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogVersion]);
-
+  // Ricette preferite dall'indice del catalogo (originali e varianti); catalogVersion ricalcola se il catalogo cambia
   const favoriteRecipes = useMemo(() => {
     const list: Recipe[] = [];
     favoriteIds.forEach(id => {
-      const r = fullRecipeMap.get(id);
+      const r = getRecipeById(id);
       if (r) list.push(r);
     });
     return list;
-  }, [favoriteIds, fullRecipeMap]);
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favoriteIds, catalogVersion]);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return favoriteRecipes;
@@ -101,21 +97,13 @@ export default function FavoritesScreen() {
           </View>
 
           {favoriteRecipes.length > 0 && (
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={t('favorites.searchPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                </TouchableOpacity>
-              )}
-            </View>
+            <AppTextField
+              style={styles.searchField}
+              leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
+              placeholder={t('favorites.searchPlaceholder')}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           )}
         </View>
 
@@ -205,21 +193,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '500',
     color: colors.textSecondary,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.border,
+  searchField: {
     marginTop: 4,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
   },
   listContent: {
     paddingHorizontal: 16,

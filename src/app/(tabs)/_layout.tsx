@@ -103,6 +103,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Le schede non focalizzate restano congelate: non si ridisegnano sui cambi di contesto
+        freezeOnBlur: true,
         tabBarShowLabel: false,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarBackground: () => <TabBarBackground fadeHeight={fadeHeight} />,

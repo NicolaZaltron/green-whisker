@@ -1,0 +1,346 @@
+[
+ {
+  "name": "Minestrone surgelato",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "surgelato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pollo arrosto",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Lasagna di verdure confezionata",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Burger di verdure pronti",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Minestra surgelata",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "surgelato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Zuppa pronta",
+  "category": "pronto",
+  "tags": [
+   "zuppa_minestra",
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Lasagne pronte",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pasta fresca all'uovo",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Ravioli pronti",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Tortellini pronti",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Gnocchi pronti",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pizza surgelata",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "surgelato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pinsa pronta",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Piadina pronta",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Torta salata pronta",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Polpette pronte",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pesce surgelato",
+  "category": "pronto",
+  "tags": [
+   "pesce",
+   "surgelato",
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Panino",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Insalatona pronta",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Hamburger",
+  "category": "pronto",
+  "tags": [
+   "carne",
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Brioche confezionata",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "colazione",
+   "spuntino_mattina"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Cornetto confezionato",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "colazione"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Merendina confezionata",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "spuntino_mattina",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Frutta frullata confezionata",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "colazione",
+   "spuntino_mattina",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Barretta ai cereali",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "spuntino_mattina",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Budino confezionato",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ }
+]

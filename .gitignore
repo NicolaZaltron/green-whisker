@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Claude
+.claude
+
 # debug
 npm-debug.*
 yarn-debug.*
@@ -51,3 +54,6 @@ scripts/test_normalization_rules.js
 
 # Local APK / DB drops (not committed, not uploaded to EAS)
 /builds
+
+# File di lavoro e backup locali (dati di riferimento, bozze, esportazioni): non versionati
+/work/

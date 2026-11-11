@@ -19,7 +19,6 @@ export interface PlannerPreferencesModalProps {
   prefs: PlannerPreferences | null;
   onClose: () => void;
   onUpdatePrefs: (updated: PlannerPreferences) => void;
-  onClearWeek: () => void;
 }
 
 /**
@@ -30,7 +29,6 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   prefs,
   onClose,
   onUpdatePrefs,
-  onClearWeek,
 }) => {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -66,7 +64,6 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}
@@ -143,18 +140,6 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
               <View style={[styles.toggleThumb, prefs.autoGenerateOnMonday && styles.toggleThumbOn]} />
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={styles.clearWeekBtn}
-            onPress={() => {
-              onClose();
-              onClearWeek();
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="trash-outline" size={16} color={colors.danger} />
-            <Text style={styles.clearWeekBtnText}>{t('planner.preferencesModal.clearWeek')}</Text>
-          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -250,20 +235,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   toggleThumbOn: {
     alignSelf: 'flex-end',
-  },
-  clearWeekBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-    padding: 14,
-    backgroundColor: colors.dangerSoft,
-    borderRadius: 12,
-    justifyContent: 'center',
-  },
-  clearWeekBtnText: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

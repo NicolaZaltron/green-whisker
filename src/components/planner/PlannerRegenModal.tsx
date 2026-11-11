@@ -1,34 +1,49 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 
 export type PlannerRegenScope = 'day' | 'week';
 
-export interface PlannerRegenModalProps {
+export interface PlannerPlanModalProps {
   visible: boolean;
   selectedDateLabel?: string;
+  plannedCountDay: number;
+  plannedCountWeek: number;
+  capacityDay: number;
+  capacityWeek: number;
   onConfirm: (overwriteAll: boolean, scope: PlannerRegenScope) => void;
   onCancel: () => void;
 }
 
 /**
- * Dialog prompting user to either fill empty slots or regenerate the full meal plan,
- * for either the selected day or the whole week.
+ * Single planning dialog for the selected day or the whole week.
+ * Actions depend on how many meals are already planned for the chosen scope:
+ * - none planned: plan from scratch
+ * - some planned: complete the empty slots, or regenerate from scratch
+ * - all planned: regenerate from scratch
  */
-export const PlannerRegenModal: React.FC<PlannerRegenModalProps> = ({
+export const PlannerRegenModal: React.FC<PlannerPlanModalProps> = ({
   visible,
   selectedDateLabel,
+  plannedCountDay,
+  plannedCountWeek,
+  capacityDay,
+  capacityWeek,
   onConfirm,
   onCancel,
 }) => {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       {/* Rendered inside Modal: RN unmounts Modal children when hidden, so the scope resets to 'week' on every open. */}
-      <RegenDialogBody
+      <PlanDialogBody
         selectedDateLabel={selectedDateLabel}
+        plannedCountDay={plannedCountDay}
+        plannedCountWeek={plannedCountWeek}
+        capacityDay={capacityDay}
+        capacityWeek={capacityWeek}
         onConfirm={onConfirm}
         onCancel={onCancel}
       />
@@ -36,14 +51,14 @@ export const PlannerRegenModal: React.FC<PlannerRegenModalProps> = ({
   );
 };
 
-interface RegenDialogBodyProps {
-  selectedDateLabel?: string;
-  onConfirm: (overwriteAll: boolean, scope: PlannerRegenScope) => void;
-  onCancel: () => void;
-}
+type PlanDialogBodyProps = Omit<PlannerPlanModalProps, 'visible'>;
 
-const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
+const PlanDialogBody: React.FC<PlanDialogBodyProps> = ({
   selectedDateLabel,
+  plannedCountDay,
+  plannedCountWeek,
+  capacityDay,
+  capacityWeek,
   onConfirm,
   onCancel,
 }) => {
@@ -51,6 +66,12 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [scope, setScope] = useState<PlannerRegenScope>('week');
+
+  // Derived from props and scope: switching scope updates counts and actions immediately.
+  const planned = scope === 'day' ? plannedCountDay : plannedCountWeek;
+  const capacity = scope === 'day' ? capacityDay : capacityWeek;
+  const isEmpty = planned === 0;
+  const isFull = planned >= capacity;
 
   const scopeOptions: { value: PlannerRegenScope; label: string }[] = [
     { value: 'day', label: t('planner.scope.day') },
@@ -61,7 +82,7 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
     <View style={styles.confirmOverlay}>
       <View style={styles.confirmBox}>
         <View style={styles.confirmIconWrap}>
-          <Ionicons name="refresh-circle" size={36} color={colors.primaryText} />
+          <MaterialCommunityIcons name="chef-hat" size={36} color={colors.primaryText} />
         </View>
         <Text style={styles.confirmTitle}>{t('planner.regenModal.title')}</Text>
         <Text style={styles.confirmSub}>
@@ -89,21 +110,42 @@ const RegenDialogBody: React.FC<RegenDialogBodyProps> = ({
           {scope === 'day' && selectedDateLabel ? (
             <Text style={styles.scopeDateLabel}>{selectedDateLabel}</Text>
           ) : null}
+          <Text style={styles.scopeDateLabel}>{t('planner.planModal.counts', { planned, capacity })}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.confirmBtnPrimary}
-          onPress={() => onConfirm(false, scope)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.confirmBtnPrimaryText}>{t('planner.regenModal.completeEmpty')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.confirmBtnSecondary}
-          onPress={() => onConfirm(true, scope)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.confirmBtnSecondaryText}>{t('planner.regenModal.restartFresh')}</Text>
-        </TouchableOpacity>
+        {isEmpty ? (
+          <TouchableOpacity
+            style={styles.confirmBtnPrimary}
+            onPress={() => onConfirm(false, scope)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.confirmBtnPrimaryText}>{t('planner.planModal.fromScratch')}</Text>
+          </TouchableOpacity>
+        ) : isFull ? (
+          <TouchableOpacity
+            style={styles.confirmBtnPrimary}
+            onPress={() => onConfirm(true, scope)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.confirmBtnPrimaryText}>{t('planner.planModal.regenerate')}</Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.confirmBtnPrimary}
+              onPress={() => onConfirm(false, scope)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.confirmBtnPrimaryText}>{t('planner.planModal.complete')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.confirmBtnSecondary}
+              onPress={() => onConfirm(true, scope)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.confirmBtnSecondaryText}>{t('planner.planModal.regenerate')}</Text>
+            </TouchableOpacity>
+          </>
+        )}
         <TouchableOpacity
           style={styles.confirmBtnCancel}
           onPress={onCancel}

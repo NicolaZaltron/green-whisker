@@ -5,7 +5,6 @@ import {
   Switch,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -29,6 +28,7 @@ import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/c
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { AppTextField } from './ui/AppTextField';
 
 // Revisione di una ricetta generata (es. una variante): il form è lo stesso dell'import AI
 export interface ReviewRequest {
@@ -505,15 +505,13 @@ export function MagicRecipeImporterModal({
                   <Text style={styles.sectionSubtitle}>
                     {t('recipeImporter.pasteHint')}
                   </Text>
-                  <TextInput
-                    style={styles.textAreaInput}
+                  <AppTextField
+                    style={styles.textAreaField}
                     multiline
                     numberOfLines={8}
                     placeholder={t('recipeImporter.pastePlaceholder')}
-                    placeholderTextColor={colors.textMuted}
                     value={inputText}
                     onChangeText={setInputText}
-                    textAlignVertical="top"
                   />
                 </View>
               )}
@@ -686,8 +684,7 @@ export function MagicRecipeImporterModal({
               {/* Titolo */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.title')}</Text>
-                <TextInput
-                  style={styles.singleLineInput}
+                <AppTextField
                   value={editTitle}
                   onChangeText={setEditTitle}
                 />
@@ -768,8 +765,7 @@ export function MagicRecipeImporterModal({
               <View style={styles.rowThree}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.servings')}</Text>
-                  <TextInput
-                    style={styles.singleLineInput}
+                  <AppTextField
                     value={editServings}
                     onChangeText={setEditServings}
                     keyboardType="number-pad"
@@ -777,8 +773,7 @@ export function MagicRecipeImporterModal({
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1, marginHorizontal: 8 }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.time')}</Text>
-                  <TextInput
-                    style={styles.singleLineInput}
+                  <AppTextField
                     value={editTotalTime}
                     onChangeText={setEditTotalTime}
                     keyboardType="number-pad"
@@ -826,10 +821,8 @@ export function MagicRecipeImporterModal({
                     </TouchableOpacity>
                   ) : null}
                 </View>
-                <TextInput
-                  style={styles.singleLineInput}
+                <AppTextField
                   placeholder="https://..."
-                  placeholderTextColor={colors.textMuted}
                   value={editImageUrl}
                   onChangeText={(text) => {
                     setEditImageUrl(text);
@@ -872,36 +865,33 @@ export function MagicRecipeImporterModal({
               {/* Ingredienti */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.ingredients')}</Text>
-                <TextInput
-                  style={[styles.textAreaInput, { minHeight: 140 }]}
+                <AppTextField
+                  style={{ minHeight: 140 }}
                   multiline
                   value={editIngredients}
                   onChangeText={setEditIngredients}
-                  textAlignVertical="top"
                 />
               </View>
 
               {/* Istruzioni */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.instructions')}</Text>
-                <TextInput
-                  style={[styles.textAreaInput, { minHeight: 140 }]}
+                <AppTextField
+                  style={{ minHeight: 140 }}
                   multiline
                   value={editInstructions}
                   onChangeText={setEditInstructions}
-                  textAlignVertical="top"
                 />
               </View>
 
               {/* Consigli */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.tips')}</Text>
-                <TextInput
-                  style={[styles.textAreaInput, { minHeight: 80 }]}
+                <AppTextField
+                  style={{ minHeight: 80 }}
                   multiline
                   value={editTips}
                   onChangeText={setEditTips}
-                  textAlignVertical="top"
                 />
               </View>
 
@@ -913,10 +903,8 @@ export function MagicRecipeImporterModal({
                     </Text>
                   ) : null}
                   <Text style={styles.fieldLabel}>{t('recipeImporter.retryInstructions')}</Text>
-                  <TextInput
-                    style={styles.singleLineInput}
+                  <AppTextField
                     placeholder={t('recipeImporter.retryPlaceholder')}
-                    placeholderTextColor={colors.textMuted}
                     value={retryInstructions}
                     onChangeText={setRetryInstructions}
                     autoCapitalize="sentences"
@@ -1127,26 +1115,8 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryText,
   },
-  textAreaInput: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    color: colors.text,
+  textAreaField: {
     minHeight: 170,
-    lineHeight: 21,
-  },
-  singleLineInput: {
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 14,
-    color: colors.text,
   },
   photoActionsRow: {
     flexDirection: 'row',

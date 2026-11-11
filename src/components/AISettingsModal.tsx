@@ -1,6 +1,6 @@
 import { SheetModal } from './SheetModal';
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { AIProvider, PROVIDER_DEFAULTS, getEnvAIConfig } from '../services/aiSer
 import { AISettings, ProviderSettings, loadAISettings, saveAISettings } from '../services/settingsService';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { AppTextField } from './ui/AppTextField';
 
 const PROVIDER_IDS = Object.keys(PROVIDER_DEFAULTS) as AIProvider[];
 const AI_STUDIO_KEYS_URL = 'https://aistudio.google.com/api-keys';
@@ -163,8 +164,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
 
           <Text style={styles.label}>{t('aiSettings.apiKey')}</Text>
           <View style={styles.inputRow}>
-            <TextInput
-              style={[styles.input, styles.inputFlex]}
+            <AppTextField
+              style={styles.inputFlex}
               value={fields.apiKey ?? ''}
               onChangeText={apiKey => setFields(f => ({ ...f, apiKey }))}
               secureTextEntry={!showKey}
@@ -178,8 +179,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           <Text style={styles.hint}>{keyStatus}</Text>
 
           <Text style={styles.label}>{t('aiSettings.simpleOps')}</Text>
-          <TextInput
-            style={styles.input}
+          <AppTextField
             value={fields.simpleModel ?? ''}
             onChangeText={simpleModel => setFields(f => ({ ...f, simpleModel }))}
             placeholder={modelDefaults.simple}
@@ -197,8 +197,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           <Text style={styles.hint}>{t('aiSettings.simpleOpsHint')}</Text>
 
           <Text style={styles.label}>{t('aiSettings.complexOps')}</Text>
-          <TextInput
-            style={styles.input}
+          <AppTextField
             value={fields.complexModel ?? ''}
             onChangeText={complexModel => setFields(f => ({ ...f, complexModel }))}
             placeholder={modelDefaults.complex}
@@ -218,8 +217,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           {defaults.baseUrlEditable && (
             <>
               <Text style={styles.label}>{t('aiSettings.baseUrl')}</Text>
-              <TextInput
-                style={styles.input}
+              <AppTextField
                 value={fields.baseUrl ?? ''}
                 onChangeText={baseUrl => setFields(f => ({ ...f, baseUrl }))}
                 placeholder={envConfig.baseUrl}
@@ -360,16 +358,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   presetChips: { marginTop: 8 },
   chipText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
   chipTextActive: { color: colors.onPrimary },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.text,
-  },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   inputFlex: { flex: 1 },
   eyeBtn: {

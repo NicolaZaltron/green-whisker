@@ -2,6 +2,7 @@ import { Recipe } from '../types/recipe';
 import { parseRecipeWithAI } from './aiService';
 import { VariantDiet, buildVariantRecord } from './catalogFormat';
 import { deleteCatalogRecipes, removeRecipeReferences, upsertCatalogRecipes } from '../db/database';
+import { removeRecipeFromSimpleItems } from '../db/simpleItemsDb';
 import { refreshCatalog } from './recipeCatalog';
 
 const VARIANT_LABEL: Record<VariantDiet, string> = { vegetarian: 'vegetariana', vegan: 'vegana' };
@@ -44,5 +45,6 @@ export async function saveVariant(variant: Recipe): Promise<void> {
 export async function deleteVariant(variant: Recipe): Promise<void> {
   const deleted = await deleteCatalogRecipes([variant.id]);
   await removeRecipeReferences(deleted);
+  await removeRecipeFromSimpleItems(deleted);
   await refreshCatalog();
 }

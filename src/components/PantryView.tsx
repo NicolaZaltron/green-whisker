@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   FlatList,
   ScrollView,
@@ -23,6 +22,7 @@ import {
 import { addShoppingItems } from '../db/database';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { AppTextField } from './ui/AppTextField';
 
 interface PantryViewProps {
   onSelectRecipe: (recipe: Recipe) => void;
@@ -176,11 +176,10 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Input Box with Autocomplete */}
       <View style={styles.inputCard}>
         <View style={styles.inputRow}>
-          <Ionicons name="add-circle-outline" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
-          <TextInput
+          <AppTextField
             style={styles.textInput}
+            leftIcon={<Ionicons name="add-circle-outline" size={20} color={colors.textMuted} />}
             placeholder={t('pantry.inputPlaceholder')}
-            placeholderTextColor={colors.textMuted}
             value={inputText}
             onChangeText={setInputText}
             onSubmitEditing={() => handleAddIngredient(inputText)}
@@ -456,15 +455,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    gap: 8,
   },
   textInput: {
     flex: 1,
-    fontSize: 13,
-    color: colors.text,
   },
   addBtn: {
     backgroundColor: colors.primary,

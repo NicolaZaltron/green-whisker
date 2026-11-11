@@ -36,6 +36,8 @@ const UNIT_PLURALS: Record<string, { singular: string; plural: string }> = {
   scatolette: { singular: 'scatoletta', plural: 'scatolette' },
   panetto: { singular: 'panetto', plural: 'panetti' },
   panetti: { singular: 'panetto', plural: 'panetti' },
+  barattolo: { singular: 'barattolo', plural: 'barattoli' },
+  barattoli: { singular: 'barattolo', plural: 'barattoli' },
   bustina_lievito: { singular: 'bustina', plural: 'bustine' }
 };
 
@@ -51,11 +53,13 @@ export function scaleIngredient(
 ): ScaledIngredientResult {
   const cleanName = ingredientName || rawText;
 
-  if (amount === null || amount === undefined || isNaN(amount) || amount <= 0) {
+  // "q.b." = nessuna quantità: mai un numero inventato
+  const isQb = /^q\.?\s*b\.?$/i.test((unit || '').trim());
+  if (isQb || amount === null || amount === undefined || isNaN(amount) || amount <= 0) {
     return {
       formattedText: rawText,
       scaledAmount: null,
-      unit: unit || '',
+      unit: isQb ? '' : unit || '',
       name: cleanName
     };
   }
@@ -72,18 +76,8 @@ export function scaleIngredient(
 
   const rawScaled = amount * scale;
 
-  // Arrotondamento naturale per la cucina:
-  // - Per grammi/ml >= 20g, arrotonda al numero intero più vicino (es. 150g * 1.5 = 225g)
-  // - Per valori tra 5 e 20, consenti mezzi (es. 7.5)
-  // - Per valori piccoli (< 5), consenti un decimale o frazioni (es. 1/2, 1/4)
-  let scaledQty: number;
-  if (rawScaled >= 20) {
-    scaledQty = Math.round(rawScaled);
-  } else if (rawScaled >= 5) {
-    scaledQty = Math.round(rawScaled * 2) / 2;
-  } else {
-    scaledQty = Math.round(rawScaled * 10) / 10;
-  }
+  // Quantità calcolate sempre senza cifre decimali, mai sotto 1 (es. 150g * 1.5 = 225g, 0.4 -> 1)
+  const scaledQty = Math.max(1, Math.round(rawScaled));
 
   // Format unit con plurale/singolare intelligente
   let formattedUnit = (unit || '').trim();
@@ -246,22 +240,38 @@ const KNOWN_UNITS = new Set([
   ...Object.keys(UNIT_PLURALS),
   'g', 'gr', 'grammi', 'kg', 'ml', 'millilitri', 'cl', 'l', 'litro', 'litri',
   'lattina', 'lattine', 'tazza', 'tazze',
+  'barattolo', 'barattoli', 'confezione', 'confezioni', 'goccia', 'gocce', 'costa', 'coste',
+  'pezzo', 'pezzi', 'rametto', 'rametti', 'millilitro',
 ]);
 
-function parseQuantity(raw: string): number {
-  const mixed = raw.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+// Quantità: "7", "1,5", "1/2", "1 1/2", parole ("mezzo"/"mezza" = 0.5) e intervalli "a-b".
+// Un intervallo vale la MEDIA dei due estremi (es. "7-8" = 7.5), come nei dati delle ricette.
+const QTY_PATTERN = '(?:mezzo\\b|mezza\\b|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:[.,]\\d+)?)';
+const QTY_REGEX = new RegExp(`^(${QTY_PATTERN}(?:\\s*-\\s*${QTY_PATTERN})?)(?!\\d|\\/)\\s*(\\S+)?\\s*(.*)$`, 'i');
+
+function parseSingleQuantity(raw: string): number {
+  const r = raw.trim().toLowerCase();
+  if (r === 'mezzo' || r === 'mezza') return 0.5;
+  const mixed = r.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
-  const fraction = raw.match(/^(\d+)\/(\d+)$/);
+  const fraction = r.match(/^(\d+)\/(\d+)$/);
   if (fraction) return Number(fraction[1]) / Number(fraction[2]);
-  return Number(raw.replace(',', '.'));
+  return Number(r.replace(',', '.'));
+}
+
+export function parseQuantity(raw: string): number {
+  const range = raw.match(new RegExp(`^(${QTY_PATTERN})\\s*-\\s*(${QTY_PATTERN})$`, 'i'));
+  if (range) return (parseSingleQuantity(range[1]) + parseSingleQuantity(range[2])) / 2;
+  return parseSingleQuantity(raw);
 }
 
 /**
- * Ricava quantità, unità e nome da un testo ingrediente, es. "400 g di ceci" → 400, "g", "ceci"
+ * Ricava quantità, unità e nome da un testo ingrediente, es. "400 g di ceci" → 400, "g", "ceci".
+ * Gestisce anche "Mezzo barattolo X" (0.5), "1 1/2 X" (1.5) e "2-3 bicchieri X" (2.5).
  */
 export function parseIngredientText(text: string): { amount: number | null; unit: string; ingredient: string } {
   const trimmed = text.trim();
-  const match = trimmed.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)\s*(\S+)?\s*(.*)$/);
+  const match = trimmed.match(QTY_REGEX);
   if (!match) return { amount: null, unit: '', ingredient: trimmed };
 
   const amount = parseQuantity(match[1]);

@@ -1,7 +1,8 @@
-import { Recipe, MealPlanEntry, IngredientItem } from '../types/recipe';
-import { addShoppingItems, getShoppingItems, saveMealPlanEntriesBulk, getKV, setKV } from '../db/database';
-import { scaleIngredient } from '../utils/servingsScaler';
-import { cleanSupermarketIngredientName, normalizeIngredientKey } from '../utils/ingredientAggregator';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+import { Recipe, MealPlanEntry } from '../types/recipe';
+import { toLocalDateString } from '../utils/dates';
+import { saveMealPlanEntriesBulk, deleteMealPlanEntry, getKV, setKV } from '../db/database';
 import { catalogRecipes } from './recipeCatalog';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -341,13 +342,13 @@ export function getWeekDays(offsetWeeks: number = 0): WeekDaysResult {
   const diff = base.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(base.setDate(diff));
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toLocalDateString(new Date());
 
   const days: WeekDayInfo[] = [];
   for (let i = 0; i < 7; i++) {
     const current = new Date(monday);
     current.setDate(monday.getDate() + i);
-    const dateString = current.toISOString().split('T')[0];
+    const dateString = toLocalDateString(current);
     days.push({
       dateString,
       dayName: ITALIAN_DAYS[i],
@@ -376,9 +377,21 @@ const DEFAULT_PREFERENCES: PlannerPreferences = {
   autoGenerateOnMonday: true,
 };
 
+const PLANNER_PREFS_KEY = 'gw_planner_prefs';
+
+// Stessa logica delle impostazioni tema/lingua: SecureStore su dispositivo, localStorage sul web.
+// Se la chiave non esiste ancora nel nuovo storage, si legge la vecchia copia nel KV del database (migrazione).
+async function readPlannerPrefsRaw(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    return window.localStorage.getItem(PLANNER_PREFS_KEY);
+  }
+  return SecureStore.getItemAsync(PLANNER_PREFS_KEY);
+}
+
 export async function getPlannerPreferences(): Promise<PlannerPreferences> {
   try {
-    const json = await getKV('gw_planner_prefs');
+    let json = await readPlannerPrefsRaw();
+    if (!json) json = await getKV(PLANNER_PREFS_KEY);
     if (json) return { ...DEFAULT_PREFERENCES, ...JSON.parse(json) };
   } catch (e) {
     console.warn('getPlannerPreferences error', e);
@@ -389,7 +402,12 @@ export async function getPlannerPreferences(): Promise<PlannerPreferences> {
 export async function savePlannerPreferences(prefs: Partial<PlannerPreferences>): Promise<void> {
   try {
     const current = await getPlannerPreferences();
-    await setKV('gw_planner_prefs', JSON.stringify({ ...current, ...prefs }));
+    const json = JSON.stringify({ ...current, ...prefs });
+    if (Platform.OS === 'web') {
+      window.localStorage.setItem(PLANNER_PREFS_KEY, json);
+    } else {
+      await SecureStore.setItemAsync(PLANNER_PREFS_KEY, json);
+    }
   } catch (e) {
     console.warn('savePlannerPreferences error', e);
   }
@@ -428,7 +446,7 @@ function shuffle<T>(arr: T[]): T[] {
  *      e lo abbina ad una ricetta di contorno autentica da CAT_CONTORNI, CAT_VERDURE_... o CAT_ZUPPE_E_VELLUTATE.
  *    - Opzione B - Piatto Unico: Sceglie una ricetta completa e autosufficiente (CAT_BOWL, CAT_INSALATE_DI_CEREALI,
  *      CAT_INSALATE_DI_LEGUMI, CAT_PASTA_AL_FORNO, CAT_PIADINE_E_WRAPS, CAT_TORTE_SALATE, CAT_PIZZE_E_FOCACCIE)
- *      senza forzare un contorno addizionale (side_recipe_id vuoto).
+ *      senza forzare un contorno addizionale (nessuna seconda voce nello slot).
  *
  * 3. ROTAZIONE ANTI-MONOTONIA (Anti-Repetition Score):
  *    - Finestra scorrevole delle categorie usate negli ultimi 3 pasti principali con penalità decrescente.
@@ -488,8 +506,8 @@ export function generateBalancedWeekPlan(
   }
 
   // ── Memoria anti-monotonia (Anti-Repetition Tracking) ───────────────────────
-  const usedRecipeIds = new Set<string>(existingPlans.map(p => p.recipe_id));
-  const usedSideIds = new Set<string>(existingPlans.filter(p => p.side_recipe_id).map(p => p.side_recipe_id!));
+  const usedRecipeIds = new Set<string>(existingPlans.map(p => p.recipe_id).filter((id): id is string => !!id));
+  const usedSideIds = new Set<string>(); // contorni scelti in questa generazione (quelli esistenti sono già in usedRecipeIds)
   const existingMap: Record<string, MealPlanEntry> = {};
   existingPlans.forEach(p => { existingMap[`${p.date}-${p.slot}`] = p; });
 
@@ -503,12 +521,12 @@ export function generateBalancedWeekPlan(
   let lastBreakfastCat: string | null = null;
   let lastSnackMorningCat: string | null = null;
   let lastSnackAfternoonCat: string | null = null;
-  const usedBreakfastIds = new Set<string>(existingPlans.filter(p => p.slot === 'colazione').map(p => p.recipe_id));
-  const usedSnackIds = new Set<string>(existingPlans.filter(p => p.slot === 'spuntino_mattina' || p.slot === 'spuntino_pomeriggio').map(p => p.recipe_id));
+  const usedBreakfastIds = new Set<string>(existingPlans.filter(p => p.slot === 'colazione').map(p => p.recipe_id).filter((id): id is string => !!id));
+  const usedSnackIds = new Set<string>(existingPlans.filter(p => p.slot === 'spuntino_mattina' || p.slot === 'spuntino_pomeriggio').map(p => p.recipe_id).filter((id): id is string => !!id));
 
   // Pre-popola statistiche dai pasti già esistenti nel piano
   existingPlans.forEach(p => {
-    if (p.slot === 'pranzo' || p.slot === 'cena') {
+    if ((p.slot === 'pranzo' || p.slot === 'cena') && p.recipe_id) {
       const r = catalogRecipes.find(x => x.id === p.recipe_id);
       if (r) {
         recentCategories.push(r.category);
@@ -555,8 +573,8 @@ export function generateBalancedWeekPlan(
 
     if (options.onlyEmptySlots && existingMap[key]) {
       const existing = existingMap[key];
-      const r = catalogRecipes.find(x => x.id === existing.recipe_id);
-      const ni = nutritionIndex.get(existing.recipe_id);
+      const r = existing.recipe_id ? catalogRecipes.find(x => x.id === existing.recipe_id) : undefined;
+      const ni = existing.recipe_id ? nutritionIndex.get(existing.recipe_id) : undefined;
       if (slotInfo.isMeal && r && ni) {
         recentCategories.push(r.category);
         if (SECONDI_CATEGORIES.has(r.category)) recentProteinCategories.push(getProteinSubgroup(r.category));
@@ -576,6 +594,7 @@ export function generateBalancedWeekPlan(
       usedBreakfastIds.add(selectedBf.id);
       lastBreakfastCat = selectedBf.category;
       newEntries.push({
+        kind: 'recipe',
         id: `plan-${slotInfo.dateString}-colazione-${Math.random().toString(36).slice(2, 7)}`,
         date: slotInfo.dateString,
         slot: 'colazione',
@@ -596,6 +615,7 @@ export function generateBalancedWeekPlan(
       usedSnackIds.add(selectedSnk.id);
       lastSnackMorningCat = selectedSnk.category;
       newEntries.push({
+        kind: 'recipe',
         id: `plan-${slotInfo.dateString}-spuntino_mattina-${Math.random().toString(36).slice(2, 7)}`,
         date: slotInfo.dateString,
         slot: 'spuntino_mattina',
@@ -616,6 +636,7 @@ export function generateBalancedWeekPlan(
       usedSnackIds.add(selectedSnk.id);
       lastSnackAfternoonCat = selectedSnk.category;
       newEntries.push({
+        kind: 'recipe',
         id: `plan-${slotInfo.dateString}-spuntino_pomeriggio-${Math.random().toString(36).slice(2, 7)}`,
         date: slotInfo.dateString,
         slot: 'spuntino_pomeriggio',
@@ -758,14 +779,25 @@ export function generateBalancedWeekPlan(
     }
 
     newEntries.push({
+        kind: 'recipe',
       id: `plan-${slotInfo.dateString}-${slotInfo.slot}-${Math.random().toString(36).slice(2, 7)}`,
       date: slotInfo.dateString,
       slot: slotInfo.slot,
       recipe_id: chosen.id,
-      side_recipe_id: chosenSide?.id,
       servings: options.servings,
       created_at: Date.now(),
     });
+    if (chosenSide) {
+      newEntries.push({
+        kind: 'recipe',
+        id: `plan-${slotInfo.dateString}-${slotInfo.slot}-${Math.random().toString(36).slice(2, 7)}`,
+        date: slotInfo.dateString,
+        slot: slotInfo.slot,
+        recipe_id: chosenSide.id,
+        servings: options.servings,
+        created_at: Date.now() + 1, // dopo il piatto principale nell'ordinamento
+      });
+    }
   }
 
   return newEntries;
@@ -824,17 +856,19 @@ export async function checkAndAutoGeneratePlan(
   existingPlans: MealPlanEntry[],
 ): Promise<{ generated: boolean; entriesCount: number }> {
   try {
+    // Fuori dal lunedì non si legge né il database né il KV
+    const today = new Date();
+    const isMonday = today.getDay() === 1;
+    if (!isMonday) return { generated: false, entriesCount: 0 };
+    const dayOfWeek = today.getDay();
+
     const prefs = await getPlannerPreferences();
     if (!prefs.autoGenerateOnMonday) return { generated: false, entriesCount: 0 };
-
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const isMonday = dayOfWeek === 1;
 
     const monday = new Date(today);
     const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     monday.setDate(diff);
-    const mondayStr = monday.toISOString().split('T')[0];
+    const mondayStr = toLocalDateString(monday);
 
     const lastGen = await getKV('gw_planner_last_gen');
     if (!isMonday || lastGen === mondayStr) return { generated: false, entriesCount: 0 };
@@ -896,142 +930,20 @@ export async function manualGeneratePlan(
     };
 
     const newEntries = generateBalancedWeekPlan(days, existingPlans, options);
+    if (newEntries.length > 0 && overwrite) {
+      // Sovrascrittura: rimuove le voci esistenti solo degli slot che verranno riempiti
+      const filledSlots = new Set(newEntries.map(e => `${e.date}-${e.slot}`));
+      const toRemove = existingPlans.filter(p => filledSlots.has(`${p.date}-${p.slot}`));
+      for (const p of toRemove) {
+        await deleteMealPlanEntry(p.id);
+      }
+    }
     if (newEntries.length > 0) await saveMealPlanEntriesBulk(newEntries);
     return newEntries.length;
   } catch (e) {
     console.warn('manualGeneratePlan error', e);
     return 0;
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LISTA DELLA SPESA AGGREGATA
-// ─────────────────────────────────────────────────────────────────────────────
-
-type ShoppingCandidate = {
-  recipeId: string;
-  recipeTitle: string;
-  name: string;
-  unit: string;
-  amount: number | null;
-  ingredientText: string;
-};
-
-// Stessa chiave usata dalla lista della spesa: "spicchi d'aglio", "Aglio" e "aglio" sono lo stesso ingrediente
-const shoppingKey = (name: string) => normalizeIngredientKey(cleanSupermarketIngredientName(name));
-
-/**
- * Tiene solo ciò che manca nella lista della spesa:
- * - ingrediente assente: aggiunto per intero;
- * - ingrediente presente con la stessa unità e quantità numeriche: aggiunta solo la differenza;
- * - ingrediente presente senza quantità confrontabile: non aggiunto.
- */
-async function keepOnlyMissingForShopping(candidates: ShoppingCandidate[]): Promise<ShoppingCandidate[]> {
-  const existing = await getShoppingItems();
-  // Quantità già in lista per ingrediente: la lista può avere più voci per lo stesso ingrediente
-  const have = new Map<string, { amount: number | null; unit: string }>();
-  for (const item of existing) {
-    const key = shoppingKey(item.name || item.ingredient_text);
-    const unit = (item.unit || '').toLowerCase();
-    const current = have.get(key);
-    if (!current) {
-      have.set(key, { amount: item.amount, unit });
-    } else if (current.amount !== null && item.amount !== null && current.unit === unit) {
-      current.amount += item.amount;
-    } else {
-      current.amount = null;
-    }
-  }
-
-  // Quantità richieste dal planner, sommate per ingrediente e unità
-  const needed = new Map<string, { amount: number | null; unit: string; first: ShoppingCandidate; all: ShoppingCandidate[] }>();
-  for (const c of candidates) {
-    const key = shoppingKey(c.name);
-    const unit = (c.unit || '').toLowerCase();
-    const entry = needed.get(key);
-    if (!entry) {
-      needed.set(key, { amount: c.amount, unit, first: c, all: [c] });
-    } else {
-      entry.all.push(c);
-      if (entry.amount !== null && c.amount !== null && entry.unit === unit) entry.amount += c.amount;
-      else entry.amount = null;
-    }
-  }
-
-  const result: ShoppingCandidate[] = [];
-  for (const [key, need] of needed) {
-    const present = have.get(key);
-    if (!present) {
-      result.push(...need.all);
-      continue;
-    }
-    if (need.amount !== null && present.amount !== null && present.unit === need.unit) {
-      const diff = Math.round((need.amount - present.amount) * 100) / 100;
-      if (diff > 0) {
-        result.push({ ...need.first, amount: diff, unit: need.unit, ingredientText: `${diff} ${need.unit} ${need.first.name}`.trim() });
-      }
-    }
-  }
-  return result;
-}
-
-/**
- * Aggrega ingredienti di tutti i pasti pianificati sommando quantità omogenee
- * e li inserisce nella spesa per categoria.
- */
-export async function aggregateAndAddToShopping(
-  entries: MealPlanEntry[],
-  recipesMap: Record<string, Recipe>,
-): Promise<number> {
-  const itemsToAdd: Array<{
-    recipeId: string;
-    recipeTitle: string;
-    name: string;
-    unit: string;
-    amount: number | null;
-    ingredientText: string;
-  }> = [];
-
-  for (const entry of entries) {
-    const targetRecipeIds = [entry.recipe_id, entry.side_recipe_id].filter(Boolean) as string[];
-    for (const rId of targetRecipeIds) {
-      const recipe = recipesMap[rId];
-      if (!recipe) continue;
-
-      const baseServings = recipe.servings || 4;
-      const factor = entry.servings / baseServings;
-      const titleWithServings = `${recipe.title} (${entry.servings} porz.)`;
-
-      const ingredients: IngredientItem[] = recipe.detailed_ingredients && recipe.detailed_ingredients.length > 0
-        ? recipe.detailed_ingredients
-        : (recipe.ingredients || []).map(s => ({
-            section: 'Generale',
-            text: s,
-            amount: null,
-            unit: '',
-            ingredient: s,
-          }));
-
-      for (const ing of ingredients) {
-        const scaled = scaleIngredient(ing.amount, ing.unit, ing.ingredient, ing.text, factor);
-        itemsToAdd.push({
-          recipeId: recipe.id,
-          recipeTitle: titleWithServings,
-          name: scaled.name,
-          unit: scaled.unit || '',
-          amount: scaled.scaledAmount,
-          ingredientText: scaled.formattedText,
-        });
-      }
-    }
-  }
-
-  // Si aggiunge solo ciò che non è già in lista: niente duplicati di ingredienti o quantità
-  const toAdd = await keepOnlyMissingForShopping(itemsToAdd);
-  if (toAdd.length === 0) return 0;
-
-  await addShoppingItems(toAdd);
-  return toAdd.length;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1048,8 +960,11 @@ export function formatWeekPlanShareText(
   lines.push(`🗓️ *Menù Settimanale Green-Whisker*`);
   lines.push(`_${weekLabel}_\n`);
 
-  const planMap: Record<string, MealPlanEntry> = {};
-  plans.forEach(p => { planMap[`${p.date}-${p.slot}`] = p; });
+  const planMap: Record<string, MealPlanEntry[]> = {};
+  plans.forEach(p => {
+    if (!p.recipe_id) return;
+    (planMap[`${p.date}-${p.slot}`] ??= []).push(p);
+  });
 
   const SLOT_EMOJIS: Record<MealSlot, string> = {
     colazione: '☕',
@@ -1061,17 +976,16 @@ export function formatWeekPlanShareText(
 
   days.forEach(d => {
     const dayEntries = SLOT_ORDER
-      .map(slot => ({ slot, entry: planMap[`${d.dateString}-${slot}`] }))
-      .filter(x => !!x.entry);
+      .flatMap(slot => (planMap[`${d.dateString}-${slot}`] ?? []).map(entry => ({ slot, entry })));
 
     if (dayEntries.length === 0) return;
 
     lines.push(`*${d.dayName} ${d.dayNumber} ${d.monthName}:*`);
     dayEntries.forEach(({ slot, entry }) => {
-      const r = recipesMap[entry!.recipe_id];
+      const r = recipesMap[entry.recipe_id!];
       const emoji = SLOT_EMOJIS[slot];
       const label = SLOT_LABELS[slot];
-      lines.push(`  ${emoji} ${label}: ${r ? r.title : 'Ricetta'} (${entry!.servings} p)`);
+      lines.push(`  ${emoji} ${label}: ${r ? r.title : 'Ricetta'} (${entry.servings} p)`);
     });
     lines.push('');
   });

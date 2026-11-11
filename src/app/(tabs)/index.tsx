@@ -3,7 +3,6 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   Keyboard,
@@ -34,6 +33,7 @@ import { useTranslation } from 'react-i18next';
 import { useShareIntent } from 'expo-share-intent';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { AppTextField } from '../../components/ui/AppTextField';
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
@@ -357,23 +357,14 @@ export default function ExploreScreen() {
 
           {viewMode === 'catalog' && (
             <View style={styles.searchRow}>
-              <View style={styles.searchBar}>
-                <Ionicons name="search" size={18} color={colors.textMuted} style={{ marginRight: 8 }} />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder={t('explore.searchPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  returnKeyType="search"
-                  clearButtonMode="while-editing"
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                  </TouchableOpacity>
-                )}
-              </View>
+              <AppTextField
+                style={styles.searchField}
+                leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
+                placeholder={t('explore.searchPlaceholder')}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
 
               <TouchableOpacity
                 style={[styles.filterBtn, activeFiltersCount > 0 && styles.filterBtnActive]}
@@ -890,26 +881,8 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  searchBar: {
+  searchField: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 46,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
   },
   filterBtn: {
     width: 46,

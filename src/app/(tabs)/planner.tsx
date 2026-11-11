@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { toLocalDateString } from '../../utils/dates';
 import {
   StyleSheet,
   Text,
@@ -16,19 +17,19 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 import { Recipe, MealPlanEntry } from '../../types/recipe';
+import type { Ingredient, ReadyMeal } from '../../types/catalog';
+import { unitLabel } from '../../constants/simpleTags';
 import {
   getMealPlans,
-  saveMealPlanEntry,
+  saveMealPlanEntryDetailed,
+  updateMealPlanEntryDetailed,
   deleteMealPlanEntry,
-  updateMealPlanSideRecipe,
-  updateMealPlanRecipe,
-  addShoppingItems,
   deleteMealPlanForDates,
 } from '../../db/database';
-import { scaleIngredient } from '../../utils/servingsScaler';
+import { listIngredients } from '../../db/ingredientsDb';
+import { listReadyMeals } from '../../db/readyMealsDb';
 import {
   getWeekDays,
-  aggregateAndAddToShopping,
   checkAndAutoGeneratePlan,
   manualGeneratePlan,
   getPlannerPreferences,
@@ -43,14 +44,22 @@ import { RecipeModal } from '../../components/RecipeModal';
 import { PlannerRegenModal } from '../../components/planner/PlannerRegenModal';
 import { PlannerDeleteModal } from '../../components/planner/PlannerDeleteModal';
 import { PlannerPreferencesModal } from '../../components/planner/PlannerPreferencesModal';
-import { RecipePickerModal } from '../../components/planner/RecipePickerModal';
-import { catalogRecipes, catalogVariants } from '../../services/recipeCatalog';
+import MealPickerModal from '../../components/planner/MealPickerModal';
+import { catalogRecipes, catalogVariants, getRecipeById } from '../../services/recipeCatalog';
 import { useCatalogVersion } from '../../hooks/useCatalog';
+import { useFavorites } from '../../context/FavoritesContext';
 
+
+// Stesso contenuto nello stesso ordine: se uguale si tiene il riferimento precedente, quindi nessun nuovo render
+function sameContent<T>(prev: T[], next: T[]): boolean {
+  if (prev.length !== next.length) return false;
+  return JSON.stringify(prev) === JSON.stringify(next);
+}
 
 export default function PlannerScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
+  const { favoriteIds } = useFavorites();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [weekOffset, setWeekOffset] = useState(0);
   const weekResult = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
@@ -63,19 +72,11 @@ export default function PlannerScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pickerRecipes = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
 
-  const recipeMap = useMemo(() => {
-    const map: Record<string, Recipe> = {};
-    [...catalogRecipes, ...catalogVariants].forEach(r => {
-      map[r.id] = r;
-    });
-    return map;
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogVersion]);
-
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => toLocalDateString(new Date()), []);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [plans, setPlans] = useState<MealPlanEntry[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [readyMeals, setReadyMeals] = useState<ReadyMeal[]>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmRegen, setShowConfirmRegen] = useState(false);
@@ -85,7 +86,6 @@ export default function PlannerScreen() {
 
   // Recipe Picker Modal State
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [pickerTargetType, setPickerTargetType] = useState<'main' | 'side'>('main');
   const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
   const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<Recipe | null>(null);
@@ -94,9 +94,10 @@ export default function PlannerScreen() {
   const [toastAnim] = useState(() => new Animated.Value(0));
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Solo i piani: ingredienti e piatti pronti hanno un effetto dedicato (vedi sotto)
   const loadPlans = async () => {
     const list = await getMealPlans();
-    setPlans(list);
+    setPlans(prev => (sameContent(prev, list) ? prev : list));
     return list;
   };
 
@@ -119,25 +120,44 @@ export default function PlannerScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
+  // Ingredienti e piatti pronti: caricati al mount e ricaricati a ogni cambio del catalogo.
+  // IngredientsModal (menu) chiama refreshCatalog via onChanged, che incrementa catalogVersion.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [ings, meals] = await Promise.all([listIngredients(), listReadyMeals()]);
+      if (!active) return;
+      setIngredients(prev => (sameContent(prev, ings) ? prev : ings));
+      setReadyMeals(prev => (sameContent(prev, meals) ? prev : meals));
+    })();
+    return () => { active = false; };
+  }, [catalogVersion]);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      (async () => {
-        const [list, p] = await Promise.all([
-          loadPlans(),
-          getPlannerPreferences(),
-        ]);
-        if (!active) return;
-        setPrefs(p);
+      // Dopo la transizione della tab (InteractionManager è stato rimosso da RN 0.88), così non blocca l'animazione
+      const idle = requestIdleCallback(() => {
+        (async () => {
+          const [list, p] = await Promise.all([
+            loadPlans(),
+            getPlannerPreferences(),
+          ]);
+          if (!active) return;
+          setPrefs(p);
 
-        // Auto-generate on Monday
-        const result = await checkAndAutoGeneratePlan(list);
-        if (result.generated && active) {
-          await loadPlans();
-          showToast(t('planner.autoBanner', { count: result.entriesCount }));
-        }
-      })();
-      return () => { active = false; };
+          // Auto-generate on Monday
+          const result = await checkAndAutoGeneratePlan(list);
+          if (result.generated && active) {
+            await loadPlans();
+            showToast(t('planner.autoBanner', { count: result.entriesCount }));
+          }
+        })();
+      });
+      return () => {
+        active = false;
+        cancelIdleCallback(idle);
+      };
     }, [])
   );
 
@@ -149,6 +169,18 @@ export default function PlannerScreen() {
     setSelectedDate(found ? todayStr : weekDays[0]?.dateString ?? todayStr);
   }
 
+  const ingredientMap = useMemo(() => {
+    const m: Record<string, Ingredient> = {};
+    ingredients.forEach(i => { m[i.id] = i; });
+    return m;
+  }, [ingredients]);
+
+  const readyMealMap = useMemo(() => {
+    const m: Record<string, ReadyMeal> = {};
+    readyMeals.forEach(r => { m[r.id] = r; });
+    return m;
+  }, [readyMeals]);
+
   const dayItems = useMemo(() => {
     const result: Partial<Record<MealSlot, DayMealItem[]>> = {};
     SLOT_ORDER.forEach(slot => {
@@ -157,131 +189,118 @@ export default function PlannerScreen() {
         .sort((a, b) => a.created_at - b.created_at)
         .map(entry => ({
           entry,
-          recipe: recipeMap[entry.recipe_id] ?? null,
-          sideRecipe: entry.side_recipe_id ? recipeMap[entry.side_recipe_id] ?? null : null,
+          recipe: entry.recipe_id ? getRecipeById(entry.recipe_id) ?? null : null,
+          ingredient: entry.ingredient_id ? ingredientMap[entry.ingredient_id] ?? null : null,
+          ready: entry.ready_meal_id ? readyMealMap[entry.ready_meal_id] ?? null : null,
         }));
     });
     return result;
-  }, [plans, selectedDate, recipeMap]);
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans, selectedDate, catalogVersion, ingredientMap, readyMealMap]);
+
+  // Pasti già pianificati nello slot aperto nel picker (giorno selezionato), mostrati come riferimento
+  const plannedForSlot = useMemo<{ id: string; label: string }[]>(() => {
+    const result: { id: string; label: string }[] = [];
+    plans
+      .filter(p => p.date === selectedDate && p.slot === targetSlot)
+      .forEach(entry => {
+        let label: string | undefined;
+        if (entry.kind === 'recipe') label = entry.recipe_id ? getRecipeById(entry.recipe_id)?.title : undefined;
+        else if (entry.kind === 'ingredient') label = entry.ingredient_id ? ingredientMap[entry.ingredient_id]?.name : undefined;
+        else if (entry.kind === 'ready') label = entry.ready_meal_id ? readyMealMap[entry.ready_meal_id]?.name : undefined;
+        else if (entry.kind === 'out') label = entry.label;
+        if (label) result.push({ id: entry.id, label });
+      });
+    return result;
+  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plans, selectedDate, targetSlot, catalogVersion, ingredientMap, readyMealMap]);
 
   const handleOpenPicker = (slot: MealSlot) => {
-    setPickerTargetType('main');
     setTargetEntryId(null);
     setTargetSlot(slot);
     setPickerVisible(true);
   };
 
-  const handleOpenSidePicker = (slot: MealSlot, entryId: string) => {
-    setPickerTargetType('side');
-    setTargetEntryId(entryId);
-    setTargetSlot(slot);
-    setPickerVisible(true);
-  };
-
   const handleOpenSwapPicker = (slot: MealSlot, entryId: string) => {
-    setPickerTargetType('main');
     setTargetEntryId(entryId);
     setTargetSlot(slot);
     setPickerVisible(true);
   };
 
   const handleSelectRecipeForSlot = async (recipe: Recipe) => {
-    if (pickerTargetType === 'side' && targetEntryId) {
-      await updateMealPlanSideRecipe(targetEntryId, recipe.id);
-      setPickerVisible(false);
-      loadPlans();
-      showToast('Contorno aggiornato!');
-    } else {
       const currentServings = prefs?.servings ?? 2;
-      const baseServings = recipe.servings || 4;
-      const scale = currentServings / baseServings;
-      const titleWithServings = `${recipe.title} (${currentServings} porz.)`;
 
-      const itemsToAdd: Array<{
-        recipeId: string;
-        recipeTitle: string;
-        ingredientText: string;
-        name: string;
-        amount?: number | null;
-        unit?: string;
-        category?: string;
-      }> = [];
-
-      if (recipe.detailed_ingredients && recipe.detailed_ingredients.length > 0) {
-        for (const item of recipe.detailed_ingredients) {
-          const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
-          itemsToAdd.push({
-            recipeId: recipe.id,
-            recipeTitle: titleWithServings,
-            ingredientText: scaled.formattedText,
-            name: scaled.name,
-            amount: scaled.scaledAmount,
-            unit: scaled.unit,
-            category: item.section || 'Generale'
-          });
-        }
+      if (targetEntryId) {
+        await updateMealPlanEntryDetailed(targetEntryId, { kind: 'recipe', recipeId: recipe.id });
       } else {
-        for (const ing of (recipe.ingredients || [])) {
-          itemsToAdd.push({
-            recipeId: recipe.id,
-            recipeTitle: titleWithServings,
-            ingredientText: ing,
-            name: ing,
-            category: 'Generale'
-          });
-        }
-      }
-
-      if (pickerTargetType === 'main' && targetEntryId) {
-        await updateMealPlanRecipe(targetEntryId, recipe.id);
-      } else {
-        await saveMealPlanEntry({
+        await saveMealPlanEntryDetailed({
           date: selectedDate,
           slot: targetSlot,
+          kind: 'recipe',
           recipeId: recipe.id,
           servings: currentServings,
         });
       }
 
-      if (itemsToAdd.length > 0) {
-        await addShoppingItems(itemsToAdd);
-      }
-
-      setPickerVisible(false);
+      if (targetEntryId) setPickerVisible(false);
       loadPlans();
-      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]} e ingredienti sommati alla Spesa!`);
-    }
+      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]}!`);
   };
 
-  // Il piatto principale e il contorno di una voce generata dal piano stanno nella stessa riga:
-  // eliminando il principale, il contorno diventa il principale e non viene perso.
-  const handleDeleteSlot = async (id: string) => {
-    const entry = plans.find(p => p.id === id);
-    if (entry?.side_recipe_id) {
-      await updateMealPlanRecipe(id, entry.side_recipe_id);
-      await updateMealPlanSideRecipe(id, null);
+  const handleSelectIngredientForSlot = async (ingredient: Ingredient, amount: number | null, unit: string) => {
+    const detail = { kind: 'ingredient' as const, ingredientId: ingredient.id, amount, unit };
+    if (targetEntryId) {
+      await updateMealPlanEntryDetailed(targetEntryId, detail);
     } else {
-      await deleteMealPlanEntry(id);
+      await saveMealPlanEntryDetailed({
+        date: selectedDate,
+        slot: targetSlot,
+        servings: prefs?.servings ?? 2,
+        ...detail,
+      });
     }
+    if (targetEntryId) setPickerVisible(false);
+    await loadPlans();
+  };
+
+  const handleSelectReadyMealForSlot = async (meal: ReadyMeal, count: number) => {
+    const detail = { kind: 'ready' as const, readyMealId: meal.id, count };
+    if (targetEntryId) {
+      await updateMealPlanEntryDetailed(targetEntryId, detail);
+    } else {
+      await saveMealPlanEntryDetailed({
+        date: selectedDate,
+        slot: targetSlot,
+        servings: prefs?.servings ?? 2,
+        ...detail,
+      });
+    }
+    if (targetEntryId) setPickerVisible(false);
+    await loadPlans();
+  };
+
+  const handleSelectOutOfHomeForSlot = async (label: string) => {
+    const detail = { kind: 'out' as const, label };
+    if (targetEntryId) {
+      await updateMealPlanEntryDetailed(targetEntryId, detail);
+    } else {
+      await saveMealPlanEntryDetailed({
+        date: selectedDate,
+        slot: targetSlot,
+        servings: prefs?.servings ?? 2,
+        ...detail,
+      });
+    }
+    if (targetEntryId) setPickerVisible(false);
+    await loadPlans();
+  };
+
+  const handleDeleteSlot = async (id: string) => {
+    await deleteMealPlanEntry(id);
     loadPlans();
     showToast(t('planner.slotRemovedToast'));
-  };
-
-  const handleDeleteSide = async (entryId: string) => {
-    await updateMealPlanSideRecipe(entryId, null);
-    loadPlans();
-    showToast(t('planner.sideRemovedToast'));
-  };
-
-  const handleGenerateShopping = async () => {
-    const weekDates = new Set(weekDays.map(d => d.dateString));
-    const weekPlans = plans.filter(p => weekDates.has(p.date));
-    if (weekPlans.length === 0) {
-      showToast(t('planner.shoppingToastEmpty'));
-      return;
-    }
-    const count = await aggregateAndAddToShopping(weekPlans, recipeMap);
-    showToast(t('planner.shoppingToast', { count }));
   };
 
   const handleManualGenerate = async (overwrite: boolean = false, scope: 'day' | 'week' = 'week') => {
@@ -295,19 +314,19 @@ export default function PlannerScreen() {
     }
   };
 
-  const handleClearWeek = async () => {
-    const weekDates = new Set(weekDays.map(d => d.dateString));
-    const weekPlanIds = plans.filter(p => weekDates.has(p.date)).map(p => p.id);
-    for (const id of weekPlanIds) {
-      await deleteMealPlanEntry(id);
-    }
-    loadPlans();
-    showToast(t('planner.weekClearedToast'));
-  };
-
   const selectedDayInfo = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
   const weekPlansCount = plans.filter(p => weekDays.some(d => d.dateString === p.date)).length;
   const maxMeals = weekDays.length * SLOT_ORDER.length; // 4 slot per giorno
+  // Si conta lo slot occupato (data + pasto), non le singole voci: 8 piatti a colazione = 1 slot
+  const filledSlots = (dates: Set<string>) =>
+    new Set(plans.filter(p => dates.has(p.date)).map(p => `${p.date}|${p.slot}`)).size;
+  const plannedCountDay = filledSlots(new Set([selectedDate]));
+  const plannedCountWeek = filledSlots(new Set(weekDays.map(d => d.dateString)));
+  const capacityDay = SLOT_ORDER.length; // slot per un singolo giorno
+  const capacityWeek = maxMeals;
+  const selectedDateLabel = selectedDayInfo
+    ? `${selectedDayInfo.dayName} ${selectedDayInfo.dayNumber} ${selectedDayInfo.monthName}`
+    : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -326,16 +345,6 @@ export default function PlannerScreen() {
 
             {/* Header actions */}
             <View style={styles.headerActions}>
-              {weekPlansCount > 0 && (
-                <TouchableOpacity
-                  style={styles.genShoppingBtn}
-                  onPress={handleGenerateShopping}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="cart" size={15} color={colors.onPrimary} />
-                  <Text style={styles.genShoppingBtnText}>{t('planner.shoppingBtn')}</Text>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity
                 style={styles.prefsBtn}
                 onPress={() => setShowPrefsModal(true)}
@@ -426,12 +435,10 @@ export default function PlannerScreen() {
               </Text>
             </View>
 
-          </View>
-
-          {/* Generate / Regen / Delete buttons for current week */}
+          {/* Plan / Delete buttons for current week */}
           {weekOffset === 0 && (
-            <View style={styles.dayActions}>
-              {weekPlansCount === 0 ? (
+              <View style={styles.dayActionsInline}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 <TouchableOpacity
                   style={styles.generateBtn}
                   onPress={() => setShowConfirmRegen(true)}
@@ -443,44 +450,11 @@ export default function PlannerScreen() {
                   ) : (
                     <>
                       <MaterialCommunityIcons name="chef-hat" size={16} color={colors.onPrimary} style={{ marginRight: 5 }} />
-                      <Text style={styles.generateBtnText}>{t('planner.generateBtn')}</Text>
+                      <Text style={styles.generateBtnText}>{t('planner.planBtn')}</Text>
                     </>
                   )}
                 </TouchableOpacity>
-              ) : (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                  {weekPlansCount < maxMeals && (
-                    <TouchableOpacity
-                      style={styles.completeBtn}
-                      onPress={() => setShowConfirmRegen(true)}
-                      activeOpacity={0.8}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? (
-                        <ActivityIndicator size="small" color={colors.onPrimary} />
-                      ) : (
-                        <>
-                          <MaterialCommunityIcons name="chef-hat" size={15} color={colors.onPrimary} style={{ marginRight: 4 }} />
-                          <Text style={styles.completeBtnText}>{t('planner.completeBtn')} ({maxMeals - weekPlansCount})</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={styles.regenBtn}
-                    onPress={() => setShowConfirmRegen(true)}
-                    activeOpacity={0.8}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? (
-                      <ActivityIndicator size="small" color={colors.primaryText} />
-                    ) : (
-                      <>
-                        <Ionicons name="refresh" size={14} color={colors.primaryText} />
-                        <Text style={styles.regenBtnText}>{t('planner.regenBtn')}</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                {weekPlansCount > 0 && (
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => setShowDeleteModal(true)}
@@ -490,10 +464,11 @@ export default function PlannerScreen() {
                     <Ionicons name="trash-outline" size={15} color={colors.danger} />
                     <Text style={styles.deleteBtnText}>{t('planner.deleteBtn')}</Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                )}
+              </View>
             </View>
           )}
+          </View>
 
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
@@ -511,8 +486,6 @@ export default function PlannerScreen() {
                 onSwap={entryId => handleOpenSwapPicker(slot, entryId)}
                 onDelete={(id) => handleDeleteSlot(id)}
                 onView={(r) => setSelectedDetailRecipe(r)}
-                onSwapSide={entryId => handleOpenSidePicker(slot, entryId)}
-                onDeleteSide={entryId => handleDeleteSide(entryId)}
               />
             );
           })}
@@ -522,6 +495,11 @@ export default function PlannerScreen() {
         {/* ─── Confirm Regen Modal ─── */}
         <PlannerRegenModal
           visible={showConfirmRegen}
+          selectedDateLabel={selectedDateLabel}
+          plannedCountDay={plannedCountDay}
+          plannedCountWeek={plannedCountWeek}
+          capacityDay={capacityDay}
+          capacityWeek={capacityWeek}
           onConfirm={(overwriteAll, scope) => handleManualGenerate(overwriteAll, scope)}
           onCancel={() => setShowConfirmRegen(false)}
         />
@@ -530,16 +508,26 @@ export default function PlannerScreen() {
         <PlannerDeleteModal
           visible={showDeleteModal}
           onDeleteDay={async () => {
-            await deleteMealPlanForDates([selectedDate]);
-            setShowDeleteModal(false);
-            loadPlans();
-            showToast(t('planner.dayClearedToast'));
+            try {
+              await deleteMealPlanForDates([selectedDate]);
+              setShowDeleteModal(false);
+              loadPlans();
+              showToast(t('planner.dayClearedToast'));
+            } catch (e) {
+              console.error('delete day error', e);
+              showToast(t('common.error'));
+            }
           }}
           onDeleteWeek={async () => {
-            await deleteMealPlanForDates(weekDays.map(d => d.dateString));
-            setShowDeleteModal(false);
-            loadPlans();
-            showToast(t('planner.weekClearedToast'));
+            try {
+              await deleteMealPlanForDates(weekDays.map(d => d.dateString));
+              setShowDeleteModal(false);
+              loadPlans();
+              showToast(t('planner.weekClearedToast'));
+            } catch (e) {
+              console.error('delete week error', e);
+              showToast(t('common.error'));
+            }
           }}
           onExit={() => setShowDeleteModal(false)}
         />
@@ -550,16 +538,21 @@ export default function PlannerScreen() {
           prefs={prefs}
           onClose={() => setShowPrefsModal(false)}
           onUpdatePrefs={(updated) => setPrefs(updated)}
-          onClearWeek={handleClearWeek}
         />
 
-        {/* ─── Recipe Picker Modal ─── */}
-        <RecipePickerModal
+        {/* ─── Meal Picker Modal ─── */}
+        <MealPickerModal
           visible={pickerVisible}
           targetSlot={targetSlot}
-          targetType={pickerTargetType}
+          plannedForSlot={plannedForSlot}
           allRecipes={pickerRecipes}
-          onSelect={handleSelectRecipeForSlot}
+          favoriteIds={favoriteIds}
+          ingredients={ingredients}
+          readyMeals={readyMeals}
+          onSelectRecipe={handleSelectRecipeForSlot}
+          onSelectIngredient={handleSelectIngredientForSlot}
+          onSelectReadyMeal={handleSelectReadyMealForSlot}
+          onSelectOutOfHome={handleSelectOutOfHomeForSlot}
           onClose={() => setPickerVisible(false)}
         />
 
@@ -595,7 +588,8 @@ export default function PlannerScreen() {
 interface DayMealItem {
   entry: MealPlanEntry;
   recipe: Recipe | null;
-  sideRecipe: Recipe | null;
+  ingredient: Ingredient | null;
+  ready: ReadyMeal | null;
 }
 
 interface MealSlotCardProps {
@@ -609,8 +603,6 @@ interface MealSlotCardProps {
   onSwap: (entryId: string) => void;
   onDelete: (id: string) => void;
   onView: (r: Recipe) => void;
-  onSwapSide: (entryId: string) => void;
-  onDeleteSide: (entryId: string) => void;
 }
 
 const MealSlotCard = React.memo(function MealSlotCard({
@@ -624,13 +616,12 @@ const MealSlotCard = React.memo(function MealSlotCard({
   onSwap,
   onDelete,
   onView,
-  onSwapSide,
-  onDeleteSide,
 }: MealSlotCardProps) {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
-  const visibleItems = items.filter((item): item is DayMealItem & { recipe: Recipe } => item.recipe !== null);
+  // Le ricette non più nel catalogo restano nascoste; i piatti semplici mancanti mostrano un segnaposto
+  const visibleItems = items.filter(item => item.recipe !== null || item.entry.kind === 'ingredient' || item.entry.kind === 'ready' || item.entry.kind === 'out' || !!item.entry.ingredient_id || !!item.entry.ready_meal_id);
 
   return (
     <View style={styles.slotContainer}>
@@ -653,8 +644,26 @@ const MealSlotCard = React.memo(function MealSlotCard({
 
       {visibleItems.length > 0 ? (
         <View style={styles.slotCardsGroup}>
-          {visibleItems.map(({ entry, recipe, sideRecipe }) => (
+          {visibleItems.map(({ entry, recipe, ingredient, ready }) => (
             <View key={entry.id} style={styles.entryBlock}>
+              {!recipe ? (
+                <FoodRow
+                  name={ingredient?.name ?? ready?.name ?? (entry.kind === 'out' ? entry.label ?? null : null)}
+                  meta={
+                    entry.kind === 'ready'
+                      ? `${entry.count ?? 1} ×`
+                      : entry.amount != null ? `${entry.amount} ${unitLabel(entry.unit ?? '', t, entry.amount ?? 1)}`.trim() : ''
+                  }
+                  category={
+                    ready
+                      ? t('readyMeals.categories.' + ready.category, { defaultValue: ready.category })
+                      : ''
+                  }
+                  categoryColor={color}
+                  onSwap={() => onSwap(entry.id)}
+                  onDelete={() => onDelete(entry.id)}
+                />
+              ) : (
               <MealRow
                 recipe={recipe}
                 servings={entry.servings}
@@ -669,23 +678,6 @@ const MealSlotCard = React.memo(function MealSlotCard({
                 onSwap={() => onSwap(entry.id)}
                 onDelete={() => onDelete(entry.id)}
               />
-              {sideRecipe && (
-                <MealRow
-                  side
-                  recipe={sideRecipe}
-                  servings={entry.servings}
-                  categoryLabel={
-                    <View style={styles.sideBadgeRow}>
-                      <Ionicons name="leaf" size={11} color={sideTeal(isDark)} />
-                      <Text style={styles.sideMealCategory}>{t('planner.sideDish').toUpperCase()}</Text>
-                    </View>
-                  }
-                  placeholderIcon="leaf-outline"
-                  placeholderColor={sideTeal(isDark)}
-                  onView={() => onView(sideRecipe)}
-                  onSwap={() => onSwapSide(entry.id)}
-                  onDelete={() => onDeleteSide(entry.id)}
-                />
               )}
             </View>
           ))}
@@ -704,9 +696,49 @@ const MealSlotCard = React.memo(function MealSlotCard({
   );
 });
 
-// Riga di una ricetta pianificata (piatto principale o contorno)
+// Riga di un ingrediente o piatto pronto pianificato
+function FoodRow({
+  name,
+  meta,
+  category,
+  categoryColor,
+  onSwap,
+  onDelete,
+}: {
+  name: string | null;
+  meta: string;
+  category: string;
+  categoryColor: string;
+  onSwap: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colors, isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+
+  return (
+    <View style={styles.mealCard}>
+      <View style={styles.mealInfo}>
+        {category !== '' && <Text style={[styles.mealCategory, { color: categoryColor }]}>{category}</Text>}
+        <Text style={styles.mealTitle} numberOfLines={2}>
+          {name ?? t('simpleItems.missing')}
+        </Text>
+        {name !== null && meta !== '' && <Text style={styles.mealMetaText}>{meta}</Text>}
+      </View>
+      <View style={styles.mealActions}>
+        <TouchableOpacity style={styles.swapMealBtn} onPress={onSwap} activeOpacity={0.7}>
+          <Ionicons name="swap-horizontal" size={17} color={colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={17} color={colors.danger} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+// Riga di una ricetta pianificata 
 function MealRow({
-  side = false,
   recipe,
   servings,
   categoryLabel,
@@ -716,7 +748,6 @@ function MealRow({
   onSwap,
   onDelete,
 }: {
-  side?: boolean;
   recipe: Recipe;
   servings: number;
   categoryLabel: React.ReactNode;
@@ -731,7 +762,7 @@ function MealRow({
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
 
   return (
-    <View style={side ? styles.sideMealCard : styles.mealCard}>
+    <View style={styles.mealCard}>
       {recipe.image ? (
         <Image source={{ uri: recipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
       ) : (
@@ -768,8 +799,6 @@ function MealRow({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 // Colori dati/brand che non hanno un token: variante scura per il tema dark
-const sideTeal = (isDark: boolean) => (isDark ? '#5FB8A8' : '#3A8C7E'); // categoria contorno
-const completeOchre = (isDark: boolean) => (isDark ? '#9A5A26' : '#C07A3A'); // azione "completa"
 const deleteBorderPink = (isDark: boolean) => (isDark ? '#5A3634' : '#E8B4B1'); // bordo elimina
 
 const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
@@ -785,12 +814,6 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   subtitle: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
   headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  genShoppingBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: 10, gap: 5,
-  },
-  genShoppingBtnText: { color: colors.onPrimary, fontSize: 12, fontWeight: '700' },
   prefsBtn: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
@@ -849,24 +872,13 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   dayHeading: { fontSize: 17, fontWeight: '700', color: colors.text },
   daySub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  dayActions: { marginTop: 4, marginBottom: 8 },
+  dayActionsInline: { marginLeft: 8, flexShrink: 1 },
   generateBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8,
     borderRadius: 10, shadowColor: colors.shadow, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
   },
   generateBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
-  completeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: completeOchre(isDark), paddingHorizontal: 11, paddingVertical: 8,
-    borderRadius: 10, shadowColor: colors.shadow, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
-  },
-  completeBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
-  regenBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-  },
-  regenBtnText: { color: colors.primaryText, fontSize: 13, fontWeight: '700' },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
@@ -892,19 +904,10 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
-  sideMealCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, borderRadius: 16, padding: 12,
-    borderWidth: 1, borderColor: colors.border,
-    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03, shadowRadius: 5, elevation: 1,
-  },
   mealImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
   mealImagePlaceholder: { backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1 },
   mealCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  sideBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
-  sideMealCategory: { fontSize: 10, fontWeight: '700', color: sideTeal(isDark), letterSpacing: 0.5 },
   mealTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2, lineHeight: 19 },
   mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   mealMetaText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },

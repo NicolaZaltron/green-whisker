@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Linking,
   StatusBar,
-  TextInput,
   Platform,
   Animated,
   ActivityIndicator,
@@ -20,7 +19,6 @@ import * as Clipboard from 'expo-clipboard';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
-  addShoppingItems,
   saveMealPlanEntry,
   getRecipeNote,
   saveRecipeNote
@@ -29,7 +27,7 @@ import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getWeekDays, MealSlot } from '../services/plannerService';
 import { VariantDiet, availableVariantDiets } from '../services/catalogFormat';
 import { classifyDiet } from '../utils/dietClassifier';
-import { scaleIngredient, getScalableIngredients } from '../utils/servingsScaler';
+import { scaleIngredient, getScalableIngredients, splitShoppingItemDisplay } from '../utils/servingsScaler';
 import {
   formatRecipeShareText,
   shareToTelegram,
@@ -40,6 +38,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { AppTextField } from './ui/AppTextField';
 
 interface RecipeModalProps {
   // Ricetta originale: le varianti vengono mostrate con le schede
@@ -195,56 +194,49 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     setCompletedSteps(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
+  // Nome e quantità separati: il nome va a sinistra, la quantità allineata a destra
   const formatScaledIngredient = (item: IngredientItem) => {
-    return scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale).formattedText;
+    const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
+    return splitShoppingItemDisplay(scaled.formattedText, scaled.name, scaled.scaledAmount, scaled.unit);
   };
 
   const handleScheduleMeal = async (dateStr: string) => {
-    // 1. Salva la ricetta nel Meal Planner
-    await saveMealPlanEntry({
-      date: dateStr,
-      slot: selectedSlot,
-      recipeId: recipe.id,
-      servings: currentServings
-    });
-
-    // 2. Aggiunge contestualmente gli ingredienti scalati alla lista della spesa
-    const titleWithServings = t('recipeDetail.titleWithServings', { title: recipe.title, servings: currentServings });
-    const itemsToAdd = scalableIngredients.map(item => {
-      const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
-      return {
+    try {
+      // 1. Salva la ricetta nel Meal Planner
+      await saveMealPlanEntry({
+        date: dateStr,
+        slot: selectedSlot,
         recipeId: recipe.id,
-        recipeTitle: titleWithServings,
-        ingredientText: scaled.formattedText,
-        name: scaled.name,
-        amount: scaled.scaledAmount,
-        unit: scaled.unit,
-        category: item.section || 'Generale'
+        servings: currentServings
+      });
+
+      setShowPlanPicker(false);
+      const slotNames: Record<MealSlot, string> = {
+        colazione: 'recipeDetail.slotBreakfast',
+        spuntino_mattina: 'recipeDetail.slotSnack',
+        pranzo: 'recipeDetail.slotLunch',
+        spuntino_pomeriggio: 'recipeDetail.slotSnack',
+        cena: 'recipeDetail.slotDinner'
       };
-    });
-
-    if (itemsToAdd.length > 0) {
-      await addShoppingItems(itemsToAdd);
+      const slotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
+      showToast(t('recipeDetail.plannedToast', { slot: slotLabel }));
+    } catch (e) {
+      console.error('handleScheduleMeal error', e);
+      showToast(t('errors.somethingWentWrong'));
     }
-
-    setShowPlanPicker(false);
-    const slotNames: Record<MealSlot, string> = {
-      colazione: 'recipeDetail.slotBreakfast',
-      spuntino_mattina: 'recipeDetail.slotSnack',
-      pranzo: 'recipeDetail.slotLunch',
-      spuntino_pomeriggio: 'recipeDetail.slotSnack',
-      cena: 'recipeDetail.slotDinner'
-    };
-    const slotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
-    showToast(t('recipeDetail.plannedToast', { slot: slotLabel }));
   };
 
   const handleSaveNote = async () => {
-    await saveRecipeNote(recipe.id, userNote);
-    setIsEditingNote(false);
-    setSavedNoteStatus(t('recipeDetail.noteSaved'));
-    showToast(t('recipeDetail.noteSavedToast'));
-    setTimeout(() => setSavedNoteStatus(null), 3000);
+    try {
+      await saveRecipeNote(recipe.id, userNote);
+      setIsEditingNote(false);
+      setSavedNoteStatus(t('recipeDetail.noteSaved'));
+      showToast(t('recipeDetail.noteSavedToast'));
+      setTimeout(() => setSavedNoteStatus(null), 3000);
+    } catch (e) {
+      console.error('handleSaveNote error', e);
+      showToast(t('errors.somethingWentWrong'));
+    }
   };
 
   const getShareText = () => {
@@ -602,7 +594,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     {sec.items.map((ing, iIdx) => {
                       const key = `${sIdx}-${iIdx}`;
                       const isChecked = !!checkedIngredients[key];
-                      const text = formatScaledIngredient(ing);
+                      const { displayName, displayQuantity } = formatScaledIngredient(ing);
 
                       return (
                         <View key={key} style={[styles.ingredientRow, isChecked && styles.ingredientRowChecked]}>
@@ -615,8 +607,13 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                               {isChecked && <Ionicons name="checkmark" size={14} color={colors.onPrimary} />}
                             </View>
                             <Text style={[styles.ingredientText, isChecked && styles.ingredientTextChecked]}>
-                              {text}
+                              {displayName}
                             </Text>
+                            {displayQuantity !== '' && (
+                              <Text style={[styles.ingredientQuantity, isChecked && styles.ingredientTextChecked]}>
+                                {displayQuantity}
+                              </Text>
+                            )}
                           </TouchableOpacity>
                         </View>
                       );
@@ -666,10 +663,9 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     </View>
                   )}
                 </View>
-                <TextInput
-                  style={styles.notesInput}
+                <AppTextField
+                  style={styles.notesField}
                   placeholder={t('recipeDetail.notesPlaceholder')}
-                  placeholderTextColor={colors.textMuted}
                   multiline
                   numberOfLines={3}
                   value={userNote}
@@ -1530,6 +1526,13 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
     lineHeight: 20,
   },
+  ingredientQuantity: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginLeft: 12,
+    textAlign: 'right',
+  },
   ingredientTextChecked: {
     textDecorationLine: 'line-through',
     color: colors.textMuted,
@@ -1665,16 +1668,8 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     fontWeight: '600',
     color: colors.primaryText,
   },
-  notesInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 14,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
+  notesField: {
     minHeight: 70,
-    textAlignVertical: 'top',
   },
   notesActionRow: {
     flexDirection: 'row',

@@ -1,3 +1,4 @@
+import type { SimpleTag } from '../constants/simpleTags';
 export interface IngredientItem {
   section: string;
   text: string;
@@ -82,12 +83,32 @@ export interface ShoppingItem {
   created_at: number;
 }
 
+export type SimpleSlot = 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
+
+export interface SimpleItem {
+  id: string;
+  name: string;
+  tags: SimpleTag[];
+  amount: number | null;
+  unit: string;
+  recipe_ids: string[];
+  slots: SimpleSlot[];
+  created_at: number;
+  updated_at: number;
+}
+
 export interface MealPlanEntry {
   id: string;
   date: string; // YYYY-MM-DD
   slot: 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
-  recipe_id: string;
-  side_recipe_id?: string;
+  kind: 'recipe' | 'ingredient' | 'ready' | 'out';
+  recipe_id?: string;
+  ingredient_id?: string;
+  ready_meal_id?: string;
+  label?: string; // solo per kind 'out': nome del pasto fuori casa
+  amount?: number | null;
+  unit?: string;
+  count?: number;
   servings: number;
   notes?: string;
   created_at: number;
