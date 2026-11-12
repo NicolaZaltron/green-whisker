@@ -11,20 +11,43 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 1.71,
+   "kcal": 40,
+   "fibre": 1.5,
+   "calcio": 13,
+   "ferro": 0.48,
+   "potassio": 147,
+   "zinco": 0.24,
+   "vitamina_c": 5.9,
+   "vitamina_b2": 0.031,
+   "omega3": 0
+  }
  },
  {
   "name": "Pollo arrosto",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 26.2,
+   "kcal": 192,
+   "fibre": 0,
+   "calcio": 7,
+   "ferro": 0.53,
+   "potassio": 298,
+   "zinco": 0.89,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.18,
+   "omega3": 0.017
+  }
  },
  {
   "name": "Lasagna di verdure confezionata",
@@ -37,10 +60,21 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 11.2,
+   "kcal": 188,
+   "fibre": 1.2,
+   "calcio": 268,
+   "ferro": 0.76,
+   "potassio": 206,
+   "zinco": 1.5,
+   "vitamina_c": 3.5,
+   "vitamina_b2": 0.234,
+   "omega3": 0.003
+  }
  },
  {
-  "name": "Burger di verdure pronti",
+  "name": "Burger di verdure",
   "category": "pronto",
   "tags": [
    "confezionato"
@@ -50,7 +84,18 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 15.7,
+   "kcal": 177,
+   "fibre": 4.9,
+   "calcio": 136,
+   "ferro": 2.41,
+   "potassio": 333,
+   "zinco": 1.26,
+   "vitamina_c": 4.5,
+   "vitamina_b2": 0.244,
+   "omega3": 0
+  }
  },
  {
   "name": "Minestra surgelata",
@@ -64,79 +109,151 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 0.84,
+   "kcal": 27,
+   "fibre": 1,
+   "calcio": 12,
+   "ferro": 0.2,
+   "potassio": 154,
+   "zinco": 0.16,
+   "vitamina_c": 8.9,
+   "vitamina_b2": 0.026,
+   "omega3": 0
+  }
  },
  {
-  "name": "Zuppa pronta",
+  "name": "Zuppa",
   "category": "pronto",
   "tags": [
    "zuppa_minestra",
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 0.84,
+   "kcal": 27,
+   "fibre": 1,
+   "calcio": 12,
+   "ferro": 0.2,
+   "potassio": 154,
+   "zinco": 0.16,
+   "vitamina_c": 8.9,
+   "vitamina_b2": 0.026,
+   "omega3": 0
+  }
  },
  {
-  "name": "Lasagne pronte",
+  "name": "Lasagne",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 7.45,
+   "kcal": 139,
+   "fibre": 1.6,
+   "calcio": 82,
+   "ferro": 0.73,
+   "potassio": 207,
+   "zinco": 0.89,
+   "vitamina_c": 4.4,
+   "vitamina_b2": 0.056,
+   "omega3": 0
+  }
  },
  {
   "name": "Pasta fresca all'uovo",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 5.76,
+   "kcal": 157,
+   "fibre": 1.8,
+   "calcio": 7,
+   "ferro": 1.27,
+   "potassio": 44,
+   "zinco": 0.51,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.135,
+   "omega3": 0
+  }
  },
  {
-  "name": "Ravioli pronti",
+  "name": "Ravioli",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 7.39,
+   "kcal": 173,
+   "fibre": 0.7,
+   "calcio": 99,
+   "ferro": 1.69,
+   "potassio": 129,
+   "zinco": 0.62,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.264,
+   "omega3": 0.006
+  }
  },
  {
-  "name": "Tortellini pronti",
+  "name": "Tortellini",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 10.4,
+   "kcal": 236,
+   "fibre": 1.5,
+   "calcio": 111,
+   "ferro": 0.86,
+   "potassio": 21,
+   "zinco": 0.78,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.179,
+   "omega3": 0.001
+  }
  },
  {
-  "name": "Gnocchi pronti",
+  "name": "Gnocchi",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
@@ -157,13 +274,50 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 263,
+   "fibre": 3,
+   "calcio": 228,
+   "ferro": 2.14,
+   "potassio": 201,
+   "zinco": 1.49,
+   "vitamina_c": 0.1,
+   "vitamina_b2": 0.127,
+   "omega3": 0.003
+  }
  },
  {
-  "name": "Pinsa pronta",
+  "name": "Pinsa",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 263,
+   "fibre": 3,
+   "calcio": 228,
+   "ferro": 2.14,
+   "potassio": 201,
+   "zinco": 1.49,
+   "vitamina_c": 0.1,
+   "vitamina_b2": 0.127,
+   "omega3": 0.003
+  }
+ },
+ {
+  "name": "Piadina",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
@@ -173,36 +327,36 @@
   "nutrients": {}
  },
  {
-  "name": "Piadina pronta",
+  "name": "Torta salata",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 365,
+   "fibre": 0.8,
+   "calcio": 267,
+   "ferro": 1,
+   "potassio": 117,
+   "zinco": 1.6,
+   "vitamina_c": 0.5,
+   "vitamina_b2": 0.274,
+   "omega3": 0.006
+  }
  },
  {
-  "name": "Torta salata pronta",
+  "name": "Polpette",
   "category": "pronto",
   "tags": [
-   "confezionato"
-  ],
-  "slots": [
-   "pranzo",
-   "cena"
-  ],
-  "default_count": 1,
-  "nutrients": {}
- },
- {
-  "name": "Polpette pronte",
-  "category": "pronto",
-  "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
@@ -224,7 +378,18 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 13.5,
+   "kcal": 217,
+   "fibre": 0.5,
+   "calcio": 21,
+   "ferro": 1.02,
+   "potassio": 203,
+   "zinco": 0.38,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.106,
+   "omega3": 0.099
+  }
  },
  {
   "name": "Panino",
@@ -237,20 +402,43 @@
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 12.9,
+   "kcal": 187,
+   "fibre": 1.2,
+   "calcio": 112,
+   "ferro": 2.02,
+   "potassio": 266,
+   "zinco": 1.19,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.253,
+   "omega3": 0.001
+  }
  },
  {
-  "name": "Insalatona pronta",
+  "name": "Insalatona",
   "category": "pronto",
   "tags": [
-   "confezionato"
+   "confezionato",
+   "gastronomia"
   ],
   "slots": [
    "pranzo",
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 1.31,
+   "kcal": 21,
+   "fibre": 1.4,
+   "calcio": 39,
+   "ferro": 0.46,
+   "potassio": 316,
+   "zinco": 0.3,
+   "vitamina_c": 11.7,
+   "vitamina_b2": 0.09,
+   "omega3": 0
+  }
  },
  {
   "name": "Hamburger",
@@ -264,7 +452,18 @@
    "cena"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 17.5,
+   "kcal": 288,
+   "fibre": 0.7,
+   "calcio": 66,
+   "ferro": 2.83,
+   "potassio": 229,
+   "zinco": 3.13,
+   "vitamina_c": 0.5,
+   "vitamina_b2": 0.225,
+   "omega3": 0.003
+  }
  },
  {
   "name": "Brioche confezionata",
@@ -277,7 +476,18 @@
    "spuntino_mattina"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 8.2,
+   "kcal": 406,
+   "fibre": 2.6,
+   "calcio": 37,
+   "ferro": 2.03,
+   "potassio": 118,
+   "zinco": 0.75,
+   "vitamina_c": 0.2,
+   "vitamina_b2": 0.241,
+   "omega3": 0.005
+  }
  },
  {
   "name": "Cornetto confezionato",
@@ -289,7 +499,18 @@
    "colazione"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 8.2,
+   "kcal": 406,
+   "fibre": 2.6,
+   "calcio": 37,
+   "ferro": 2.03,
+   "potassio": 118,
+   "zinco": 0.75,
+   "vitamina_c": 0.2,
+   "vitamina_b2": 0.241,
+   "omega3": 0.005
+  }
  },
  {
   "name": "Merendina confezionata",
@@ -302,7 +523,18 @@
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 5,
+   "kcal": 353,
+   "fibre": 0.6,
+   "calcio": 47,
+   "ferro": 1.48,
+   "potassio": 149,
+   "zinco": 0.43,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.249,
+   "omega3": 0.008
+  }
  },
  {
   "name": "Frutta frullata confezionata",
@@ -316,7 +548,18 @@
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 0.48,
+   "kcal": 50,
+   "fibre": 0.6,
+   "calcio": 10,
+   "ferro": 0.2,
+   "potassio": 201,
+   "zinco": 0.08,
+   "vitamina_c": 8.4,
+   "vitamina_b2": 0.057,
+   "omega3": 0
+  }
  },
  {
   "name": "Barretta ai cereali",
@@ -329,7 +572,18 @@
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
-  "nutrients": {}
+  "nutrients": {
+   "proteine": 10.1,
+   "kcal": 471,
+   "fibre": 5.3,
+   "calcio": 61,
+   "ferro": 2.95,
+   "potassio": 336,
+   "zinco": 2.03,
+   "vitamina_c": 0.9,
+   "vitamina_b2": 0.119,
+   "omega3": 0
+  }
  },
  {
   "name": "Budino confezionato",
@@ -341,6 +595,766 @@
    "spuntino_pomeriggio"
   ],
   "default_count": 1,
+  "nutrients": {
+   "proteine": 2.09,
+   "kcal": 142,
+   "fibre": 0,
+   "calcio": 51,
+   "ferro": 1.27,
+   "potassio": 184,
+   "zinco": 0.34,
+   "vitamina_c": 0.3,
+   "vitamina_b2": 0.072,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Sofficini",
+  "category": "pronto",
+  "tags": [
+   "surgelato"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 14.8,
+   "kcal": 325,
+   "fibre": 2,
+   "calcio": 334,
+   "ferro": 0.62,
+   "potassio": 108,
+   "zinco": 2.07,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.261,
+   "omega3": 0.004
+  }
+ },
+ {
+  "name": "Cotolette di pollo impanate",
+  "category": "pronto",
+  "tags": [
+   "surgelato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 20.6,
+   "kcal": 250,
+   "fibre": 0.3,
+   "calcio": 14,
+   "ferro": 0.94,
+   "potassio": 235,
+   "zinco": 0.75,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.178,
+   "omega3": 0.012
+  }
+ },
+ {
+  "name": "Sushi",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 2.92,
+   "kcal": 94,
+   "fibre": 1,
+   "calcio": 6,
+   "ferro": 0.21,
+   "potassio": 48,
+   "zinco": 0.38,
+   "vitamina_c": 0.9,
+   "vitamina_b2": 0.034,
+   "omega3": 0.006
+  }
+ },
+ {
+  "name": "Poke bowl",
+  "category": "pronto",
+  "tags": [
+   "confezionato"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
   "nutrients": {}
+ },
+ {
+  "name": "Insalata di riso",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pasta fredda",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 5.18,
+   "kcal": 215,
+   "fibre": 1.3,
+   "calcio": 12,
+   "ferro": 1.03,
+   "potassio": 56,
+   "zinco": 0.47,
+   "vitamina_c": 1.6,
+   "vitamina_b2": 0.143,
+   "omega3": 0.004
+  }
+ },
+ {
+  "name": "Pasta al pesto",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 5.86,
+   "kcal": 125,
+   "fibre": 1.6,
+   "calcio": 16,
+   "ferro": 1.19,
+   "potassio": 175,
+   "zinco": 0.9,
+   "vitamina_c": 0.8,
+   "vitamina_b2": 0.11,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Frittata",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Quiche",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 365,
+   "fibre": 0.8,
+   "calcio": 267,
+   "ferro": 1,
+   "potassio": 117,
+   "zinco": 1.6,
+   "vitamina_c": 0.5,
+   "vitamina_b2": 0.274,
+   "omega3": 0.006
+  }
+ },
+ {
+  "name": "Cannelloni",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 6.31,
+   "kcal": 157,
+   "fibre": 1.1,
+   "calcio": 99,
+   "ferro": 1.51,
+   "potassio": 225,
+   "zinco": 0.57,
+   "vitamina_c": 5.8,
+   "vitamina_b2": 0.239,
+   "omega3": 0.001
+  }
+ },
+ {
+  "name": "Vellutata",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 1.41,
+   "kcal": 78,
+   "fibre": 1.1,
+   "calcio": 19,
+   "ferro": 0.36,
+   "potassio": 170,
+   "zinco": 0.21,
+   "vitamina_c": 9,
+   "vitamina_b2": 0.062,
+   "omega3": 0.001
+  }
+ },
+ {
+  "name": "Passato di verdure",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 1.41,
+   "kcal": 78,
+   "fibre": 1.1,
+   "calcio": 19,
+   "ferro": 0.36,
+   "potassio": 170,
+   "zinco": 0.21,
+   "vitamina_c": 9,
+   "vitamina_b2": 0.062,
+   "omega3": 0.001
+  }
+ },
+ {
+  "name": "Crema di legumi",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 3.76,
+   "kcal": 67,
+   "fibre": 4,
+   "calcio": 20,
+   "ferro": 0.87,
+   "potassio": 197,
+   "zinco": 0.49,
+   "vitamina_c": 1.4,
+   "vitamina_b2": 0.036,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Zuppa di legumi",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 3.76,
+   "kcal": 67,
+   "fibre": 4,
+   "calcio": 20,
+   "ferro": 0.87,
+   "potassio": 197,
+   "zinco": 0.49,
+   "vitamina_c": 1.4,
+   "vitamina_b2": 0.036,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Tramezzino",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 12.9,
+   "kcal": 187,
+   "fibre": 1.2,
+   "calcio": 112,
+   "ferro": 2.02,
+   "potassio": 266,
+   "zinco": 1.19,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.253,
+   "omega3": 0.001
+  }
+ },
+ {
+  "name": "Focaccia",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_mattina"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 8.77,
+   "kcal": 249,
+   "fibre": 1.8,
+   "calcio": 35,
+   "ferro": 3.16,
+   "potassio": 114,
+   "zinco": 1.33,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.301,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Kebab",
+  "category": "pronto",
+  "tags": [
+   "solo_ricetta"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Tortine salate",
+  "category": "pronto",
+  "tags": [
+   "confezionato",
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 365,
+   "fibre": 0.8,
+   "calcio": 267,
+   "ferro": 1,
+   "potassio": 117,
+   "zinco": 1.6,
+   "vitamina_c": 0.5,
+   "vitamina_b2": 0.274,
+   "omega3": 0.006
+  }
+ },
+ {
+  "name": "Insalata di mare",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 10.1,
+   "kcal": 190,
+   "fibre": 0.4,
+   "calcio": 69,
+   "ferro": 0.54,
+   "potassio": 167,
+   "zinco": 1.74,
+   "vitamina_c": 4.2,
+   "vitamina_b2": 0.039,
+   "omega3": 0.155
+  }
+ },
+ {
+  "name": "Stinco di maiale",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Parmigiana di melanzane",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 7.02,
+   "kcal": 155,
+   "fibre": 1.9,
+   "calcio": 180,
+   "ferro": 0.72,
+   "potassio": 225,
+   "zinco": 1.02,
+   "vitamina_c": 2.6,
+   "vitamina_b2": 0.143,
+   "omega3": 0.002
+  }
+ },
+ {
+  "name": "Vitello tonnato",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Arrosto di tacchino",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 28.3,
+   "kcal": 169,
+   "fibre": 0,
+   "calcio": 12,
+   "ferro": 0.73,
+   "potassio": 247,
+   "zinco": 1.66,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.211,
+   "omega3": 0.01
+  }
+ },
+ {
+  "name": "Polpette al sugo",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Peperoni ripieni",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 9.2,
+   "kcal": 198,
+   "fibre": 0.7,
+   "calcio": 94,
+   "ferro": 0.79,
+   "potassio": 190,
+   "zinco": 1.96,
+   "vitamina_c": 48.2,
+   "vitamina_b2": 0.145,
+   "omega3": 0.001
+  }
+ },
+ {
+  "name": "Frittata di pasta",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Torta di verdure",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Spiedini di pollo",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Pollo allo spiedo",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 26.4,
+   "kcal": 175,
+   "fibre": 0,
+   "calcio": 16,
+   "ferro": 0.51,
+   "potassio": 276,
+   "zinco": 0.86,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.139,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Supplì",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 3.35,
+   "kcal": 154,
+   "fibre": 0.9,
+   "calcio": 31,
+   "ferro": 1.11,
+   "potassio": 130,
+   "zinco": 0.51,
+   "vitamina_c": 2.1,
+   "vitamina_b2": 0.071,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Arancini",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 3.84,
+   "kcal": 174,
+   "fibre": 1.1,
+   "calcio": 11,
+   "ferro": 0.46,
+   "potassio": 69,
+   "zinco": 0.69,
+   "vitamina_c": 3.8,
+   "vitamina_b2": 0.026,
+   "omega3": 0
+  }
+ },
+ {
+  "name": "Pizza al taglio",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "spuntino_pomeriggio"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 11.9,
+   "kcal": 263,
+   "fibre": 3,
+   "calcio": 228,
+   "ferro": 2.14,
+   "potassio": 201,
+   "zinco": 1.49,
+   "vitamina_c": 0.1,
+   "vitamina_b2": 0.127,
+   "omega3": 0.003
+  }
+ },
+ {
+  "name": "Insalata caprese",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 7.17,
+   "kcal": 139,
+   "fibre": 0.8,
+   "calcio": 203,
+   "ferro": 0.31,
+   "potassio": 182,
+   "zinco": 1.13,
+   "vitamina_c": 8.6,
+   "vitamina_b2": 0.113,
+   "omega3": 0.002
+  }
+ },
+ {
+  "name": "Insalata di pollo",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 13.8,
+   "kcal": 228,
+   "fibre": 0.4,
+   "calcio": 22,
+   "ferro": 0.53,
+   "potassio": 200,
+   "zinco": 0.89,
+   "vitamina_c": 0.7,
+   "vitamina_b2": 0.146,
+   "omega3": 0.004
+  }
+ },
+ {
+  "name": "Insalata di farro",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo"
+  ],
+  "default_count": 1,
+  "nutrients": {}
+ },
+ {
+  "name": "Cous cous di verdure",
+  "category": "pronto",
+  "tags": [
+   "gastronomia"
+  ],
+  "slots": [
+   "pranzo",
+   "cena"
+  ],
+  "default_count": 1,
+  "nutrients": {
+   "proteine": 3.77,
+   "kcal": 111,
+   "fibre": 1.4,
+   "calcio": 8,
+   "ferro": 0.38,
+   "potassio": 58,
+   "zinco": 0.26,
+   "vitamina_c": 0,
+   "vitamina_b2": 0.027,
+   "omega3": 0
+  }
  }
 ]

@@ -12,6 +12,7 @@ import {
 import { TabSectionList } from '../../components/TabScrollViews';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader, HeaderIconButton } from '../../components/ui/ScreenHeader';
 import { useFocusEffect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ShoppingItem } from '../../types/recipe';
@@ -28,6 +29,7 @@ import {
 import { listIngredients, getIngredientsCacheVersion } from '../../db/ingredientsDb';
 import { listReadyMeals } from '../../db/readyMealsDb';
 import { splitShoppingItemDisplay } from '../../utils/servingsScaler';
+import { scheduleIdle } from '../../utils/idle';
 import {
   SHOPPING_DEPARTMENTS,
   ShoppingDepartment,
@@ -59,6 +61,8 @@ interface DepartmentSection {
 interface CatalogSuggestion {
   name: string;
   kind: 'ingredient' | 'ready';
+  // Reparto in cui finirebbe l'aggiunta: stessa classificazione usata da addItemByName
+  department: ShoppingDepartment;
   unit: string;
   defaultAmount: number;
 }
@@ -167,13 +171,20 @@ export default function ShoppingScreen() {
       byName.set(ingredient.name, {
         name: ingredient.name,
         kind: 'ingredient',
+        department: classifyShoppingDepartment(ingredient.name),
         // Suggerimento per la lista della spesa: quantità e unità da comprare, con ripiego sulla porzione
         unit: toSelectableUnit(ingredient.purchase_unit || ingredient.default_unit),
         defaultAmount: ingredient.purchase_amount ?? 1,
       });
     }
     for (const meal of readyMeals) {
-      if (!byName.has(meal.name)) byName.set(meal.name, { name: meal.name, kind: 'ready', unit: 'confezione', defaultAmount: 1 });
+      if (!byName.has(meal.name)) byName.set(meal.name, {
+        name: meal.name,
+        kind: 'ready',
+        department: classifyShoppingDepartment(meal.name),
+        unit: 'confezione',
+        defaultAmount: 1,
+      });
     }
     setCatalog([...byName.values()].sort((a, b) => a.name.localeCompare(b.name, 'it')));
     catalogKeyRef.current = { version, readyKey };
@@ -197,7 +208,7 @@ export default function ShoppingScreen() {
       consolidatedRef.current = true;
       // Il consolidamento parte in idle, dopo la transizione della tab (InteractionManager è rimosso in RN 0.88).
       // Nessun cancel: il consolidamento non si perde se si lascia la schermata subito
-      requestIdleCallback(() => {
+      scheduleIdle(() => {
         loadItems(true);
       });
     }, [loadItems])
@@ -232,34 +243,37 @@ export default function ShoppingScreen() {
     return map;
   }, [items]);
 
-  // Raggruppamento per i 15 reparti del supermercato
-  const groupedSections: DepartmentSection[] = useMemo(() => {
+  // Raggruppamento per i 15 reparti: liste per reparto calcolate (e ordinate) solo quando cambiano gli articoli;
+  // collassare o espandere un reparto non ricalcola né riordina nulla (vedi groupedSections)
+  const itemsByDept = useMemo(() => {
     const map = new Map<ShoppingDepartment, ShoppingItem[]>();
-    for (const d of SHOPPING_DEPARTMENTS) {
-      map.set(d, []);
-    }
-
     for (const item of items) {
       const dept = (
         SHOPPING_DEPARTMENTS.includes(item.category as any)
           ? item.category
           : classifyShoppingDepartment(item.name || item.ingredient_text)
       ) as ShoppingDepartment;
-
-      map.get(dept)?.push({ ...item, category: dept });
+      const entry = item.category === dept ? item : { ...item, category: dept };
+      const list = map.get(dept);
+      if (list) list.push(entry);
+      else map.set(dept, [entry]);
     }
+    for (const deptItems of map.values()) {
+      // Ordinamento alfabetico all'interno di ogni categoria
+      deptItems.sort((a, b) => {
+        const nameA = displayById.get(a.id)?.displayName ?? a.name;
+        const nameB = displayById.get(b.id)?.displayName ?? b.name;
+        return nameA.localeCompare(nameB, 'it', { sensitivity: 'base' });
+      });
+    }
+    return map;
+  }, [items, displayById]);
 
+  const groupedSections: DepartmentSection[] = useMemo(() => {
     const sections: DepartmentSection[] = [];
     for (const dept of SHOPPING_DEPARTMENTS) {
-      const deptItems = map.get(dept) || [];
-      if (deptItems.length > 0) {
-        // Ordinamento alfabetico all'interno di ogni categoria
-        deptItems.sort((a, b) => {
-          const nameA = displayById.get(a.id)?.displayName ?? a.name;
-          const nameB = displayById.get(b.id)?.displayName ?? b.name;
-          return nameA.localeCompare(nameB, 'it', { sensitivity: 'base' });
-        });
-
+      const deptItems = itemsByDept.get(dept);
+      if (deptItems && deptItems.length > 0) {
         const checked = deptItems.filter(i => i.checked).length;
         sections.push({
           department: dept,
@@ -271,7 +285,7 @@ export default function ShoppingScreen() {
       }
     }
     return sections;
-  }, [items, collapsedDepts, displayById]);
+  }, [itemsByDept, collapsedDepts]);
 
   // Sezioni filtrate in base alla pillola selezionata
   const displayedSections = useMemo(() => {
@@ -484,68 +498,51 @@ export default function ShoppingScreen() {
       <View style={styles.mainWrapper}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="cart" size={22} color={colors.primaryText} />
-            </View>
-            <View style={styles.titleTextContainer}>
-              <Text style={styles.title} numberOfLines={1}>{t('shopping.title')}</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {items.length === 0
-                  ? t('shopping.emptySubtitle')
-                  : t('shopping.subtitleDetails', {
-                      completed: completedCount,
-                      total: items.length,
-                      departments: activeDepartmentsCount,
-                      deptWord: activeDepartmentsCount === 1 ? t('shopping.department') : t('shopping.departments'),
-                    })}
-              </Text>
-            </View>
+          <ScreenHeader
+            icon="cart"
+            title={t('shopping.title')}
+            subtitle={items.length === 0
+              ? t('shopping.emptySubtitle')
+              : t('shopping.subtitleDetails', {
+                  completed: completedCount,
+                  total: items.length,
+                  departments: activeDepartmentsCount,
+                  deptWord: activeDepartmentsCount === 1 ? t('shopping.department') : t('shopping.departments'),
+                })}
+            actions={
+              <>
+                <HeaderIconButton
+                  icon="calendar-outline"
+                  onPress={() => setShowPlanModal(true)}
+                  accessibilityLabel={t('shopping.syncWeekPlan')}
+                />
 
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.headerActionBtn}
-                onPress={() => setShowPlanModal(true)}
-                activeOpacity={0.7}
-                accessibilityLabel={t('shopping.syncWeekPlan')}
-              >
-                <Ionicons name="calendar-outline" size={17} color={colors.primaryText} />
-              </TouchableOpacity>
+                {items.length > 0 && (
+                  <>
+                    <HeaderIconButton
+                      icon="share-outline"
+                      onPress={handleShare}
+                      accessibilityLabel={t('recipeDetail.share')}
+                    />
 
-              {items.length > 0 && (
-                <>
-                  <TouchableOpacity
-                    style={styles.headerActionBtn}
-                    onPress={handleShare}
-                    activeOpacity={0.7}
-                    accessibilityLabel={t('recipeDetail.share')}
-                  >
-                    <Ionicons name="share-outline" size={17} color={colors.primaryText} />
-                  </TouchableOpacity>
+                    {completedCount > 0 && (
+                      <HeaderIconButton
+                        icon="checkmark-done-outline"
+                        onPress={requestClearCompleted}
+                        accessibilityLabel={t('shopping.removeCompleted')}
+                      />
+                    )}
 
-                  {completedCount > 0 && (
-                    <TouchableOpacity
-                      style={[styles.headerActionBtn, styles.headerActionBtnCompleted]}
-                      onPress={requestClearCompleted}
-                      activeOpacity={0.7}
-                      accessibilityLabel={t('shopping.removeCompleted')}
-                    >
-                      <Ionicons name="checkmark-done-outline" size={18} color={colors.primaryText} />
-                    </TouchableOpacity>
-                  )}
-
-                  <TouchableOpacity
-                    style={[styles.headerActionBtn, { borderColor: colors.border }]}
-                    onPress={requestClearAll}
-                    activeOpacity={0.7}
-                    accessibilityLabel={t('shopping.clearAll')}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
+                    <HeaderIconButton
+                      icon="trash-outline"
+                      onPress={requestClearAll}
+                      accessibilityLabel={t('shopping.clearAll')}
+                    />
+                  </>
+                )}
+              </>
+            }
+          />
 
           {/* Quick manual item adder */}
           <View style={styles.inputContainer}>
@@ -585,7 +582,7 @@ export default function ShoppingScreen() {
                     accessibilityLabel={entry.name}
                   >
                     <Ionicons
-                      name={entry.kind === 'ready' ? 'restaurant-outline' : 'nutrition-outline'}
+                      name={(DEPARTMENT_ICONS[entry.department] as any) || 'basket-outline'}
                       size={16}
                       color={colors.textMuted}
                     />
@@ -995,64 +992,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
     paddingBottom: 8,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  titleTextContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 0,
-  },
-  headerActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.03,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  headerActionBtnCompleted: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.borderStrong,
   },
   inputContainer: {
     backgroundColor: colors.surface,
@@ -1065,6 +1005,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
     marginBottom: 8,
+    // Allineato al testo del titolo di ScreenHeader
+    marginHorizontal: 16,
   },
   inputRow: {
     flexDirection: 'row',
@@ -1143,6 +1085,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '600',
   },
   filterPillsContainer: {
+    paddingHorizontal: 16,
     paddingVertical: 6,
     gap: 6,
   },

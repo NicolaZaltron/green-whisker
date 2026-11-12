@@ -121,6 +121,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const [query, setQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<IngredientType | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<ReadyMealCategory | null>(null);
+  const [readyTagFilter, setReadyTagFilter] = useState<string | null>(null);
 
   // Editor: null = elenco, 'new' = nuovo elemento, altrimenti elemento esistente
   const [ingEditing, setIngEditing] = useState<Ingredient | 'new' | null>(null);
@@ -164,14 +165,23 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     );
   }, [ingredients, query, typeFilter]);
 
+  // Tag dei pronti: quelli di INGREDIENT_TAGS nel loro ordine, poi quelli specifici dei pronti
+  const readyTags = useMemo(() => {
+    const present = new Set(readyMeals.flatMap(meal => meal.tags));
+    const known = INGREDIENT_TAGS.filter(tag => present.has(tag));
+    const extra = [...present].filter(tag => !(INGREDIENT_TAGS as readonly string[]).includes(tag)).sort();
+    return [...known, ...extra];
+  }, [readyMeals]);
+
   const filteredReady = useMemo(() => {
     const q = query.trim().toLowerCase();
     return readyMeals.filter(
       item =>
         (categoryFilter === null || item.category === categoryFilter) &&
+        (readyTagFilter === null || (item.tags as string[]).includes(readyTagFilter)) &&
         (q === '' || item.name.toLowerCase().includes(q)),
     );
-  }, [readyMeals, query, categoryFilter]);
+  }, [readyMeals, query, categoryFilter, readyTagFilter]);
 
   const resetEditors = () => {
     setUnitMenu(null);
@@ -249,6 +259,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         purchase_unit: ingForm.purchaseUnit.trim(),
         density_g_per_ml: parseNumber(ingForm.density),
         nutrients,
+        aliases: [],
       });
       await reload();
       setIngEditing(null);
@@ -682,6 +693,11 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
               {READY_MEAL_CATEGORIES.map(category =>
                 renderChip(category, t(`ingredients.category.${category}`), categoryFilter === category, () =>
                   setCategoryFilter(category),
+                ),
+              )}
+              {readyTags.map(tag =>
+                renderChip(`tag-${tag}`, formatTagLabel(tag, t), readyTagFilter === tag, () =>
+                  setReadyTagFilter(readyTagFilter === tag ? null : tag),
                 ),
               )}
             </ScrollView>

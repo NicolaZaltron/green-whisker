@@ -18,43 +18,67 @@ const { matchCatalogName } = require(path.join(outDir, 'catalogNameMatch.js'));
 let passed = 0;
 const check = (label, fn) => { fn(); passed++; console.log('ok  ', label); };
 
+// Helper: convert simple name arrays to {name} entries
+const toEntries = (names) => names.map(n => ({name: n}));
+
 check('quantita e unita rimosse, match su Mandorle', () => {
-  assert.deepEqual(matchCatalogName('200 g di Mandorle', ['Mandorle', 'Uova']), { name: 'Mandorle', matched: true });
+  assert.deepEqual(matchCatalogName('200 g di Mandorle', toEntries(['Mandorle', 'Uova'])), { name: 'Mandorle', matched: true });
 });
 
 check('parentesi rimosse, match su Uova', () => {
-  assert.deepEqual(matchCatalogName('Uova (2 medie)', ['Uova', 'Mandorle']), { name: 'Uova', matched: true });
+  assert.deepEqual(matchCatalogName('Uova (2 medie)', toEntries(['Uova', 'Mandorle'])), { name: 'Uova', matched: true });
 });
 
 check('sinonimo Pomodori pelati -> Pomodori pelati in scatola', () => {
   assert.deepEqual(
-    matchCatalogName('Pomodori pelati', ['Pomodori pelati in scatola', 'Uova']),
+    matchCatalogName('Pomodori pelati', toEntries(['Pomodori pelati in scatola', 'Uova'])),
     { name: 'Pomodori pelati in scatola', matched: true }
   );
 });
 
 check('plurale/singolare e d\' -> di', () => {
-  assert.deepEqual(matchCatalogName("3 cucchiai d'Olio di oliva", ['Olio di oliva']), { name: 'Olio di oliva', matched: true });
+  assert.deepEqual(matchCatalogName("3 cucchiai d'Olio di oliva", toEntries(['Olio di oliva'])), { name: 'Olio di oliva', matched: true });
 });
 
 check('Avena -> Fiocchi di avena', () => {
-  assert.deepEqual(matchCatalogName('Avena', ['Fiocchi di avena']), { name: 'Fiocchi di avena', matched: true });
+  assert.deepEqual(matchCatalogName('Avena', toEntries(['Fiocchi di avena'])), { name: 'Fiocchi di avena', matched: true });
 });
 
 check('q.b. rimosso', () => {
-  assert.deepEqual(matchCatalogName('q.b. di Sale', ['Sale']), { name: 'Sale', matched: true });
+  assert.deepEqual(matchCatalogName('q.b. di Sale', toEntries(['Sale'])), { name: 'Sale', matched: true });
 });
 
 check('Quinoa tricolore non in catalogo: nome invariato, matched false', () => {
-  assert.deepEqual(matchCatalogName('Quinoa tricolore', ['Mandorle', 'Uova']), { name: 'Quinoa tricolore', matched: false });
+  assert.deepEqual(matchCatalogName('Quinoa tricolore', toEntries(['Mandorle', 'Uova'])), { name: 'Quinoa tricolore', matched: false });
 });
 
-check('nome vuoto: matched false', () => {
-  assert.deepEqual(matchCatalogName('', ['Mandorle']), { name: '', matched: false });
+// Test matching via aliases (nuovo: gli alias sono indicizzati per il matching)
+check('match tramite alias: "orange" -> "Arancia"', () => {
+  const entries = [
+    {name: 'Arancia', aliases: ['arancia', 'arance', 'orange', 'oranges']},
+    {name: 'Uova', aliases: ['uova', 'egg', 'eggs']},
+  ];
+  assert.deepEqual(matchCatalogName('orange', entries), { name: 'Arancia', matched: true });
 });
 
-check('catalogo vuoto: nome invariato, matched false', () => {
-  assert.deepEqual(matchCatalogName('Uova', []), { name: 'Uova', matched: false });
+check('match tramite alias: "egg" -> "Uova"', () => {
+  const entries = [
+    {name: 'Arancia', aliases: ['arancia', 'arance', 'orange', 'oranges']},
+    {name: 'Uova', aliases: ['uova', 'egg', 'eggs']},
+  ];
+  assert.deepEqual(matchCatalogName('egg', entries), { name: 'Uova', matched: true });
+});
+
+check('match tramite alias: "oranges" (plurale) -> "Arancia"', () => {
+  const entries = [
+    {name: 'Arancia', aliases: ['arancia', 'arance', 'orange', 'oranges']},
+  ];
+  assert.deepEqual(matchCatalogName('oranges', entries), { name: 'Arancia', matched: true });
+});
+
+check('senza alias: comportamento identico a prima', () => {
+  assert.deepEqual(matchCatalogName('Sale', toEntries(['Sale'])), { name: 'Sale', matched: true });
+  assert.deepEqual(matchCatalogName('Quinoa', toEntries(['Sale'])), { name: 'Quinoa', matched: false });
 });
 
 console.log(`\n${passed} test passati`);

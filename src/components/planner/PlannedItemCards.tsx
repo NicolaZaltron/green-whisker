@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,6 +13,7 @@ import type { Palette } from '../../theme/palette';
 import type { Recipe, MealPlanEntry } from '../../types/recipe';
 import type { Ingredient, ReadyMeal } from '../../types/catalog';
 import { unitLabel } from '../../constants/simpleTags';
+import { ingredientDisplayName } from '../../utils/ingredientNames';
 
 // Voce pianificata con i dati già risolti (ricetta, ingrediente, piatto pronto)
 export interface DayMealItem {
@@ -27,14 +28,19 @@ export function isVisiblePlannedItem({ entry, recipe }: DayMealItem): boolean {
   return recipe !== null || entry.kind === 'ingredient' || entry.kind === 'ready' || entry.kind === 'out' || !!entry.ingredient_id || !!entry.ready_meal_id;
 }
 
-// Nome della voce: titolo ricetta, nome ingrediente, nome piatto pronto o etichetta fuori casa
-export function plannedItemLabel({ entry, recipe, ingredient, ready }: DayMealItem): string | null {
+// Nome della voce: titolo ricetta, nome ingrediente tradotto, nome piatto pronto o etichetta fuori casa
+export function plannedItemLabel(
+  { entry, recipe, ingredient, ready }: DayMealItem,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string | null {
   if (recipe) return recipe.title;
-  return ingredient?.name ?? ready?.name ?? (entry.kind === 'out' ? entry.label ?? null : null);
+  if (ingredient) return ingredientDisplayName(ingredient, t);
+  return ready?.name ?? (entry.kind === 'out' ? entry.label ?? null : null);
 }
 
 // Scheda di una voce pianificata: ricetta (MealRow) oppure ingrediente, piatto pronto o fuori casa (FoodRow)
-export function PlannedItemCard({
+// onDelete e onView ricevono dal figlio id/ricetta: il padre passa funzioni stabili e la memo funziona
+export const PlannedItemCard = React.memo(function PlannedItemCard({
   item,
   color,
   onView,
@@ -43,17 +49,23 @@ export function PlannedItemCard({
   item: DayMealItem;
   color: string;
   onView?: (recipe: Recipe) => void;
-  onDelete: () => void;
+  onDelete: (entryId: string) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { entry, recipe, ready } = item;
+  const entryId = entry.id;
+
+  const handleDelete = useCallback(() => onDelete(entryId), [onDelete, entryId]);
+  const handleView = useCallback(() => {
+    if (recipe && onView) onView(recipe);
+  }, [onView, recipe]);
 
   if (!recipe) {
     return (
       <FoodRow
-        name={plannedItemLabel(item)}
+        name={plannedItemLabel(item, t)}
         meta={
           entry.kind === 'ready'
             ? `${entry.count ?? 1} ×`
@@ -65,7 +77,7 @@ export function PlannedItemCard({
             : ''
         }
         categoryColor={color}
-        onDelete={onDelete}
+        onDelete={handleDelete}
       />
     );
   }
@@ -81,11 +93,11 @@ export function PlannedItemCard({
       }
       placeholderIcon="restaurant-outline"
       placeholderColor={colors.textMuted}
-      onView={onView ? () => onView(recipe) : undefined}
-      onDelete={onDelete}
+      onView={onView ? handleView : undefined}
+      onDelete={handleDelete}
     />
   );
-}
+});
 
 // Riga di un ingrediente o piatto pronto pianificato
 export function FoodRow({
@@ -148,7 +160,14 @@ export function MealRow({
   return (
     <View style={styles.mealCard}>
       {recipe.image ? (
-        <Image source={{ uri: recipe.image }} style={styles.mealImage} contentFit="cover" cachePolicy="disk" />
+        <Image
+          source={{ uri: recipe.image }}
+          style={[styles.mealImage, styles.mealImagePlaceholder]}
+          contentFit="cover"
+          cachePolicy="disk"
+          recyclingKey={recipe.id}
+          transition={0}
+        />
       ) : (
         <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
           <Ionicons name={placeholderIcon} size={24} color={placeholderColor} />

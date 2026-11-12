@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -28,6 +28,7 @@ import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits'
 import { getSortedPickerRecipes, uniquePickerRecipes } from '../../services/pickerRecipes';
 import { SLOT_COLORS, type MealSlot } from '../../services/plannerService';
 import { PlannedItemCard, plannedItemLabel, type DayMealItem } from './PlannedItemCards';
+import { ingredientDisplayName } from '../../utils/ingredientNames';
 
 export interface MealPickerModalProps {
   visible: boolean;
@@ -69,6 +70,9 @@ type PickerRow =
   | { kind: 'ready'; key: string; meal: ReadyMeal }
   | { kind: 'out'; key: string; label: string };
 
+// Funzione stabile per FlatList: una nuova a ogni render farebbe ricalcolare le chiavi
+const keyExtractor = (row: PickerRow) => row.key;
+
 /**
  * Modal unico per aggiungere un pasto a uno slot del planner:
  * ricette, ingredienti crudi (con quantità), prodotti pronti (con numero di porzioni) e pasti fuori casa.
@@ -90,6 +94,8 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   onClose,
 }) => {
   const { t, i18n } = useTranslation();
+  // Collator della lingua dell'app: ordinamenti alfabetici coerenti con quella mostrata, creato una volta per lingua
+  const collator = useMemo(() => new Intl.Collator(i18n.language, { sensitivity: 'base' }), [i18n.language]);
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   // Colore dello slot, come nelle schede del planner
@@ -98,9 +104,13 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
 
   const [tab, setTab] = useState<MealTab>('all');
   const [query, setQuery] = useState('');
+  // Il campo di testo usa query (immediata); le liste usano deferredQuery, così la digitazione non aspetta il filtro
+  const deferredQuery = useDeferredValue(query);
   const [tagFilter, setTagFilter] = useState<TagFilter>(null);
   // Scheda Ricette: di default solo quelle compatibili con lo slot, "Tutte" le mostra tutte
   const [showAllRecipes, setShowAllRecipes] = useState(false);
+  // Scheda Pronti: stesso comportamento; di default solo quelli previsti per lo slot
+  const [showAllReady, setShowAllReady] = useState(false);
   const [pending, setPending] = useState<PendingItem | null>(null);
   const [amountText, setAmountText] = useState('');
   const [unitText, setUnitText] = useState('');
@@ -191,16 +201,16 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   // con ricerca: preferite prima tra i match
   const sortedRecipes = useMemo(() => {
     if (!listReady) return [];
-    const q = query.toLowerCase().trim();
-    if (!q) return getSortedPickerRecipes(allRecipes, favoriteIds);
+    const q = deferredQuery.toLowerCase().trim();
+    if (!q) return getSortedPickerRecipes(allRecipes, favoriteIds, collator);
     const matched = uniquePickerRecipes(allRecipes).filter(r => r.title.toLowerCase().includes(q));
     return matched.sort((a, b) => {
       const favA = favoriteIds.has(a.id);
       const favB = favoriteIds.has(b.id);
       if (favA !== favB) return favA ? -1 : 1;
-      return a.title.localeCompare(b.title);
+      return collator.compare(a.title, b.title);
     });
-  }, [allRecipes, query, favoriteIds, listReady]);
+  }, [allRecipes, deferredQuery, favoriteIds, listReady, collator]);
 
   // Solo il filtro per slot (scheda Ricette, "Suggerite"); il filtro preserva l'ordine di sortedRecipes
   const visibleRecipes = useMemo(
@@ -224,42 +234,42 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
 
   const ingredientList = useMemo(() => {
     if (!listReady) return [];
-    const q = query.toLowerCase().trim();
+    const q = deferredQuery.toLowerCase().trim();
     return edibleIngredients
       .filter(i => (!tagFilter || i.tags.some(tag => tag === tagFilter)))
       .filter(i => !q || i.name.toLowerCase().includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [edibleIngredients, query, tagFilter, listReady]);
+      .sort((a, b) => collator.compare(a.name, b.name));
+  }, [edibleIngredients, deferredQuery, tagFilter, listReady, collator]);
 
-  // Pronti: solo quelli previsti per questo slot
+  // Pronti: di default solo quelli previsti per questo slot, "Tutti" li mostra tutti
   const slotReadyMeals = useMemo(
-    () => readyMeals.filter(m => m.slots.includes(targetSlot)),
-    [readyMeals, targetSlot]
+    () => (showAllReady ? readyMeals : readyMeals.filter(m => m.slots.includes(targetSlot))),
+    [readyMeals, targetSlot, showAllReady]
   );
 
   const readyTagOptions = useMemo(() => {
     const set = new Set<string>();
     slotReadyMeals.forEach(m => (m.tags as string[]).forEach(tag => set.add(tag)));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [slotReadyMeals]);
+    return Array.from(set).sort((a, b) => collator.compare(a, b));
+  }, [slotReadyMeals, collator]);
 
   const readyList = useMemo(() => {
     if (!listReady) return [];
-    const q = query.toLowerCase().trim();
+    const q = deferredQuery.toLowerCase().trim();
     return slotReadyMeals
       .filter(m => !tagFilter || (m.tags as string[]).includes(tagFilter))
       .filter(m => !q || m.name.toLowerCase().includes(q))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [slotReadyMeals, query, tagFilter, listReady]);
+      .sort((a, b) => collator.compare(a.name, b.name));
+  }, [slotReadyMeals, deferredQuery, tagFilter, listReady, collator]);
 
   const tagOptions: string[] =
     tab === 'ingredients' ? ingredientTagOptions : tab === 'ready' ? readyTagOptions : [];
 
   // Fuori casa: opzioni fisse, scollegate da ingredienti, lista della spesa e pronti
   const outOfHomeList = useMemo(() => {
-    const q = query.toLowerCase().trim();
+    const q = deferredQuery.toLowerCase().trim();
     return OUT_OF_HOME_OPTIONS.filter(option => !q || option.toLowerCase().includes(q));
-  }, [query]);
+  }, [deferredQuery]);
 
   const rows = useMemo<PickerRow[]>(() => {
     if (!listReady) return [];
@@ -281,25 +291,26 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     if (tab === 'out') return outRows();
     if (tab === 'ready') return readyRows();
     // Tutti con ricerca: ordinamento per pertinenza (inizio query prima, poi contenuti)
-    if (query.trim()) {
+    if (deferredQuery.trim()) {
       const allRows = [...recipeRows(), ...ingredientRows(), ...readyRows(), ...outRows()];
       return rankPickerMatches(
         allRows.map(row => ({
           kind: row.kind,
           label: row.kind === 'recipe' ? row.recipe.title
-            : row.kind === 'ingredient' ? row.ingredient.name
+            : row.kind === 'ingredient' ? ingredientDisplayName(row.ingredient, t)
             : row.kind === 'ready' ? row.meal.name
             : row.label,
           id: row.kind === 'recipe' ? row.recipe.id : undefined,
           value: row,
         })),
-        query,
-        favoriteIds
+        deferredQuery,
+        favoriteIds,
+        collator
       ).map(item => item.value);
     }
     // Tutti: ricette, ingredienti, pronti, fuori casa
     return [...recipeRows(), ...ingredientRows(), ...readyRows(), ...outRows()];
-  }, [tab, query, visibleRecipes, ingredientList, readyList, outOfHomeList, favoriteIds, listReady]);
+  }, [tab, deferredQuery, visibleRecipes, ingredientList, readyList, outOfHomeList, favoriteIds, listReady, t, collator]);
 
   const handleSelectRecipe = useCallback((recipe: Recipe) => {
     finishAdd(recipe.title);
@@ -324,6 +335,11 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setCountText('1');
   }, []);
 
+  // Eliminazione di una voce già pianificata: handler stabile, la scheda riceve l'id dal figlio
+  const handleDeletePlanned = useCallback((entryId: string) => {
+    onDeletePlanned?.(entryId);
+  }, [onDeletePlanned]);
+
   const handleCancelPending = () => {
     setPending(null);
   };
@@ -335,7 +351,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
       const amount = amountText.trim() === '' || Number.isNaN(parsed) ? null : parsed;
       const unit = unitText.trim();
       const ingredient = pending.ingredient;
-      finishAdd(ingredient.name);
+      finishAdd(ingredientDisplayName(ingredient, t));
       onSelectIngredient(ingredient, amount, unit);
       return;
     }
@@ -359,7 +375,14 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           activeOpacity={0.7}
         >
           {recipe.image ? (
-            <Image source={{ uri: recipe.image }} style={styles.recipeThumb} contentFit="cover" cachePolicy="disk" />
+            <Image
+              source={{ uri: recipe.image }}
+              style={[styles.recipeThumb, { backgroundColor: colors.surfaceMuted }]}
+              contentFit="cover"
+              cachePolicy="disk"
+              recyclingKey={recipe.id}
+              transition={0}
+            />
           ) : (
             <View style={[styles.recipeThumb, styles.recipeThumbPlaceholder]}>
               <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
@@ -406,7 +429,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           activeOpacity={0.7}
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.pickerItemTitle} numberOfLines={2}>{ingredient.name}</Text>
+            <Text style={styles.pickerItemTitle} numberOfLines={2}>{ingredientDisplayName(ingredient, t)}</Text>
             <Text style={styles.pickerItemMeta} numberOfLines={1}>
               {t(`mealPicker.type.${ingredient.type}`)}
               {quantity ? ` • ${quantity}` : ''}
@@ -455,7 +478,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
 
   const pendingName = pending
     ? pending.kind === 'ingredient'
-      ? pending.ingredient.name
+      ? ingredientDisplayName(pending.ingredient, t)
       : pending.meal.name
     : '';
 
@@ -492,7 +515,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
                   <PlannedItemCard
                     item={item}
                     color={slotAccent}
-                    onDelete={() => onDeletePlanned?.(item.entry.id)}
+                    onDelete={handleDeletePlanned}
                   />
                 </View>
               ))}
@@ -533,7 +556,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           onChangeText={setQuery}
         />
 
-        {tab === 'recipes' && (
+        {(tab === 'recipes' || tab === 'ready') && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -542,16 +565,17 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
             keyboardShouldPersistTaps="handled"
           >
             {([false, true] as const).map(all => {
-              const active = showAllRecipes === all;
+              const showAll = tab === 'recipes' ? showAllRecipes : showAllReady;
+              const active = showAll === all;
               return (
                 <TouchableOpacity
                   key={all ? 'all' : 'slot'}
                   style={[styles.pickerFilterChip, active && styles.pickerFilterChipActive]}
-                  onPress={() => setShowAllRecipes(all)}
+                  onPress={() => (tab === 'recipes' ? setShowAllRecipes : setShowAllReady)(all)}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.pickerFilterChipText, active && styles.pickerFilterChipTextActive]}>
-                    {all ? t('mealPicker.allRecipes') : t('mealPicker.suggestedForMeal')}
+                    {all ? t(tab === 'recipes' ? 'mealPicker.allRecipes' : 'mealPicker.allReady') : t(tab === 'recipes' ? 'mealPicker.suggestedRecipesForMeal' : 'mealPicker.suggestedReadyForMeal')}
                   </Text>
                 </TouchableOpacity>
               );
@@ -664,10 +688,10 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
         {listReady ? (
           <FlatList
             data={rows}
-            keyExtractor={row => row.key}
+            keyExtractor={keyExtractor}
             contentContainerStyle={{ padding: 16 }}
             keyboardShouldPersistTaps="handled"
-            initialNumToRender={10}
+            initialNumToRender={12}
             maxToRenderPerBatch={12}
             windowSize={5}
             removeClippedSubviews
@@ -700,7 +724,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
                 <ScrollView style={styles.alertList} showsVerticalScrollIndicator={false}>
                   {plannedForSlot.map(item => (
                     <Text key={item.entry.id} style={styles.alertListItem} numberOfLines={1}>
-                      {plannedItemLabel(item) ?? t('simpleItems.missing')}
+                      {plannedItemLabel(item, t) ?? t('simpleItems.missing')}
                     </Text>
                   ))}
                 </ScrollView>

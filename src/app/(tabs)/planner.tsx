@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toLocalDateString } from '../../utils/dates';
+import { scheduleIdle } from '../../utils/idle';
 import {
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { TabScrollView } from '../../components/TabScrollViews';
+import { ScreenHeader, HeaderIconButton } from '../../components/ui/ScreenHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -26,7 +28,7 @@ import {
 import { listIngredients } from '../../db/ingredientsDb';
 import { listReadyMeals } from '../../db/readyMealsDb';
 import {
-  getWeekDays,
+  getPlannerDays,
   checkAndAutoGeneratePlan,
   manualGeneratePlan,
   getPlannerPreferences,
@@ -48,21 +50,39 @@ import { useCatalogVersion } from '../../hooks/useCatalog';
 import { useFavorites } from '../../context/FavoritesContext';
 
 
-// Stesso contenuto nello stesso ordine: se uguale si tiene il riferimento precedente, quindi nessun nuovo render
-function sameContent<T>(prev: T[], next: T[]): boolean {
+// Stesse voci nello stesso ordine con gli stessi campi (MealPlanEntry ha solo valori primitivi):
+// se uguale si tiene il riferimento precedente, quindi nessun nuovo render
+function sameEntries(prev: MealPlanEntry[], next: MealPlanEntry[]): boolean {
   if (prev.length !== next.length) return false;
-  return JSON.stringify(prev) === JSON.stringify(next);
+  for (let i = 0; i < prev.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (a === b) continue;
+    const keys = Object.keys(a) as (keyof MealPlanEntry)[];
+    if (keys.length !== Object.keys(b).length) return false;
+    for (const k of keys) {
+      if (a[k] !== b[k]) return false;
+    }
+  }
+  return true;
 }
 
 export default function PlannerScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors, isDark } = useTheme();
   const { favoriteIds } = useFavorites();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [weekOffset, setWeekOffset] = useState(0);
-  const weekResult = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
+  const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
+  // Modalità calendario dalle preferenze ('week' finché non sono caricate)
+  const calendarMode = prefs?.calendarMode ?? 'week';
+  const weekResult = useMemo(
+    () => getPlannerDays(calendarMode, weekOffset, i18n.language.startsWith('en') ? 'en' : 'it'),
+    [calendarMode, weekOffset, i18n.language],
+  );
   const weekDays = weekResult.days;
-  const weekLabel = weekResult.weekLabel;
+  // In settimana è l'etichetta di sempre; in modalità rolling è l'intervallo di date
+  const weekLabel = weekResult.label;
 
   const catalogVersion = useCatalogVersion();
   // Copia nuova a ogni modifica del catalogo, così il selettore si aggiorna
@@ -79,7 +99,6 @@ export default function PlannerScreen() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showConfirmRegen, setShowConfirmRegen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
 
   // Recipe Picker Modal State
@@ -94,11 +113,26 @@ export default function PlannerScreen() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Solo i piani: ingredienti e piatti pronti hanno un effetto dedicato (vedi sotto)
+  // Solo la settimana visibile (anche sfogliando settimane precedenti o successive)
+  const rangeFrom = weekDays[0]?.dateString;
+  const rangeTo = weekDays[weekDays.length - 1]?.dateString;
   const loadPlans = useCallback(async () => {
-    const list = await getMealPlans();
-    setPlans(prev => (sameContent(prev, list) ? prev : list));
+    const list = await getMealPlans(rangeFrom && rangeTo ? { fromDate: rangeFrom, toDate: rangeTo } : undefined);
+    setPlans(prev => (sameEntries(prev, list) ? prev : list));
     return list;
-  }, []);
+  }, [rangeFrom, rangeTo]);
+  const loadPlansRef = useRef(loadPlans);
+  useEffect(() => { loadPlansRef.current = loadPlans; }, [loadPlans]);
+
+  // Cambio settimana o modalità calendario: si ricarica solo l'intervallo nuovo
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const list = await getMealPlans(rangeFrom && rangeTo ? { fromDate: rangeFrom, toDate: rangeTo } : undefined);
+      if (active) setPlans(prev => (sameEntries(prev, list) ? prev : list));
+    })();
+    return () => { active = false; };
+  }, [rangeFrom, rangeTo]);
 
   // Toast flottante in basso (sopra la tab bar): un nuovo messaggio sostituisce il precedente e resetta il timer
   const showToast = useCallback((msg: string) => {
@@ -126,8 +160,9 @@ export default function PlannerScreen() {
     (async () => {
       const [ings, meals] = await Promise.all([listIngredients(), listReadyMeals()]);
       if (!active) return;
-      setIngredients(prev => (sameContent(prev, ings) ? prev : ings));
-      setReadyMeals(prev => (sameContent(prev, meals) ? prev : meals));
+      // Caricati solo al mount o al cambio del catalogo: il riferimento nuovo basta
+      setIngredients(ings);
+      setReadyMeals(meals);
     })();
     return () => { active = false; };
   }, [catalogVersion]);
@@ -136,26 +171,26 @@ export default function PlannerScreen() {
     useCallback(() => {
       let active = true;
       // Dopo la transizione della tab (InteractionManager è stato rimosso da RN 0.88), così non blocca l'animazione
-      const idle = requestIdleCallback(() => {
+      const cancelIdle = scheduleIdle(() => {
         (async () => {
-          const [list, p] = await Promise.all([
-            loadPlans(),
+          const [, p] = await Promise.all([
+            loadPlansRef.current(),
             getPlannerPreferences(),
           ]);
           if (!active) return;
           setPrefs(p);
 
-          // Auto-generate on Monday
-          const result = await checkAndAutoGeneratePlan(list);
+          // Auto-generate on Monday (legge il piano da sé solo se serve)
+          const result = await checkAndAutoGeneratePlan();
           if (result.generated && active) {
-            await loadPlans();
+            await loadPlansRef.current();
             showToast(t('planner.autoBanner', { count: result.entriesCount }));
           }
         })();
       });
       return () => {
         active = false;
-        cancelIdleCallback(idle);
+        cancelIdle();
       };
     }, [])
   );
@@ -267,7 +302,7 @@ export default function PlannerScreen() {
   const handleManualGenerate = async (overwrite: boolean = false, scope: 'day' | 'week' = 'week') => {
     setIsGenerating(true);
     setShowConfirmRegen(false);
-    const count = await manualGeneratePlan(plans, overwrite, scope, selectedDate);
+    const count = await manualGeneratePlan(overwrite, scope, selectedDate);
     await loadPlans();
     setIsGenerating(false);
     if (count > 0) {
@@ -318,26 +353,18 @@ export default function PlannerScreen() {
 
         {/* ─── Header ─── */}
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="calendar" size={20} color={colors.primaryText} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{t('planner.title')}</Text>
-              <Text style={styles.subtitle}>{weekLabel}</Text>
-            </View>
-
-            {/* Header actions */}
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.prefsBtn}
+          <ScreenHeader
+            icon="calendar"
+            title={t('planner.title')}
+            subtitle={weekLabel}
+            actions={
+              <HeaderIconButton
+                icon="options"
                 onPress={() => setShowPrefsModal(true)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="options" size={18} color={colors.primaryText} />
-              </TouchableOpacity>
-            </View>
-          </View>
+                accessibilityLabel={t('planner.preferencesModal.title')}
+              />
+            }
+          />
 
           {/* Progress bar */}
           <View style={styles.progressRow}>
@@ -408,7 +435,8 @@ export default function PlannerScreen() {
         </View>
 
         {/* ─── Day Content ─── */}
-        <TabScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Giorno e pulsanti fissi in alto: scorrono solo gli slot dei pasti */}
+        <View style={styles.dayHeaderFixed}>
           <View style={styles.dayHeader}>
             <View>
               <Text style={styles.dayHeading}>
@@ -453,7 +481,9 @@ export default function PlannerScreen() {
             </View>
           )}
           </View>
+        </View>
 
+        <TabScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Tutti e 4 gli slot del giorno in ordine canonico */}
           {SLOT_ORDER.map(slot => {
             const slotColors = SLOT_COLORS[slot];
@@ -628,7 +658,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
                 item={item}
                 color={color}
                 onView={onView}
-                onDelete={() => onDelete(item.entry.id)}
+                onDelete={onDelete}
               />
             </View>
           ))}
@@ -655,21 +685,9 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mainWrapper: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
 
-  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBadge: {
-    width: 38, height: 38, borderRadius: 12,
-    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
-  },
-  title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 12, fontWeight: '500', color: colors.textSecondary },
-  headerActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-  prefsBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
-  },
+  header: { paddingBottom: 8 },
 
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, marginHorizontal: 16 },
   progressBar: {
     flex: 1, height: 4, borderRadius: 2,
     backgroundColor: colors.primarySoft, overflow: 'hidden',
@@ -716,6 +734,9 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   mealDotSelected: { backgroundColor: colors.onPrimary },
 
   scrollContent: { flex: 1, paddingHorizontal: 20 },
+  dayHeaderFixed: {
+    paddingHorizontal: 20,
+  },
   dayHeader: {
     marginTop: 12, marginBottom: 14,
     flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',

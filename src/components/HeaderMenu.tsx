@@ -42,7 +42,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
         activeOpacity={0.8}
         accessibilityLabel={t('menu.open')}
       >
-        <MaterialCommunityIcons name="chef-hat" size={20} color={colors.primaryText} />
+        <MaterialCommunityIcons name="chef-hat" size={22} color={colors.text} />
       </TouchableOpacity>
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -137,12 +137,16 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   menuBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    // Stessa ombra di HeaderIconButton (ScreenHeader): il bordo visivo degli altri pulsanti dell'intestazione
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   backdrop: { flex: 1, backgroundColor: colors.overlay },
   popup: {

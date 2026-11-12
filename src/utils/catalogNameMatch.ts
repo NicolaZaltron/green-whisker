@@ -51,17 +51,32 @@ const SYNONYM_KEYS = new Map<string, string>(
 
 // Restituisce il nome del catalogo se il nome corrisponde (dopo normalizzazione o sinonimo),
 // altrimenti il nome originale con matched false. Il nome non viene mai scartato.
-export function matchCatalogName(name: string, catalogNames: string[]): CatalogNameMatch {
+// Se catalogEntries contiene aliases, anche quelli vengono indicizzati per il matching.
+export function matchCatalogName(
+  name: string,
+  catalogEntries: readonly { name: string; aliases?: readonly string[] }[],
+): CatalogNameMatch {
   const original = typeof name === 'string' ? name : '';
   const key = normalizeIngredientName(original);
-  if (!key || !Array.isArray(catalogNames) || catalogNames.length === 0) {
+  if (!key || catalogEntries.length === 0) {
     return { name: original, matched: false };
   }
 
   const index = new Map<string, string>();
-  for (const catalogName of catalogNames) {
-    const catalogKey = normalizeIngredientName(catalogName);
-    if (catalogKey && !index.has(catalogKey)) index.set(catalogKey, catalogName);
+  for (const entry of catalogEntries) {
+    const catalogKey = normalizeIngredientName(entry.name);
+    if (catalogKey && !index.has(catalogKey)) {
+      index.set(catalogKey, entry.name);
+    }
+    // Aggiungi anche gli aliases all'indice: normalizzali come i nomi del catalogo
+    if (Array.isArray(entry.aliases)) {
+      for (const alias of entry.aliases) {
+        const aliasKey = normalizeIngredientName(alias);
+        if (aliasKey && !index.has(aliasKey)) {
+          index.set(aliasKey, entry.name);
+        }
+      }
+    }
   }
 
   const direct = index.get(key);

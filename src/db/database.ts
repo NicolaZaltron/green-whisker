@@ -719,17 +719,21 @@ export async function clearAllShoppingItems(): Promise<void> {
 }
 
 // --- MEAL PLANNER ---
-export async function getMealPlans(): Promise<MealPlanEntry[]> {
+export async function getMealPlans(range?: { fromDate: string; toDate: string }): Promise<MealPlanEntry[]> {
   if (isWebFallback || !dbInstance) {
-    return getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    const all = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
+    return range ? all.filter(p => p.date >= range.fromDate && p.date <= range.toDate) : all;
   }
 
   try {
-    const rows = await dbInstance.getAllAsync(`
-      SELECT id, date, slot, kind, recipe_id, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at 
-      FROM meal_plan 
-      ORDER BY date ASC, slot ASC
-    `);
+    // Con intervallo: solo le date richieste (usa idx_meal_plan_date); senza, lettura completa
+    const rows = await dbInstance.getAllAsync(
+      `SELECT id, date, slot, kind, recipe_id, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at
+      FROM meal_plan
+      ${range ? 'WHERE date BETWEEN ? AND ?' : ''}
+      ORDER BY date ASC, slot ASC`,
+      range ? [range.fromDate, range.toDate] : [],
+    );
     return rows as MealPlanEntry[];
   } catch (e) {
     console.error('getMealPlans error', e);

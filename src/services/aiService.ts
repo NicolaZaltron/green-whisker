@@ -4,7 +4,7 @@ import { SHOPPING_UNITS } from '../constants/shoppingUnits';
 import { loadAISettings } from './settingsService';
 import { ingredientItemFromText } from '../utils/servingsScaler';
 import { matchCatalogName } from '../utils/catalogNameMatch';
-import { buildRecipeRequestPayload, namesFromSeed } from './recipePayload';
+import { buildRecipeRequestPayload, namesFromSeed, namesAndAliasesFromSeed } from './recipePayload';
 import SEED_INGREDIENTS from '../data/ingredients.seed.json';
 import i18n from '../i18n';
 
@@ -458,16 +458,16 @@ export interface ParseRecipeInput {
   diet?: ExtractMode;
   // True quando si adatta una ricetta esistente a una dieta
   adapt?: boolean;
-  // Nomi del catalogo per allineare gli ingredienti; vuoto = nessun allineamento
-  catalogNames?: string[];
+  // Nomi e alias del catalogo per allineare gli ingredienti; vuoto = nessun allineamento
+  catalogNames?: readonly {name: string; aliases?: readonly string[]}[];
 }
 
-// Nomi di prodotto dal seed, costruiti una sola volta. Restano sul dispositivo: servono al controllo locale.
-let seedNamesCache: string[] | null = null;
+// Nomi e alias di prodotto dal seed, costruiti una sola volta. Restano sul dispositivo: servono al controllo locale.
+let seedNamesCache: {name: string; aliases?: readonly string[]}[] | null = null;
 
-export function seedCatalogNames(): string[] {
+export function seedCatalogNames(): {name: string; aliases?: readonly string[]}[] {
   if (!seedNamesCache) {
-    seedNamesCache = namesFromSeed(SEED_INGREDIENTS);
+    seedNamesCache = namesAndAliasesFromSeed(SEED_INGREDIENTS);
   }
   return seedNamesCache;
 }
@@ -766,7 +766,10 @@ interface StructuredIngredients {
 }
 
 // Ingredienti come oggetti {section, amount, unit, name}; null se assenti (formato vecchio: stringhe)
-function parseStructuredIngredients(raw: unknown, catalogNames: string[]): StructuredIngredients | null {
+function parseStructuredIngredients(
+  raw: unknown,
+  catalogEntries: readonly {name: string; aliases?: readonly string[] }[],
+): StructuredIngredients | null {
   if (!Array.isArray(raw)) return null;
   const items = raw.filter((i: any) => typeof i?.name === 'string' && i.name.trim() !== '');
   if (items.length === 0) return null;
@@ -775,7 +778,7 @@ function parseStructuredIngredients(raw: unknown, catalogNames: string[]): Struc
     const amount: number | null = typeof i.amount === 'number' && Number.isFinite(i.amount) ? i.amount : null;
     const rawUnit = typeof i.unit === 'string' ? i.unit.trim().toLowerCase() : '';
     const unit = amount !== null && rawUnit !== 'q.b.' && INGREDIENT_UNITS.includes(rawUnit) ? rawUnit : '';
-    const match = matchCatalogName(i.name.trim(), catalogNames);
+    const match = matchCatalogName(i.name.trim(), catalogEntries);
     const section = typeof i.section === 'string' && i.section.trim() ? i.section.trim() : 'Principale';
     const text = amount === null
       ? `q.b. di ${match.name}`
@@ -796,7 +799,7 @@ function parseStructuredIngredients(raw: unknown, catalogNames: string[]): Struc
   return { flat: detailed.map(d => d.text), bySection, detailed };
 }
 
-function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogNames: string[] = []): Recipe {
+function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEntries: readonly {name: string; aliases?: readonly string[]}[] = []): Recipe {
   let parsed: any;
   try {
     const cleaned = rawContent.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
@@ -877,7 +880,7 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogNa
     : legacyFlat.map((t: string) => ingredientItemFromText(t));
 
   // Formato attuale: oggetti {section, amount, unit, name} con allineamento al catalogo
-  const structured = parseStructuredIngredients(parsed.detailed_ingredients || parsed.ingredienti_dettagliati, catalogNames);
+  const structured = parseStructuredIngredients(parsed.detailed_ingredients || parsed.ingredienti_dettagliati, catalogEntries);
 
   const recipe: Recipe & { substitutions?: { from: string; to: string }[] } = {
     id: safeId,

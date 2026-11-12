@@ -61,6 +61,17 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
     await savePlannerPreferences({ autoGenerateOnMonday: !prefs.autoGenerateOnMonday });
   };
 
+  const handleSetCalendarMode = async (mode: 'week' | 'rolling') => {
+    const updated = { ...prefs, calendarMode: mode };
+    onUpdatePrefs(updated);
+    await savePlannerPreferences({ calendarMode: mode });
+  };
+
+  const calendarOptions: { value: 'week' | 'rolling'; label: string }[] = [
+    { value: 'week', label: t('planner.calendar.week') },
+    { value: 'rolling', label: t('planner.calendar.rolling') },
+  ];
+
   return (
     <Modal
       visible={visible}
@@ -139,6 +150,27 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
             >
               <View style={[styles.toggleThumb, prefs.autoGenerateOnMonday && styles.toggleThumbOn]} />
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.prefSection}>
+            <Text style={styles.prefLabel}>{t('planner.calendar.title')}</Text>
+            <View style={styles.pillRow}>
+              {calendarOptions.map(option => {
+                const selected = prefs.calendarMode === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[styles.pill, selected && styles.pillSelected]}
+                    onPress={() => handleSetCalendarMode(option.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -235,5 +267,36 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   toggleThumbOn: {
     alignSelf: 'flex-end',
+  },
+  prefSection: {
+    paddingVertical: 16,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pillRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pill: {
+    flex: 1,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    borderRadius: 999,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  pillSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pillText: {
+    color: colors.primaryText,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  pillTextSelected: {
+    color: colors.onPrimary,
   },
 });

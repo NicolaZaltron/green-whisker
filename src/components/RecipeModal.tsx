@@ -1,5 +1,5 @@
 import { SheetModal } from './SheetModal';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -10,11 +10,10 @@ import {
   Linking,
   StatusBar,
   Platform,
-  Animated,
   ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Recipe, IngredientItem } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
@@ -24,7 +23,7 @@ import {
   saveRecipeNote
 } from '../db/database';
 import { useFavoritesSafe } from '../context/FavoritesContext';
-import { getWeekDays, MealSlot } from '../services/plannerService';
+import { getPlannerDays, getPlannerPreferences, MealSlot } from '../services/plannerService';
 import { VariantDiet, availableVariantDiets } from '../services/catalogFormat';
 import { classifyDiet } from '../utils/dietClassifier';
 import { scaleIngredient, getScalableIngredients, splitShoppingItemDisplay } from '../utils/servingsScaler';
@@ -80,10 +79,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   // Tutto ciò che segue (ingredienti, planner, spesa, condivisione, note) usa la versione attiva
   const recipe = activeVariant ?? baseRecipe;
   const missingDiets = baseRecipe ? availableVariantDiets(baseRecipe, variants) : [];
-  // L'originale è già di quella dieta, o più restrittiva (una vegana è anche vegetariana)
-  const originalDiet = baseRecipe ? (baseRecipe.diet ?? classifyDiet(baseRecipe)) : 'omnivore';
-  const originalSatisfies = (diet: VariantDiet) =>
-    diet === 'vegetarian' ? originalDiet !== 'omnivore' : originalDiet === 'vegan';
   const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
@@ -95,15 +90,16 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
 
   // Native driver scroll value for smooth 60fps title fade without JS re-renders
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const titleOpacity = scrollY.interpolate({
-    inputRange: [20, 60],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
 
   // Sharing & Personal Notes State
   const [showShareModal, setShowShareModal] = useState(false);
+  // Menu "..." con rigenera ed elimina per la variante attiva
+  const [variantMenuOpen, setVariantMenuOpen] = useState(false);
+  // Variante mancante toccata: prima della generazione si chiede conferma
+  const [pendingVariantDiet, setPendingVariantDiet] = useState<VariantDiet | null>(null);
+  const originalDiet = baseRecipe ? (baseRecipe.diet ?? classifyDiet(baseRecipe)) : 'omnivore';
+  const originalDietName = originalDiet === 'vegan' || originalDiet === 'vegetarian' ? t(VERSION_LABELS[originalDiet]).toLowerCase() : null;
+  const originalLabel = originalDietName ? `${t('recipeDetail.versionOriginal')} (${originalDietName})` : t('recipeDetail.versionOriginal');
   const [showJson, setShowJson] = useState(false);
   const [jsonCopied, setJsonCopied] = useState(false);
   const [includeNotesInShare, setIncludeNotesInShare] = useState(true);
@@ -111,10 +107,22 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const [savedNoteStatus, setSavedNoteStatus] = useState<string | null>(null);
   const [isEditingNote, setIsEditingNote] = useState(false);
 
-  const { days: weekDays } = getWeekDays();
+  // Giorni del picker "pianifica": modalità calendario salvata, 'week' finché non è caricata (non blocca la modale)
+  const [calendarMode, setCalendarMode] = useState<'week' | 'rolling'>('week');
+  const weekDays = useMemo(() => getPlannerDays(calendarMode, 0).days, [calendarMode]);
   const [selectedDate, setSelectedDate] = useState<string>(
     () => weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || ''
   );
+
+  // Carica la modalità all'apertura. Oggi è sempre nei giorni di entrambe le modalità (offset 0).
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    getPlannerPreferences().then(p => {
+      if (active) setCalendarMode(p.calendarMode);
+    });
+    return () => { active = false; };
+  }, [visible]);
 
   // Reset & load favorite status and personal notes
   useEffect(() => {
@@ -127,7 +135,6 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       setShowShareModal(false);
       setIsEditingNote(false);
       setSavedNoteStatus(null);
-      scrollY.setValue(0);
 
       const todayStr = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || '';
       setSelectedDate(todayStr);
@@ -302,154 +309,172 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     secMap[sec].push(item);
   });
 
+  // Il JSON si apre dal menu di condivisione: prima si chiude quel pannello, così due modali non si sovrappongono
+  const handleShowJson = () => {
+    setShowShareModal(false);
+    setJsonCopied(false);
+    setTimeout(() => setShowJson(true), 300);
+  };
+
+  // Chiudi e preferiti accanto al nome, sempre disponibili anche scorrendo
+  const closeButton = (
+    <TouchableOpacity
+      style={styles.headerIconBtn}
+      onPress={onClose}
+      activeOpacity={0.8}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityLabel={t('recipeDetail.closeRecipe')}
+    >
+      <Ionicons name="close" size={20} color={colors.text} />
+    </TouchableOpacity>
+  );
+
+  const favoriteButton = (
+    <TouchableOpacity
+      style={styles.headerIconBtn}
+      onPress={handleToggleFavorite}
+      activeOpacity={0.8}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityLabel={t('recipeDetail.favorites')}
+    >
+      <Ionicons
+        name={favorite ? 'heart' : 'heart-outline'}
+        size={18}
+        color={favorite ? colors.danger : colors.primaryText}
+      />
+    </TouchableOpacity>
+  );
+
   return (
     <SheetModal visible={visible} onClose={onClose} fullScreen>
       <View style={styles.safeArea}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
-          {/* Dynamic Sticky Top Navigation Bar */}
-          <View style={styles.topNav}>
-            <TouchableOpacity
-              style={styles.navBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-              accessibilityLabel={t('recipeDetail.closeRecipe')}
-            >
-              <Ionicons name="close" size={22} color={colors.text} />
-            </TouchableOpacity>
-
-            <Animated.Text
-              style={[
-                styles.topNavTitle,
-                { opacity: titleOpacity }
-              ]}
-              numberOfLines={1}
-            >
-              {recipe.title}
-            </Animated.Text>
-
-            <View style={styles.navActions}>
-              <TouchableOpacity
-                style={[styles.navBtn, { marginRight: 8 }]}
-                onPress={() => {
-                  setJsonCopied(false);
-                  setShowJson(true);
-                }}
-                activeOpacity={0.7}
-                accessibilityLabel={t('recipeDetail.showRecipeJson')}
-              >
-                <Ionicons name="code-slash-outline" size={19} color={colors.primaryText} />
-              </TouchableOpacity>
-              {onEdit && (
-                <TouchableOpacity
-                  style={styles.navBtn}
-                  onPress={() => onEdit(recipe)}
-                  activeOpacity={0.7}
-                  accessibilityLabel={t('recipeDetail.edit')}
-                >
-                  <Ionicons name="create-outline" size={19} color={colors.primaryText} />
-                </TouchableOpacity>
-              )}
-              <TouchableOpacity
-                style={[styles.navBtn, onEdit && { marginLeft: 8 }]}
-                onPress={() => setShowShareModal(true)}
-                activeOpacity={0.7}
-                accessibilityLabel={t('recipeDetail.shareRecipe')}
-              >
-                <Ionicons name="share-social-outline" size={19} color={colors.primaryText} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.navBtn, { marginLeft: 8 }]}
-                onPress={handleToggleFavorite}
-                activeOpacity={0.7}
-                accessibilityLabel={t('recipeDetail.favorites')}
-              >
-                <Ionicons
-                  name={favorite ? 'heart' : 'heart-outline'}
-                  size={20}
-                  color={favorite ? colors.danger : colors.primaryText}
-                />
-              </TouchableOpacity>
-              {hasExternalLink && (
-                <TouchableOpacity
-                  style={[styles.navBtn, { marginLeft: 8 }]}
-                  onPress={() => Linking.openURL(recipe.url)}
-                  activeOpacity={0.7}
-                  accessibilityLabel={t('recipeDetail.openOnWeb')}
-                >
-                  <Ionicons name="open-outline" size={19} color={colors.primaryText} />
-                </TouchableOpacity>
-              )}
-            </View>
+          {/* Nome della ricetta sopra la foto, sempre visibile */}
+          <View style={styles.recipeHeader}>
+            {closeButton}
+            <Text style={styles.recipeHeaderTitle} numberOfLines={2}>{recipe.title}</Text>
+            {favoriteButton}
           </View>
 
-          {/* Schede delle versioni: appaiono quando la ricetta ha varianti o se ne possono generare */}
+          {/* Selettore versioni: originale, varianti esistenti e quelle ancora da generare (tratteggiate) */}
           {recipe && baseRecipe && (variants.length > 0 || missingDiets.length > 0) && (
             <View style={styles.versionBar}>
-              <View style={styles.versionTabs}>
-                {(['original', ...variants.map(v => v.diet as VariantDiet)] as const).map(value => {
-                  const active = value === version;
-                  const label = value === 'original' ? t('recipeDetail.versionOriginal') : t(VERSION_LABELS[value as VariantDiet]);
-                  return (
-                    <TouchableOpacity
-                      key={value}
-                      style={[styles.versionTab, active && styles.versionTabActive]}
-                      onPress={() => setVersionChoice({ baseId: baseRecipe.id, version: value })}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.versionTabText, active && styles.versionTabTextActive]}>{label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              {version === 'original' ? (
-                // Entrambi i pulsanti sempre visibili: disabilitati se la variante esiste già (o non serve)
-                <View style={styles.generateRow}>
-                  {(['vegetarian', 'vegan'] as const).map(diet => {
-                    const available = missingDiets.includes(diet);
-                    const disabled = !available || !!generatingDiet;
-                    const isGenerating = generatingDiet === diet;
-                    // Già presente: come variante, oppure perché l'originale è già di quella dieta (o più restrittiva)
-                    const exists = variants.some(v => v.diet === diet) || originalSatisfies(diet);
+              <View style={styles.versionRow}>
+                <View style={styles.versionTabs}>
+                  {(['original', ...variants.map(v => v.diet as VariantDiet)] as const).map(value => {
+                    const active = value === version;
+                    const label = value === 'original' ? originalLabel : t(VERSION_LABELS[value as VariantDiet]);
                     return (
                       <TouchableOpacity
-                        key={diet}
-                        style={[styles.generateBtn, disabled && styles.versionActionBtnDisabled]}
-                        onPress={() => onGenerateVariant?.(baseRecipe, diet)}
-                        disabled={disabled}
-                        activeOpacity={0.8}
-                        accessibilityState={{ busy: isGenerating, disabled }}
+                        key={value}
+                        style={[styles.versionTab, active && styles.versionTabActive]}
+                        onPress={() => setVersionChoice({ baseId: baseRecipe.id, version: value })}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.versionTabText, active && styles.versionTabTextActive]} numberOfLines={1}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {missingDiets.map(diet => {
+                    const isGenerating = generatingDiet === diet;
+                    return (
+                      <TouchableOpacity
+                        key={`missing-${diet}`}
+                        style={[styles.versionTab, styles.versionTabMissing]}
+                        onPress={() => setPendingVariantDiet(diet)}
+                        disabled={!!generatingDiet}
+                        activeOpacity={0.85}
+                        accessibilityState={{ busy: isGenerating, disabled: !!generatingDiet }}
                       >
                         {isGenerating ? (
                           <ActivityIndicator size="small" color={colors.primaryText} />
                         ) : (
-                          <Ionicons name={exists ? 'checkmark-circle' : 'sparkles-outline'} size={14} color={colors.primaryText} />
+                          <Ionicons name="sparkles-outline" size={12} color={colors.primaryText} />
                         )}
-                        <Text style={styles.versionActionText} numberOfLines={1}>
-                          {isGenerating
-                            ? t('recipeDetail.generating')
-                            : exists
-                              ? (diet === 'vegan' ? t('recipeDetail.veganExists') : t('recipeDetail.vegetarianExists'))
-                              : diet === 'vegan' ? t('recipeDetail.makeVegan') : t('recipeDetail.makeVegetarian')}
+                        <Text style={[styles.versionTabText, styles.versionTabMissingText]} numberOfLines={1}>
+                          {isGenerating ? t('recipeDetail.generating') : t(VERSION_LABELS[diet])}
                         </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
-              ) : activeVariant ? (
-                <View style={styles.generateRow}>
-                  <TouchableOpacity style={styles.generateBtn} onPress={() => onRegenerateVariant?.(activeVariant)} activeOpacity={0.8}>
-                    <Ionicons name="refresh" size={14} color={colors.primaryText} />
-                    <Text style={styles.versionActionText} numberOfLines={1}>{t('recipeDetail.regenerateVariant')}</Text>
+                {activeVariant && (
+                  <TouchableOpacity
+                    style={styles.versionMenuBtn}
+                    onPress={() => setVariantMenuOpen(true)}
+                    activeOpacity={0.8}
+                    accessibilityLabel={t('recipeDetail.variantActions')}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.primaryText} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.generateBtn} onPress={() => onDeleteVariant?.(activeVariant)} activeOpacity={0.8}>
-                    <Ionicons name="trash-outline" size={14} color={colors.danger} />
-                    <Text style={[styles.versionActionText, { color: colors.danger }]} numberOfLines={1}>{t('recipeDetail.deleteVariant')}</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Conferma prima di generare una variante: resta in aggiunta alla ricetta originale */}
+          <Modal visible={pendingVariantDiet !== null} animationType="fade" transparent onRequestClose={() => setPendingVariantDiet(null)}>
+            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPendingVariantDiet(null)}>
+              <View style={styles.confirmSheet} onStartShouldSetResponder={() => true}>
+                <Text style={styles.confirmTitle}>
+                  {pendingVariantDiet ? t('recipeDetail.confirmVariantTitle', { diet: t(VERSION_LABELS[pendingVariantDiet]) }) : ''}
+                </Text>
+                <Text style={styles.confirmBody}>{t('recipeDetail.confirmVariantBody')}</Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity
+                    style={[styles.confirmBtn, styles.confirmBtnSecondary]}
+                    onPress={() => setPendingVariantDiet(null)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.confirmBtnTextSecondary}>{t('common.close')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.confirmBtn, styles.confirmBtnPrimary]}
+                    onPress={() => {
+                      const diet = pendingVariantDiet;
+                      setPendingVariantDiet(null);
+                      if (diet && baseRecipe) onGenerateVariant?.(baseRecipe, diet);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.confirmBtnTextPrimary}>{t('recipeDetail.generateVariantAction')}</Text>
                   </TouchableOpacity>
                 </View>
-              ) : null}
-            </View>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Azioni sulla variante attiva: rigenera ed elimina */}
+          {activeVariant && (
+            <Modal visible={variantMenuOpen} animationType="fade" transparent onRequestClose={() => setVariantMenuOpen(false)}>
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVariantMenuOpen(false)}>
+                <View style={styles.variantMenu} onStartShouldSetResponder={() => true}>
+                  <TouchableOpacity
+                    style={styles.variantMenuItem}
+                    onPress={() => {
+                      setVariantMenuOpen(false);
+                      onRegenerateVariant?.(activeVariant);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh" size={18} color={colors.primaryText} />
+                    <Text style={styles.variantMenuText}>{t('recipeDetail.regenerateVariant')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.variantMenuItem}
+                    onPress={() => {
+                      setVariantMenuOpen(false);
+                      onDeleteVariant?.(activeVariant);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    <Text style={[styles.variantMenuText, { color: colors.danger }]}>{t('recipeDetail.deleteVariant')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            </Modal>
           )}
 
           {/* Feedback Toast */}
@@ -460,15 +485,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             </View>
           )}
 
-          <Animated.ScrollView
+          <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-              { useNativeDriver: true }
-            )}
-            scrollEventThrottle={16}
           >
             {/* Main Image with expo-image */}
             {recipe.image ? (
@@ -495,7 +515,12 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
             {/* Content Body */}
             <View style={styles.content}>
-              <View style={styles.badgeRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.badgeScroll}
+                contentContainerStyle={styles.badgeRow}
+              >
                 <View style={styles.categoryBadge}>
                   <Text style={styles.categoryBadgeText}>
                     {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
@@ -512,9 +537,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   <Ionicons name="speedometer-outline" size={12} color="#D97757" style={{ marginRight: 3 }} />
                   <Text style={styles.diffBadgeText}>{recipe.difficulty}</Text>
                 </View>
-              </View>
-
-              <Text style={styles.title}>{recipe.title}</Text>
+              </ScrollView>
 
               {/* Quick Metrics Bar */}
               <View style={styles.metricsBar}>
@@ -708,32 +731,25 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 </View>
               )}
 
-
-              {/* Tags */}
-              <View style={styles.tagsContainer}>
-                {recipe.tags.map((t, idx) => (
-                  <View key={idx} style={styles.tagPill}>
-                    <Text style={styles.tagPillText}>#{t}</Text>
-                  </View>
-                ))}
-              </View>
+              {recipe.tags.length > 0 && (
+                <View style={styles.tagsContainer}>
+                  {recipe.tags.map((tag, idx) => (
+                    <View key={idx} style={styles.tagPill}>
+                      <Text style={styles.tagPillText}>#{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <View style={{ height: 20 }} />
             </View>
-          </Animated.ScrollView>
+          </ScrollView>
 
           {/* Sticky Meal Plan Drawer (pops up when showPlanPicker is open) */}
           {showPlanPicker && (
             <View style={styles.stickyPlanDrawer}>
               <View style={styles.planDrawerHeader}>
                 <Text style={styles.planDrawerTitle}>{t('recipeDetail.choosePlanTime')}</Text>
-                <TouchableOpacity
-                  onPress={() => setShowPlanPicker(false)}
-                  style={styles.planDrawerCloseBtn}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
               </View>
 
               <View style={styles.slotToggleRow}>
@@ -775,7 +791,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.daysScroll}>
+              <View style={styles.daysRow}>
                 {weekDays.map(d => {
                   const isSelected = selectedDate === d.dateString;
                   return (
@@ -810,43 +826,82 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           )}
 
-          {/* Sticky Persistent Action Bar */}
+          {/* Barra in basso: pianifica (con la X accanto alla conferma) e sotto le azioni secondarie */}
           <View style={styles.stickyActionBar}>
-            <TouchableOpacity
-              style={styles.stickyPlanBtnPrimary}
-              onPress={() => {
-                if (showPlanPicker) {
-                  handleScheduleMeal(selectedDate || (weekDays.find(d => d.isToday)?.dateString || weekDays[0].dateString));
-                } else {
-                  setShowPlanPicker(true);
-                }
-              }}
-              activeOpacity={0.88}
-            >
-              <MaterialCommunityIcons
-                name="chef-hat"
-                size={20}
-                color={colors.onPrimary}
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.stickyPlanBtnText}>
-                {showPlanPicker
-                  ? t('recipeDetail.confirmInPlan', { day: selectedDayLabel, slot: selectedSlotLabel })
-                  : t('recipeDetail.addToPlan', { servings: currentServings })}
-              </Text>
-              {!showPlanPicker && (
-                <Ionicons
-                  name="chevron-up"
-                  size={18}
-                  color={colors.onPrimary}
-                  style={{ marginLeft: 6 }}
-                />
+            <View style={styles.stickyPlanRow}>
+              <TouchableOpacity
+                style={styles.stickyPlanBtnPrimary}
+                onPress={() => {
+                  if (showPlanPicker) {
+                    handleScheduleMeal(selectedDate || (weekDays.find(d => d.isToday)?.dateString || weekDays[0].dateString));
+                  } else {
+                    setShowPlanPicker(true);
+                  }
+                }}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.stickyPlanBtnText}>
+                  {showPlanPicker
+                    ? t('recipeDetail.confirmInPlan', { day: selectedDayLabel, slot: selectedSlotLabel })
+                    : t('recipeDetail.addToPlan', { servings: currentServings })}
+                </Text>
+                {!showPlanPicker && (
+                  <Ionicons
+                    name="chevron-up"
+                    size={18}
+                    color={colors.onPrimary}
+                    style={{ marginLeft: 6 }}
+                  />
+                )}
+              </TouchableOpacity>
+              {showPlanPicker && (
+                <TouchableOpacity
+                  style={styles.stickyCloseBtn}
+                  onPress={() => setShowPlanPicker(false)}
+                  activeOpacity={0.7}
+                  accessibilityLabel={t('common.close')}
+                >
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
+            <View style={styles.stickyToolsRow}>
+              {onEdit && (
+                <TouchableOpacity
+                  style={styles.stickySecondaryBtn}
+                  onPress={() => onEdit(recipe)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={t('recipeDetail.edit')}
+                >
+                  <Ionicons name="create-outline" size={18} color={colors.primaryText} />
+                  <Text style={styles.stickySecondaryText}>{t('recipeDetail.edit')}</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.stickySecondaryBtn}
+                onPress={() => setShowShareModal(true)}
+                activeOpacity={0.8}
+                accessibilityLabel={t('recipeDetail.shareRecipe')}
+              >
+                <Ionicons name="share-social-outline" size={18} color={colors.primaryText} />
+                <Text style={styles.stickySecondaryText}>{t('recipeDetail.shareRecipe')}</Text>
+              </TouchableOpacity>
+              {hasExternalLink && (
+                <TouchableOpacity
+                  style={styles.stickySecondaryBtn}
+                  onPress={() => Linking.openURL(recipe.url)}
+                  activeOpacity={0.8}
+                  accessibilityLabel={t('recipeDetail.openOnWeb')}
+                >
+                  <Ionicons name="open-outline" size={18} color={colors.primaryText} />
+                  <Text style={styles.stickySecondaryText}>{t('recipeDetail.openOnWeb')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
 
@@ -991,6 +1046,22 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={(isDark ? '#90A4AE' : '#607D8B')} />
                 </TouchableOpacity>
+
+                {/* Visualizza JSON */}
+                <TouchableOpacity
+                  style={[styles.shareOption, styles.shareOptionNative]}
+                  onPress={handleShowJson}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.shareIconCircle, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="code-slash-outline" size={19} color={colors.onPrimary} />
+                  </View>
+                  <View style={styles.shareOptionTextCol}>
+                    <Text style={[styles.shareOptionTitle, { color: colors.primaryText }]}>{t('recipeDetail.showRecipeJson')}</Text>
+                    <Text style={styles.shareOptionSub}>{t('recipeDetail.jsonSub')}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.primaryText} />
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>
@@ -1029,7 +1100,8 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   jsonCopyText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
   versionBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
-  versionTabs: { flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: colors.primarySoft },
+  versionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  versionTabs: { flex: 1, flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: colors.primarySoft },
   versionTab: { flex: 1, paddingVertical: 7, borderRadius: 11, alignItems: 'center' },
   versionTabActive: { backgroundColor: colors.surface },
   versionTabText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
@@ -1046,21 +1118,61 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
-  versionActionText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
-  versionActionBtnDisabled: { opacity: 0.45 },
-  generateRow: { flexDirection: 'row', gap: 8 },
-  generateBtn: {
-    flex: 1,
+  versionTabMissing: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
+    gap: 4,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+  },
+  versionTabMissingText: { color: colors.primaryText },
+  versionMenuBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft,
     borderWidth: 1,
     borderColor: colors.borderStrong,
   },
+  variantMenu: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  variantMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  variantMenuText: { fontSize: 15, fontWeight: '600', color: colors.text },
+  confirmSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    gap: 10,
+  },
+  confirmTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  confirmBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary },
+  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  confirmBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  confirmBtnSecondary: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderStrong },
+  confirmBtnPrimary: { backgroundColor: colors.primary },
+  confirmBtnTextSecondary: { fontSize: 15, fontWeight: '700', color: colors.text },
+  confirmBtnTextPrimary: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1077,42 +1189,6 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  topNav: {
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.background,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-    zIndex: 10,
-  },
-  navBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topNavTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginHorizontal: 12,
-  },
-  navActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   toastBanner: {
     backgroundColor: colors.primary,
@@ -1135,10 +1211,12 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     paddingBottom: 20,
   },
   imageContainer: {
-    width: '100%',
+    marginHorizontal: 16,
+    marginTop: 8,
     aspectRatio: 16 / 10,
     maxHeight: 400,
     backgroundColor: colors.surfaceMuted,
+    borderRadius: 16,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1149,6 +1227,35 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   imagePlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  recipeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    backgroundColor: colors.background,
+  },
+  recipeHeaderTitle: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    lineHeight: 28,
+  },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   plantBadge: {
     position: 'absolute',
@@ -1173,11 +1280,14 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   content: {
     padding: 20,
   },
+  badgeScroll: {
+    flexGrow: 0,
+    marginBottom: 8,
+  },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
   },
   categoryBadge: {
     backgroundColor: colors.primarySoft,
@@ -1245,9 +1355,41 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.border,
   },
   // Sticky Action Bar & Plan Drawer Styles
-  stickyActionBar: {
+  stickyPlanRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stickyCloseBtn: {
+    width: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  stickyToolsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  stickySecondaryBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  stickySecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primaryText,
+  },
+  stickyActionBar: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: colors.background,
@@ -1297,17 +1439,9 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  planDrawerCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   planDrawerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: colors.text,
   },
   slotToggleRow: {
@@ -1336,16 +1470,17 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   slotToggleTextActive: {
     color: colors.onPrimary,
   },
-  daysScroll: {
+  daysRow: {
     flexDirection: 'row',
+    gap: 6,
   },
   dayCard: {
-    width: 58,
+    flex: 1,
+    minWidth: 0,
     paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: colors.background,
     alignItems: 'center',
-    marginRight: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },

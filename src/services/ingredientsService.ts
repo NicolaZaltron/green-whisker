@@ -26,7 +26,13 @@ interface SeedJsonEntry {
   nutrients: Record<string, number>;
 }
 
-const SEED_ITEMS: IngredientInput[] = (SEED as SeedJsonEntry[]).map(entry => ({
+/** Shape with the new id and aliases fields (v9). */
+interface SeedJsonEntryWithId extends SeedJsonEntry {
+  id: string;
+  aliases: string[];
+}
+
+const SEED_ITEMS: IngredientInput[] = (SEED as SeedJsonEntryWithId[]).map(entry => ({
   name: entry.name,
   type: entry.type as IngredientType,
   tags: entry.tags.filter((t): t is IngredientTag => TAG_SET.has(t)),
@@ -37,6 +43,7 @@ const SEED_ITEMS: IngredientInput[] = (SEED as SeedJsonEntry[]).map(entry => ({
   purchase_unit: entry.purchase_unit ?? '',
   density_g_per_ml: entry.density_g_per_ml,
   nutrients: entry.nutrients as Partial<Record<Nutrient, number>>,
+  aliases: entry.aliases ?? [],
 }));
 
 /** Imports the bundled starting catalog on first run only. Returns the number of inserted ingredients. */
@@ -50,8 +57,12 @@ export async function seedIngredientsIfEmpty(): Promise<number> {
   return result.inserted;
 }
 
-// v8: aggiunge riso soffiato, gocce di cioccolato, brodo di carne, peperoncino dolce, pomodorini, aroma al limone
-const SEED_FLAG_KEY_V8 = 'ingredients_seed_v8';
+// v15: tipi ingrediente rivisti, valori nutrizionali completati (cereali cotti, frutta, oli, salvia), olive in condimenti, duplicati rimossi.
+// v12: aggiunge il tag gastronomia.
+// v11: rimuove le voci composte o con alternativa e applica i valori nutrizionali.
+// v10: id stabili curati (leggibili), aliases e traduzioni i18n agli ingredienti.
+// Nota: il reseed v11 cancella i pasti pianificati legati agli ingredienti (gli ingredient_id cambiano).
+const SEED_FLAG_KEY_V15 = 'ingredients_seed_v15';
 
 /**
  * Reset una tantum (v2): elimina tutti gli ingredienti esistenti e reimporta il catalogo di base.
@@ -60,7 +71,7 @@ const SEED_FLAG_KEY_V8 = 'ingredients_seed_v8';
  * Returns the number of ingredients inserted, or 0 if the reset was already done.
  */
 export async function seedIngredientsV2(): Promise<number> {
-  if ((await getKV(SEED_FLAG_KEY_V8)) !== null) return 0;
+  if ((await getKV(SEED_FLAG_KEY_V15)) !== null) return 0;
 
   const existing = await listIngredients();
   for (const ingredient of existing) {
@@ -68,6 +79,6 @@ export async function seedIngredientsV2(): Promise<number> {
   }
 
   const result = await upsertIngredientsByName(SEED_ITEMS);
-  await setKV(SEED_FLAG_KEY_V8, '1');
+  await setKV(SEED_FLAG_KEY_V15, '1');
   return result.inserted;
 }

@@ -1,147 +1,132 @@
-# Piano di ottimizzazione delle performance (riscritto)
+# Piano di ottimizzazione delle performance
 
-Destinatario: un agente locale (qwen3.6). Esegui un passo alla volta. Ogni passo ha: obiettivo, file, azioni, verifica. **Se una misura non è disponibile, non indovinare: marca il passo come `BLOCCATO-MISURA` e passa oltre.**
+Obiettivo: rendere l'app molto più reattiva, in particolare planner, meal picker, cambio di schede e lista della spesa. Il piano è di **implementazione diretta**: niente strumentazione, niente misure di baseline. Ogni passo si giustifica con la lettura del codice.
 
-## 0. Contesto e decisioni già prese (leggere prima)
+Chi esegue: **Haiku** per le modifiche meccaniche e localizzate, **Sonnet** per i passi che richiedono di capire il flusso dei dati o di riorganizzare componenti. Ogni passo indica il modello.
 
-- L'**avvio** dell'app è accettabile. Non ottimizzarlo in questo piano.
-- Il problema reale è il **ritardo tra tap e azione** nel planner, in particolare nel meal picker (cambio scheda Ricette / Ingredienti / Pronti / Fuori casa, ricerca, aggiunta), e le **transizioni** tra schede, soprattutto verso planner e lista della spesa.
-- Obiettivo misurabile: **un tap nel planner deve produrre l'effetto visibile in meno di 300 ms** in build di release, su un telefono di fascia media.
-- Il catalogo ricette resta **completo in memoria** (serve a ricerca, filtri dieta e raggruppamento varianti). Non paginarlo.
-- Le varianti non hanno il cuore nei preferiti: non toccare la logica dei preferiti.
-- Import ed export del ricettario funzionano: non toccarli.
-- Non usare `InteractionManager` (rimosso in React Native 0.88). Usare `requestIdleCallback` (globale in RN) solo dove serve.
-- Non committare. Lavorare nel working tree. Backup prima di ogni modifica in `work/backup/`.
+## 0. Regole comuni (leggere prima)
 
-### Vincoli di misura (obbligatori)
-- Le misure in **sviluppo** non sono valide (Hermes non ottimizzato, StrictMode). Ogni verifica di prestazione va fatta in **build di release**. Se non puoi produrla, marca `BLOCCATO-MISURA`.
-- La build di release si fa con EAS, usando un profilo già presente in `eas.json` (es. `npx eas-cli@latest build --profile preview --platform android`). Se l'agente non può eseguire EAS, lascia la misura all'utente e documentala.
-
----
-
-## 1. Strumentazione temporanea (passo di misura)
-
-Obiettivo: misurare, non cambiare comportamento.
-
-- [ ] 1.1 Crea `src/utils/perfMark.ts` con una funzione `perfMark(label: string)` che, solo se `__DEV__` o una costante `PERF_ENABLED = true` locale, registra `Date.now()` in un array globale e stampa con `console.log('[perf]', label, delta)`. Quando `PERF_ENABLED` è falso non deve fare nulla. Default: `false`.
-- [ ] 1.2 Aggiungi `perfMark` ai punti seguenti, senza altre modifiche:
-  - `src/components/planner/MealPickerModal.tsx`: all'inizio di `handleTabChange`, poi in un `useEffect` che parte dopo il cambio di `tab` (marca `picker-tab-changed`).
-  - `src/app/(tabs)/planner.tsx`: all'inizio di `handleOpenPicker` (`picker-open`), e nella funzione che registra un'aggiunta (`add-start`, `add-end`).
-  - `src/app/(tabs)/_layout.tsx` (solo se possibile): un listener `tabPress` di expo-router (`tab-press:<nome>`).
-- [ ] 1.3 Verifica: `npx tsc --noEmit` zero errori.
-
-**Uscita**: la strumentazione è pronta; i numeri si leggono nei log della build di release (`PERF_ENABLED = true` solo per la misura, poi di nuovo `false`).
+- Non committare. Lavorare nel working tree.
+- Prima di modificare un file, copiarlo in `work/backup/perf/` con lo stesso nome.
+- Non cambiare l'avvio dell'app.
+- Non toccare la logica dei preferiti (le varianti non hanno il cuore).
+- Non toccare import ed export del ricettario.
+- Non usare `InteractionManager` (rimosso in React Native 0.88). Per il lavoro differito usare `requestIdleCallback`, globale in RN.
+- Il catalogo ricette resta completo in memoria: non paginarlo.
+- Ordine dei risultati del picker e test in `scripts/` invariati.
+- Dopo ogni passo: `npx tsc --noEmit`, `npx expo lint` sui file toccati, e `for f in scripts/test_*.js; do NODE_PATH=$PWD/node_modules node $f >/tmp/o.txt 2>&1 || echo FAIL $f; done`. Nessun errore nuovo.
+- Se un passo rompe qualcosa e non si risolve in due tentativi, annotarlo in `work/perf/blockers.md` e passare oltre.
 
 ---
 
-## 2. Misure di base (BLOCCATO-MISURA se non in release)
+## 1. Meal picker (`src/components/planner/MealPickerModal.tsx`, circa 1037 righe)
 
-Per ogni scenario, ripeti 5 volte e registra la mediana in `work/perf/baseline.md`:
+### 1.1 Lista ordinata e filtrata una sola volta [SONNET]
+- Leggere `sortedRecipes` e `visibleRecipes`. `sortedRecipes` deve dipendere solo da `allRecipes`, `query`, `favoriteIds`. `visibleRecipes` deve filtrare solo per slot, senza riordinare.
+- Se `sortedRecipes` si ricalcola al cambio di scheda (Ingredienti, Pronti, Fuori casa), togliere la dipendenza che lo causa.
+- Spostare il calcolo costoso fuori dal render o in `useMemo` con dipendenze minime.
 
-| ID | Scenario | Punto di inizio | Punto di fine |
-|----|----------|-----------------|---------------|
-| S1 | Apri il picker da uno slot | `picker-open` | primo frame della lista (Modal `onShow` o primo `onLayout`) |
-| S2 | Cambia scheda nel picker: Ricette → Ingredienti | `picker-tab-changed` | prima riga visibile della nuova scheda |
-| S3 | Cambia scheda nel picker: Ingredienti → Pronti → Fuori casa | come S2 | come S2 |
-| S4 | Scrivi una lettera nella ricerca del picker | `onChangeText` | risultati visibili |
-| S5 | Aggiungi una ricetta al pasto (chiudi la modale o resta aperta) | `add-start` | `add-end` e banner visibile |
-| S6 | Cambia scheda principale: Esplora → Preferiti → Planner | `tab-press` | prima UI della scheda |
-| S7 | Cambia scheda principale: Planner → Lista della spesa | `tab-press` | prima UI della scheda |
+### 1.2 Collator una sola volta [HAIKU]
+- Creare `const collator = new Intl.Collator('it', { sensitivity: 'base' })` a livello di modulo in `pickerRanking.ts` (o dove vive il ranking) e in `MealPickerModal.tsx`.
+- Sostituire `localeCompare('it', ...)` nei sort con `collator.compare`.
+- Verificare con `scripts/test_picker_ranking.js` che l'ordine non cambi.
 
-- [ ] 2.1 Esegui S1..S7 e scrivi `work/perf/baseline.md` con la tabella dei tempi mediani.
-- [ ] 2.2 Scrivi la data, il commit, il dispositivo e il tipo di build in cima al file.
-- [ ] 2.3 Verifica: il file contiene 7 righe con 5 misure ciascuna. Se una misura manca, marca la riga `BLOCCATO-MISURA`.
+### 1.3 Ricerca differita [HAIKU]
+- Mantenere `query` immediata per il campo di testo.
+- Per la lista usare `useDeferredValue(query)` (React 18+) e passare il valore differito a `rankPickerMatches`.
+- Il campo deve restare reattivo; la lista si aggiorna subito dopo.
 
-**Uscita**: baseline confrontabile. Nessuna ottimizzazione prima di questo passo.
+### 1.4 Righe stabili [HAIKU]
+- `renderRow` memoizzato con `useCallback` e dipendenze corrette. `keyExtractor` stabile.
+- Nelle righe, `expo-image` con `cachePolicy="disk"` (non cambiarlo). Togliere icone o componenti non necessari dalla riga.
+- Su `FlatList`: `initialNumToRender`, `windowSize` e `removeClippedSubviews` ragionevoli per liste lunghe (valori tipici: `initialNumToRender={12}`, `windowSize={5}`). Verificare su Android e iOS che non ci siano scatti visibili.
 
----
-
-## 3. Planner e meal picker: rendering (priorità alta)
-
-Ogni punto è indipendente: fai un punto alla volta, misura, poi passa al successivo.
-
-### 3.A Picker: lista ricette calcolata una volta
-- [ ] 3.A.1 `MealPickerModal.tsx`: verifica che `sortedRecipes` dipenda solo da `allRecipes`, `query`, `favoriteIds`, e che `visibleRecipes` filtri solo per slot. Se una delle due dipendenze è sbagliata, correggila.
-- [ ] 3.A.2 Verifica: nel cambio di scheda Ingredienti/Pronti/Fuori casa, `sortedRecipes` non deve ricalcolarsi (strumenta con `perfMark` dentro il memo, temporaneo).
-- [ ] 3.A.3 Misura S2, S3. Confronta con la baseline.
-
-### 3.B Picker: righe stabili e leggere
-- [ ] 3.B.1 Ogni riga usa `expo-image` con `cachePolicy="disk"`. Su liste lunghe cambia in `"memory-disk"` solo se la misura lo giustifica (vedi 6). Non cambiarlo a caso.
-- [ ] 3.B.2 Le icone `Ionicons` in una riga: riduci a quelle strettamente necessarie (il cuore e la freccia). Misura prima.
-- [ ] 3.B.3 Verifica: `renderRow` è memoizzato (`useCallback`) con dipendenze corrette. Lo `eslint` non deve dare nuovi warning `exhaustive-deps`.
-
-### 3.C Picker: ricerca senza ricalcolo completo
-- [ ] 3.C.1 La ricerca (S4) passa per `rankPickerMatches`. Aggiungi un `useDeferredValue` (React 18+) o un debounce di 120 ms su `query` per la lista, lasciando il campo di testo immediato.
-- [ ] 3.C.2 Verifica: il campo di testo reagisce subito; la lista si aggiorna entro 120 ms.
-
-### 3.D Picker: collator una sola volta
-- [ ] 3.D.1 `pickerRanking.ts` e `MealPickerModal.tsx` usano `localeCompare('it', ...)` in sort. Crea un `const collator = new Intl.Collator('it', { sensitivity: 'base' })` a livello di modulo e usa `collator.compare` nei sort. Verifica che l'ordine dei test in `scripts/test_picker_ranking.js` non cambi.
-- [ ] 3.D.2 Misura S1 e S4.
-
-### 3.E Planner: conteggi e liste una volta
-- [ ] 3.E.1 `planner.tsx`: i conteggi per giorno e per slot (`planCounts`) dipendono solo da `plans`, `weekDays`, `selectedDate`. Verifica che non ci siano altri `plans.filter` nel JSX che si rifanno a ogni render: sostituiscili con i valori di `planCounts`.
-- [ ] 3.E.2 `MealSlotCard` riceve handler stabili (già fatto: verifica che non ci siano arrow inline nel JSX delle card).
-- [ ] 3.E.3 Misura S5 (aggiunta).
-
-### 3.F Modale: montaggio condizionale
-- [ ] 3.F.1 Il picker è montato solo quando è aperto (`pickerVisible && ...`). Verifica sul dispositivo che la chiusura funzioni. Se l'animazione di uscita manca, valuta `animationType="slide"` con `visible` gestito dal padre senza smontaggio: decidi con una misura, non in astratto.
+### 1.5 Montaggio e chiusura [SONNET]
+- Verificare che il picker venga montato solo quando serve, senza perdere l'animazione di uscita.
+- Se serve, tenere `visible` gestito dal padre con `Modal` senza smontare il contenuto a ogni apertura.
 
 ---
 
-## 4. Planner: lettura dati (priorità alta)
+## 2. Planner (`src/app/(tabs)/planner.tsx`, circa 751 righe)
 
-- [ ] 4.1 `getMealPlans()` (`src/db/database.ts`, circa riga 719) legge **tutta** la tabella `meal_plan` senza filtri. Aggiungi un parametro opzionale `{ fromDate, toDate }` con `WHERE date BETWEEN ? AND ?`. Il default resta la lettura completa per compatibilità.
-- [ ] 4.2 Crea l'indice `idx_meal_plan_date` se non esiste già (verifica in `src/db/catalogSchema.ts`; esiste `meal_plan(date, slot)` secondo l'audit: NON duplicarlo).
-- [ ] 4.3 `planner.tsx` chiama `loadPlans()` dopo ogni aggiunta/cancellazione. Sostituisci con: caricare solo la settimana visibile (`fromDate`/`toDate` dei `weekDays`) e aggiornare lo stato locale senza ricaricare ingredienti e pronti (che già hanno una cache).
-- [ ] 4.4 Rimuovi `sameContent` basato su `JSON.stringify` in `planner.tsx`: confronta solo lunghezza e id, oppure lascia che React confronti per riferimento dopo `setPlans`.
-- [ ] 4.5 Misura S5 e il tempo di `loadPlans` (`perfMark` attorno alla chiamata).
+### 2.1 Conteggi per giorno e slot calcolati una volta [HAIKU]
+- Introdurre `planCounts` (un `useMemo` su `plans`, `weekDays`) che raggruppa per data e slot.
+- Sostituire nel JSX ogni `plans.filter(...)` ripetuto con la lettura da `planCounts`.
 
-**Attenzione**: le viste di settimana diversa dalla corrente (settimana precedente o successiva) devono ancora funzionare: usa `fromDate`/`toDate` in base alla settimana mostrata, non solo a quella corrente.
+### 2.2 Handler stabili nelle card [HAIKU]
+- Nel JSX di `MealSlotCard` e `PlannedItemCards.tsx` eliminare arrow inline che creano nuove funzioni a ogni render. Usare `useCallback` con argomenti (id) passati dal figlio, oppure handler stabili dal padre.
+- Memoizzare le card con `React.memo` se ricevono props stabili.
 
----
+### 2.3 Lettura del piano solo per la settimana visibile [SONNET]
+- `getMealPlans()` (`src/db/database.ts`, circa riga 719) legge tutta la tabella `meal_plan`. Aggiungere un parametro opzionale `{ fromDate, toDate }` con `WHERE date BETWEEN ? AND ?`. Il default resta la lettura completa.
+- Verificare in `src/db/catalogSchema.ts` gli indici su `meal_plan`: non duplicarne uno già esistente (`meal_plan(date, slot)` secondo l'audit).
+- In `planner.tsx`, caricare solo la settimana mostrata (dai `weekDays`), anche quando l'utente sfoglia settimane precedenti o successive.
+- Dopo aggiunte e cancellazioni, aggiornare lo stato locale senza ricaricare ingredienti e pronti, che hanno già una cache.
 
-## 5. Transizioni tra schede (priorità media)
-
-- [ ] 5.1 `(tabs)/_layout.tsx` ha già `freezeOnBlur: true`. Verifica che sia effettivo: misura S6 e S7 prima e dopo, senza modifiche.
-- [ ] 5.2 Ogni scheda con `useFocusEffect` deve fare solo il lavoro necessario:
-  - `planner.tsx`: `getMealPlans` della settimana + preferenze. Ingredienti e pronti non si ricaricano al focus (già così: verifica).
-  - `shopping.tsx`: al focus, `loadItems()` senza consolidamento (già così dopo il primo focus: verifica).
-  - `favorites.tsx`: `refreshFavorites()` è no-op se nulla è cambiato (già così).
-- [ ] 5.3 Il lavoro non urgente (consolidamento spesa al primo focus, auto-generazione piano) va spostato con `requestIdleCallback`, che è globale in RN. Non usare `InteractionManager`.
-- [ ] 5.4 Misura S6, S7.
+### 2.4 Confronto dei piani senza JSON.stringify [HAIKU]
+- Rimuovere `sameContent` basato su `JSON.stringify` in `planner.tsx`. Confrontare per lunghezza e id, oppure lasciare che React confronti per riferimento dopo `setPlans`.
 
 ---
 
-## 6. Immagini (priorità media, solo se la misura lo indica)
+## 3. Planner: service (`src/services/plannerService.ts`, circa 1020 righe) [SONNET]
 
-- [ ] 6.1 Le miniature delle ricette nel picker (52 px) e nelle card usano `expo-image`. Verifica che le immagini abbiano una dimensione richiesta coerente con il display (es. `contentFit`, dimensione dell'URL o `recyclingKey` nella FlatList) senza cambiare l'aspetto.
-- [ ] 6.2 Se nelle misure S1/S2 il tempo è dominato dal caricamento immagini (confronta con un picker senza immagini in una build di test), aggiungi un `placeholder` leggero (colore di fondo) e `transition={0}`.
-- [ ] 6.3 Non cambiare `cachePolicy` senza una misura che lo giustifichi.
-
----
-
-## 7. Shopping list (priorità bassa, dopo le misure)
-
-- [ ] 7.1 `shopping.tsx`: `groupedSections` ricalcola a ogni cambio di `items`. Verifica con `perfMark` quanto costa a 100 voci e a 300 voci, in release.
-- [ ] 7.2 Se il costo è sopra 16 ms per frame: memoizza per reparto e ricalcola solo il reparto cambiato.
-- [ ] 7.3 Misura S7.
+- Individuare nel service le funzioni che rileggono l'intero piano o l'intero catalogo per ogni singola operazione (aggiunta, rigenerazione, preferenze).
+- Per ogni caso, passare solo i dati necessari (settimana o ids) senza cambiare il risultato.
+- Non cambiare la logica di generazione del piano: solo come i dati arrivano.
 
 ---
 
-## 8. Chiusura e verifica
+## 4. Transizioni tra schede (`src/app/(tabs)/_layout.tsx`, `index.tsx`, `favorites.tsx`, `shopping.tsx`)
 
-- [ ] 8.1 Rimuovi la strumentazione temporanea (`perfMark` e le chiamate) o lasciala con `PERF_ENABLED = false` se è utile: decidi con l'utente.
-- [ ] 8.2 Ripeti le misure S1..S7 in release e scrivi `work/perf/after.md` con la tabella a confronto con `baseline.md`.
-- [ ] 8.3 Criterio di accettazione: S1, S2, S3, S4, S5 sotto 300 ms mediana in release. Se un criterio non è raggiunto, scrivi quale e non proseguire con altri punti senza conferma.
-- [ ] 8.4 `npx tsc --noEmit` zero errori; `npx expo lint` nessun errore nuovo; `for f in scripts/test_*.js; do NODE_PATH=$PWD/node_modules node $f >/tmp/o.txt 2>&1 || echo FAIL $f; done` nessun FAIL.
-- [ ] 8.5 Non committare.
+### 4.1 Lavoro al focus ridotto [SONNET]
+- `_layout.tsx`: verificare che `freezeOnBlur: true` sia attivo e che nessuna scheda rifaccia caricamenti completi al focus.
+- `planner.tsx`: al focus caricare solo la settimana e le preferenze, non ingredienti e pronti.
+- `shopping.tsx`: al focus `loadItems()` senza consolidamento a ogni passaggio (il consolidamento solo al primo focus o dopo una modifica).
+- `favorites.tsx`: `refreshFavorites()` non deve fare lavoro se nulla è cambiato.
+
+### 4.2 Lavoro non urgente differito [HAIKU]
+- Il consolidamento della spesa e altre operazioni non urgenti passano per `requestIdleCallback`, con fallback a `setTimeout(fn, 0)` se non disponibile. Non usare `InteractionManager`.
+
+---
+
+## 5. Immagini [HAIKU]
+
+- Le miniature (picker 52 px, card) usano `expo-image` con una dimensione coerente al display (`contentFit="cover"`, `recyclingKey` nelle liste, `transition={0}` dove l'animazione non serve).
+- Aggiungere un `placeholder` di colore neutro dove manca.
+- Non cambiare `cachePolicy` rispetto a quanto già impostato.
+
+---
+
+## 6. Lista della spesa (`src/app/(tabs)/shopping.tsx`, circa 1412 righe) [SONNET]
+
+- `groupedSections` ricalcola a ogni cambio di `items`. Memoizzarlo per reparto: ricalcolare solo il reparto cambiato, oppure tenere una mappa per reparto con `useMemo`.
+- Le pillole dei reparti usano lo stesso `paddingHorizontal` già impostato; non alterarlo.
+- Non cambiare l'ordine di visualizzazione dei reparti.
+
+---
+
+## 7. Database (`src/db/database.ts`, `ingredientsDb.ts`, `readyMealsDb.ts`) [HAIKU]
+
+- Ogni query di lista usa `SELECT` con colonne necessarie, non `SELECT *` dove la tabella è grande.
+- Operazioni multiple di scrittura in una transazione (`BEGIN`/`COMMIT`) se non lo sono già.
+- Nessun cambiamento di schema senza una migrazione esplicita.
+
+---
+
+## 8. Verifica finale [HAIKU]
+
+- `npx tsc --noEmit` zero errori.
+- `npx expo lint` nessun errore nuovo rispetto a prima dei cambiamenti.
+- `scripts/test_*.js` tutti verdi (nessun `FAIL`).
+- Elenco dei file modificati e dei backup in `work/perf/changes.md`, con una riga per passo: cosa è cambiato e perché.
+- Il controllo sul dispositivo (fluidità del picker, cambio di scheda) resta all'utente.
 
 ---
 
 ## 9. Condizioni di arresto
 
-Fermati e scrivi in `work/perf/blockers.md`:
-- non puoi produrre una build di release: indica `BLOCCATO-MISURA` per tutti i passi che la richiedono e termina;
-- una modifica rompe un test o `tsc`;
+Fermarsi e scrivere in `work/perf/blockers.md` se:
+- una modifica rompe un test o `tsc` e non si risolve in due tentativi;
 - una modifica cambia l'ordine dei risultati del picker o il comportamento dei preferiti;
-- una modifica cambia il comportamento di import o export del ricettario.
+- una modifica cambia import o export del ricettario;
+- serve uno schema del database diverso da quello attuale.

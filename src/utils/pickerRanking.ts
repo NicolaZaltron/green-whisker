@@ -1,5 +1,8 @@
 export type PickerMatchKind = 'ingredient' | 'ready' | 'recipe' | 'out';
 
+// Collator di default (italiano). Il chiamante passa quello della lingua dell'app: va creato una volta sola, non a ogni confronto
+export const DEFAULT_PICKER_COLLATOR = new Intl.Collator('it', { sensitivity: 'base' });
+
 export interface PickerMatchItem<T> {
   kind: PickerMatchKind;
   label: string;
@@ -30,7 +33,8 @@ const GROUP_ORDER: { kind: PickerMatchKind; startsWith: boolean }[] = [
 export function rankPickerMatches<T>(
   items: PickerMatchItem<T>[],
   query: string,
-  favoriteIds?: ReadonlySet<string>
+  favoriteIds?: ReadonlySet<string>,
+  collator: Intl.Collator = DEFAULT_PICKER_COLLATOR
 ): PickerMatchItem<T>[] {
   const q = query.trim().toLowerCase();
   if (!q) return [...items];
@@ -44,7 +48,7 @@ export function rankPickerMatches<T>(
       const favB = isFavorite(b);
       if (favA !== favB) return favA ? -1 : 1;
     }
-    return a.label.localeCompare(b.label, 'it', { sensitivity: 'base' });
+    return collator.compare(a.label, b.label);
   };
 
   const result: PickerMatchItem<T>[] = [];
@@ -68,9 +72,10 @@ export function rankPickerMatches<T>(
  */
 export function orderWithFavoritesFirst<T extends { id: string; title: string }>(
   recipes: T[],
-  favoriteIds: ReadonlySet<string>
+  favoriteIds: ReadonlySet<string>,
+  collator: Intl.Collator = DEFAULT_PICKER_COLLATOR
 ): T[] {
-  const byTitle = (a: T, b: T) => a.title.localeCompare(b.title, 'it', { sensitivity: 'base' });
+  const byTitle = (a: T, b: T) => collator.compare(a.title, b.title);
   const favorites = recipes.filter(r => favoriteIds.has(r.id)).sort(byTitle);
   const others = recipes.filter(r => !favoriteIds.has(r.id)).sort(byTitle);
   return [...favorites, ...others];

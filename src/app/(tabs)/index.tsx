@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { Recipe, RecipeOrigin } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { TabFlatList } from '../../components/TabScrollViews';
@@ -34,6 +33,7 @@ import { useShareIntent } from 'expo-share-intent';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 import { AppTextField } from '../../components/ui/AppTextField';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
@@ -301,24 +301,14 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
-        {/* Header Green-Whisker: Pure, clean branding */}
+        {/* Header: icona, titolo e menu */}
         <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandInfo}>
-              <View style={styles.logoBadge}>
-                <Image
-                  source={require('../../../assets/logo.png')}
-                  style={styles.logoImage}
-                  contentFit="contain"
-                />
-              </View>
-              <View>
-                <Text style={styles.brandTitle}>Green-Whisker</Text>
-              </View>
-            </View>
-
-            <HeaderMenu onRecipesChanged={refreshCatalog} />
-          </View>
+          <ScreenHeader
+            icon="leaf"
+            title={t('tabs.explore')}
+            subtitle={t('explore.subtitle')}
+            actions={<HeaderMenu onRecipesChanged={refreshCatalog} />}
+          />
 
           {/* Mode Switcher: Catalogo vs Svuotafrigo */}
           <View style={styles.modeToggleContainer}>
@@ -781,20 +771,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
     paddingBottom: 6,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  brandInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
   },
   fabImportBtn: {
     position: 'absolute',
@@ -821,36 +798,14 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginTop: 2,
     letterSpacing: 0.2,
   },
-  logoBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 5,
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  brandSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
   modeToggleContainer: {
     flexDirection: 'row',
     backgroundColor: colors.border,
     borderRadius: 14,
     padding: 3,
     marginBottom: 12,
+    // Allineato al testo del titolo di ScreenHeader
+    marginHorizontal: 16,
   },
   modeToggleBtn: {
     flex: 1,
@@ -880,6 +835,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginHorizontal: 16,
   },
   searchField: {
     flex: 1,

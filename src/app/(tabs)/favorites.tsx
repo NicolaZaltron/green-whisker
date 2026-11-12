@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { TabFlatList } from '../../components/TabScrollViews';
 import { AppTextField } from '../../components/ui/AppTextField';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
@@ -20,6 +21,7 @@ import { useFavorites } from '../../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { scheduleIdle } from '../../utils/idle';
 
 
 export default function FavoritesScreen() {
@@ -35,7 +37,9 @@ export default function FavoritesScreen() {
   // Sincronizza i preferiti alla messa a fuoco della schermata
   useFocusEffect(
     useCallback(() => {
-      refreshFavorites();
+      // In idle, dopo la transizione della tab; il provider non aggiorna lo stato se gli id sono invariati
+      const cancelIdle = scheduleIdle(() => { refreshFavorites(); });
+      return () => cancelIdle();
     }, [refreshFavorites])
   );
 
@@ -84,17 +88,11 @@ export default function FavoritesScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <View style={styles.iconBadge}>
-              <Ionicons name="heart" size={20} color={colors.danger} />
-            </View>
-            <View>
-              <Text style={styles.title}>{t('favorites.title')}</Text>
-              <Text style={styles.subtitle}>
-                {t('favorites.subtitle', { count: favoriteRecipes.length })}
-              </Text>
-            </View>
-          </View>
+          <ScreenHeader
+            icon="heart"
+            title={t('favorites.title')}
+            subtitle={t('favorites.subtitle', { count: favoriteRecipes.length })}
+          />
 
           {favoriteRecipes.length > 0 && (
             <AppTextField
@@ -164,37 +162,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  iconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.dangerSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
+    paddingBottom: 4,
   },
   searchField: {
     marginTop: 4,
+    // Allineato al testo del titolo di ScreenHeader
+    marginHorizontal: 16,
   },
   listContent: {
     paddingHorizontal: 16,

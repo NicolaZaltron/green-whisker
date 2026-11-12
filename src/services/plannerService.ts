@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { Recipe, MealPlanEntry } from '../types/recipe';
-import { toLocalDateString } from '../utils/dates';
-import { saveMealPlanEntriesBulk, deleteMealPlanEntry, getKV, setKV } from '../db/database';
+import { toLocalDateString, rollingDays } from '../utils/dates';
+import { getMealPlans, saveMealPlanEntriesBulk, deleteMealPlanEntry, getKV, setKV } from '../db/database';
 import { catalogRecipes } from './recipeCatalog';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,6 +15,8 @@ export interface PlannerPreferences {
   maxWeekdayLunchMinutes: number | null;
   autoGenerateOnMonday: boolean;
   includeSnacks?: boolean;
+  /** 'week' = lun-dom della settimana; 'rolling' = 7 giorni da oggi */
+  calendarMode: 'week' | 'rolling';
 }
 
 export interface WeekDayInfo {
@@ -366,6 +368,28 @@ export function getWeekDays(offsetWeeks: number = 0): WeekDaysResult {
   return { days, weekLabel, offsetWeeks };
 }
 
+// Giorni del planner in base alla modalità calendario: 'week' usa getWeekDays, 'rolling' 7 giorni da oggi + offset*7
+export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale: 'it' | 'en' = 'it'): { days: WeekDayInfo[]; label: string } {
+  if (mode === 'week') {
+    const { days, weekLabel } = getWeekDays(offset);
+    return { days, label: weekLabel };
+  }
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset * 7);
+  const todayStr = toLocalDateString(now);
+  const rolling = rollingDays(start, 7, locale);
+  return {
+    days: rolling.days.map(d => ({
+      dateString: d.dateString,
+      dayName: ITALIAN_DAYS[d.weekdayIndex],
+      dayNumber: d.dayNumber,
+      monthName: ITALIAN_MONTHS[d.monthIndex],
+      isToday: d.dateString === todayStr,
+    })),
+    label: rolling.label,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PREFERENZE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +399,7 @@ const DEFAULT_PREFERENCES: PlannerPreferences = {
   includeWeekend: true,
   maxWeekdayLunchMinutes: 30,
   autoGenerateOnMonday: true,
+  calendarMode: 'week',
 };
 
 const PLANNER_PREFS_KEY = 'gw_planner_prefs';
@@ -852,9 +877,7 @@ function buildProteinSequence(
 // AUTO-GENERAZIONE (lunedì)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function checkAndAutoGeneratePlan(
-  existingPlans: MealPlanEntry[],
-): Promise<{ generated: boolean; entriesCount: number }> {
+export async function checkAndAutoGeneratePlan(): Promise<{ generated: boolean; entriesCount: number }> {
   try {
     // Fuori dal lunedì non si legge né il database né il KV
     const today = new Date();
@@ -873,8 +896,11 @@ export async function checkAndAutoGeneratePlan(
     const lastGen = await getKV('gw_planner_last_gen');
     if (!isMonday || lastGen === mondayStr) return { generated: false, entriesCount: 0 };
 
-    const { days } = getWeekDays(0);
+    const { days } = getPlannerDays(prefs.calendarMode, 0);
     const weekDates = new Set(days.map(d => d.dateString));
+    // Lettura del piano solo dopo i controlli (lunedì, preferenza, ultima generazione): il generatore
+    // usa l'intero piano per l'anti-ripetizione, quindi qui resta completo
+    const existingPlans = await getMealPlans();
     const weekPlans = existingPlans.filter(p => weekDates.has(p.date));
 
     // Un pasto può contenere più ricette: si contano i pasti occupati, non le voci
@@ -908,18 +934,20 @@ export async function checkAndAutoGeneratePlan(
  * Genera manualmente un piano per la settimana corrente.
  */
 export async function manualGeneratePlan(
-  existingPlans: MealPlanEntry[],
   overwrite: boolean = false,
   scope: 'day' | 'week' = 'week',
   selectedDate?: string,
 ): Promise<number> {
   try {
     const prefs = await getPlannerPreferences();
-    const weekDays = getWeekDays(0).days;
+    const weekDays = getPlannerDays(prefs.calendarMode, 0).days;
     const days = scope === 'day'
       ? weekDays.filter(d => !!selectedDate && d.dateString === selectedDate)
       : weekDays;
     if (days.length === 0) return 0;
+
+    // Il piano completo viene letto qui (non dallo stato della schermata, che mostra una sola settimana)
+    const existingPlans = await getMealPlans();
 
     const options: AutoPlanOptions = {
       servings: prefs.servings,

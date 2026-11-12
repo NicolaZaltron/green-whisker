@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const seedPath = path.join(root, 'src/data/ingredients.seed.json');
 const catalogPath = path.join(root, 'src/types/catalog.ts');
 
-const EXPECTED_COUNT = 752;
+const EXPECTED_COUNT = 953; // voci del seme, incluse quelle aggiunte manualmente (prodotti, dolci, gastronomia)
 const failures = [];
 
 function fail(msg) {

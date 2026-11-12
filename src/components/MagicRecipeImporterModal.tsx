@@ -675,7 +675,8 @@ export function MagicRecipeImporterModal({
             </ScrollView>
           ) : (
             // REVIEW & EDIT PARSED RECIPE SCREEN
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.reviewContainer}>
+            <ScrollView style={styles.reviewScroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.successBanner}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.primaryText} />
                 <Text style={styles.successBannerText}>{t('recipeImporter.extractSuccess')}</Text>
@@ -902,24 +903,28 @@ export function MagicRecipeImporterModal({
                       {t('recipeImporter.needsReviewWarning')}
                     </Text>
                   ) : null}
-                  <Text style={styles.fieldLabel}>{t('recipeImporter.retryInstructions')}</Text>
-                  <AppTextField
-                    placeholder={t('recipeImporter.retryPlaceholder')}
-                    value={retryInstructions}
-                    onChangeText={setRetryInstructions}
-                    autoCapitalize="sentences"
-                  />
-                  <TouchableOpacity
-                    style={[styles.imageActionBtn, styles.retryBtn, retrying && styles.disabledBtn]}
-                    onPress={handleRetry}
-                    disabled={retrying}
-                    activeOpacity={0.75}
-                  >
-                    <Ionicons name="refresh" size={14} color={colors.primaryText} />
-                    <Text style={styles.imageActionText}>{retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.retrySection}>
+                    <Text style={styles.fieldLabel}>{t('recipeImporter.retryInstructions')}</Text>
+                    <AppTextField
+                      placeholder={t('recipeImporter.retryPlaceholder')}
+                      value={retryInstructions}
+                      onChangeText={setRetryInstructions}
+                      autoCapitalize="sentences"
+                    />
+                    <TouchableOpacity
+                      style={[styles.retryBtnFull, retrying && styles.disabledBtn]}
+                      onPress={handleRetry}
+                      disabled={retrying}
+                      activeOpacity={0.75}
+                    >
+                      <Ionicons name="refresh" size={14} color={colors.primaryText} />
+                      <Text style={styles.imageActionText}>{retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
+
+            </ScrollView>
 
               {/* Actions Footer */}
               <View style={styles.actionsFooter}>
@@ -942,7 +947,7 @@ export function MagicRecipeImporterModal({
                   </Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+            </View>
           )}
         </KeyboardAvoidingView>
       </View>
@@ -1085,6 +1090,27 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   dietHintText: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
   reviewWarning: { fontSize: 13, fontWeight: '600', color: (isDark ? '#FCD34D' : '#B45309'), backgroundColor: (isDark ? '#3D2E0E' : '#FEF3C7'), borderRadius: 10, padding: 10, marginBottom: 12, lineHeight: 18 },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8 },
+  retrySection: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 8,
+  },
+  retryBtnFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  reviewContainer: { flex: 1 },
+  reviewScroll: { flex: 1 },
   disabledBtn: { opacity: 0.5 },
   imageActionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   imageActionBtn: {
@@ -1470,7 +1496,11 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   actionsFooter: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
   },
   resetButton: {
     flex: 1,

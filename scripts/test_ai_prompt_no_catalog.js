@@ -66,10 +66,10 @@ check('il payload con immagini non cambia con catalogNames', () => {
   );
 });
 
-check('il seed fornisce Mandorle e Uova come nomi', () => {
+check('il seed fornisce Mandorla e Uovo come nomi', () => {
   const names = namesFromSeed(seed);
-  assert.ok(names.includes('Mandorle'), 'manca Mandorle');
-  assert.ok(names.includes('Uova'), 'manca Uova');
+  assert.ok(names.includes('Mandorla'), 'manca Mandorla');
+  assert.ok(names.includes('Uovo'), 'manca Uovo');
 });
 
 console.log(`\n${passed} test passati, ${failed} falliti`);

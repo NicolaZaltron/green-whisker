@@ -9,7 +9,7 @@ const INGREDIENTS_PATH = path.join(ROOT, 'src/data/ingredients.seed.json');
 const READY_MEALS_PATH = path.join(ROOT, 'src/data/readyMeals.seed.json');
 
 const EXPECTED_RECIPES = 835;
-const EXPECTED_READY_MEALS = 26;
+const EXPECTED_READY_MEALS = 62;
 const VALID_CATEGORIES = ['pronto'];
 const MEAL_SLOTS = ['colazione', 'spuntino_mattina', 'pranzo', 'spuntino_pomeriggio', 'cena'];
 
@@ -28,10 +28,6 @@ function loadJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-function nameKey(name) {
-  return String(name).trim().toLowerCase();
-}
-
 let recipes;
 try {
   recipes = loadJson(RECIPES_PATH);
@@ -43,9 +39,7 @@ try {
 
 check(recipes.length === EXPECTED_RECIPES, `recipe count is ${EXPECTED_RECIPES} (got ${recipes.length})`);
 
-const ingredientNames = new Set(
-  loadJson(INGREDIENTS_PATH).map(entry => nameKey(entry.name)),
-);
+const ingredientIds = new Set(loadJson(INGREDIENTS_PATH).map(entry => entry.id));
 
 let linkCount = 0;
 let unknownCount = 0;
@@ -53,18 +47,17 @@ const unknownNames = new Set();
 for (const recipe of recipes) {
   for (const entry of recipe.ingredients || []) {
     linkCount += 1;
-    const key = nameKey(entry.ingredient);
-    if (!ingredientNames.has(key)) {
+    if (!ingredientIds.has(entry.ingredient_id)) {
       unknownCount += 1;
-      unknownNames.add(entry.ingredient);
+      unknownNames.add(`${entry.ingredient} (${entry.ingredient_id})`);
     }
   }
 }
-console.log(`INFO links: ${linkCount}, unknown ingredient names: ${unknownCount}`);
+console.log(`INFO links: ${linkCount}, unknown ingredient ids: ${unknownCount}`);
 if (unknownNames.size > 0) {
   console.log(`INFO unknown names: ${[...unknownNames].slice(0, 20).join(', ')}`);
 }
-check(unknownCount === 0, 'every recipe ingredient name exists in ingredients.seed.json');
+check(unknownCount === 0, 'every recipe ingredient_id exists in ingredients.seed.json');
 
 let readyMeals = [];
 try {

@@ -10,7 +10,7 @@ import {
 import { getDatabase, getWebData, isWebMode, runQueuedTransaction, setWebData, WEB_STORAGE_KEYS } from './database';
 
 type Nutrients = Partial<Record<Nutrient, number>>;
-export type IngredientInput = Omit<Ingredient, 'id' | 'created_at' | 'updated_at'>;
+export type IngredientInput = Omit<Ingredient, 'id' | 'created_at' | 'updated_at'> & { aliases?: string[] };
 export type SaveIngredientInput = IngredientInput & { id?: string };
 
 const TYPE_SET = new Set<string>(INGREDIENT_TYPES);
@@ -86,6 +86,7 @@ function normalizeInput(input: IngredientInput): IngredientInput {
     purchase_unit: (input.purchase_unit ?? '').trim(),
     density_g_per_ml: optionalNumber(input.density_g_per_ml),
     nutrients: normalizeNutrients(input.nutrients),
+    aliases: Array.isArray(input.aliases) ? input.aliases : [],
   };
 }
 
@@ -125,6 +126,7 @@ function rowToIngredient(row: any, nutrients: Nutrients): Ingredient {
     purchase_unit: row.purchase_unit ?? '',
     density_g_per_ml: optionalNumber(row.density_g_per_ml),
     nutrients,
+    aliases: safeParseJson<unknown>(row.aliases, []) as string[],
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

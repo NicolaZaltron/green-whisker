@@ -63,10 +63,11 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
         {recipe.image ? (
           <Image
             source={{ uri: recipe.image }}
-            style={styles.image}
+            style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
             contentFit="cover"
             transition={200}
             cachePolicy="disk"
+            recyclingKey={recipe.id}
           />
         ) : (
           <View style={[styles.image, styles.placeholder]}>

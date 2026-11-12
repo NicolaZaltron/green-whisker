@@ -31,6 +31,11 @@ export function namesFromSeed(seed: readonly { name: string }[]): string[] {
   return seed.map(item => item.name);
 }
 
+/** Nomi e alias dal seed. Usata solo per il controllo locale (matching), mai per la richiesta. */
+export function namesAndAliasesFromSeed(seed: readonly { name: string; aliases?: string[] }[]): {name: string; aliases?: readonly string[]}[] {
+  return seed.map(item => ({name: item.name, aliases: item.aliases}));
+}
+
 /**
  * Costruisce il payload Gemini. Usa solo testo, immagini e prompt: i catalogNames non vengono letti qui.
  */

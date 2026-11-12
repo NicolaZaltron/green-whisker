@@ -14,6 +14,7 @@ export function uniquePickerRecipes(recipes: Recipe[]): Recipe[] {
 interface SortedPickerCache {
   recipes: Recipe[];
   favoriteIds: ReadonlySet<string>;
+  collator: Intl.Collator;
   result: Recipe[];
 }
 
@@ -26,12 +27,18 @@ let sortedCache: SortedPickerCache | null = null;
  */
 export function getSortedPickerRecipes(
   recipes: Recipe[],
-  favoriteIds: ReadonlySet<string>
+  favoriteIds: ReadonlySet<string>,
+  collator: Intl.Collator
 ): Recipe[] {
-  if (sortedCache && sortedCache.recipes === recipes && sortedCache.favoriteIds === favoriteIds) {
+  if (
+    sortedCache &&
+    sortedCache.recipes === recipes &&
+    sortedCache.favoriteIds === favoriteIds &&
+    sortedCache.collator === collator
+  ) {
     return sortedCache.result;
   }
-  const result = orderWithFavoritesFirst(uniquePickerRecipes(recipes), favoriteIds);
-  sortedCache = { recipes, favoriteIds, result };
+  const result = orderWithFavoritesFirst(uniquePickerRecipes(recipes), favoriteIds, collator);
+  sortedCache = { recipes, favoriteIds, collator, result };
   return result;
 }

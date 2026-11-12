@@ -15,16 +15,17 @@ import {
 
 const RECIPE_LINKS_FLAG_KEY = 'recipe_links_v1';
 const READY_MEALS_FLAG_KEY = 'ready_meals_v1';
-// v8: ricollega le ricette dopo il nuovo caricamento degli ingredienti (ids rigenerati)
-const RECIPE_LINKS_FLAG_KEY_V8 = 'recipe_links_v8';
+// v15: ricollega le ricette con gli ingredient_id del seme aggiornato.
+const RECIPE_LINKS_FLAG_KEY_V15 = 'recipe_links_v15';
 // v4: ricarica i pronti dopo aver tolto il fuori casa (i database con v2 già impostato tenevano le voci vecchie)
-const READY_MEALS_FLAG_KEY_V3 = 'ready_meals_v3';
+const READY_MEALS_FLAG_KEY_V6 = 'ready_meals_v6';
 const CATEGORY_SET = new Set<string>(READY_MEAL_CATEGORIES);
 
 /** Shape of an entry in src/data/recipes.catalog.json (JSON types are widened). */
 interface SeedLinkJson {
   recipe_id: string;
   ingredients: {
+    ingredient_id: string;
     ingredient: string;
     amount: number | null;
     unit: string;
@@ -48,13 +49,20 @@ function nameKey(name: string): string {
 }
 
 /**
- * Sostituisce tutti i collegamenti ricetta-ingrediente con quelli del catalogo,
- * abbinando gli ingredienti per nome. Returns the number of rows inserted.
+ * Sostituisce tutti i collegamenti ricetta-ingrediente con quelli del catalogo.
+ * Usa ingredient_id quando esiste nel seme; altrimenti ripiega su nome o alias.
+ * Returns the number of rows inserted.
  */
 async function importRecipeLinks(ingredients: Ingredient[]): Promise<number> {
+  const idSet = new Set(ingredients.map(ingredient => ingredient.id));
   const idByName = new Map<string, string>();
   for (const ingredient of ingredients) {
     idByName.set(nameKey(ingredient.name), ingredient.id);
+  }
+  for (const ingredient of ingredients) {
+    for (const alias of ingredient.aliases) {
+      if (!idByName.has(alias)) idByName.set(alias, ingredient.id);
+    }
   }
 
   const rows: RecipeIngredient[] = [];
@@ -63,7 +71,9 @@ async function importRecipeLinks(ingredients: Ingredient[]): Promise<number> {
 
   for (const link of LINKS as unknown as SeedLinkJson[]) {
     for (const entry of link.ingredients) {
-      const ingredientId = idByName.get(nameKey(entry.ingredient));
+      const ingredientId = idSet.has(entry.ingredient_id)
+        ? entry.ingredient_id
+        : idByName.get(nameKey(entry.ingredient));
       if (!ingredientId) {
         skipped += 1;
         unknownNames.add(entry.ingredient);
@@ -146,10 +156,10 @@ export async function seedReadyMealsIfEmpty(): Promise<number> {
  * Returns the number of recipe-ingredient rows inserted, or 0 if already done.
  */
 export async function seedRecipeLinksV2(): Promise<number> {
-  if ((await getKV(RECIPE_LINKS_FLAG_KEY_V8)) !== null) return 0;
+  if ((await getKV(RECIPE_LINKS_FLAG_KEY_V15)) !== null) return 0;
 
   const inserted = await importRecipeLinks(await listIngredients());
-  await setKV(RECIPE_LINKS_FLAG_KEY_V8, '1');
+  await setKV(RECIPE_LINKS_FLAG_KEY_V15, '1');
   return inserted;
 }
 
@@ -158,9 +168,9 @@ export async function seedRecipeLinksV2(): Promise<number> {
  * Returns the number of ready meals inserted, or 0 if already done.
  */
 export async function seedReadyMealsV2(): Promise<number> {
-  if ((await getKV(READY_MEALS_FLAG_KEY_V3)) !== null) return 0;
+  if ((await getKV(READY_MEALS_FLAG_KEY_V6)) !== null) return 0;
 
   const inserted = await importReadyMeals();
-  await setKV(READY_MEALS_FLAG_KEY_V3, '1');
+  await setKV(READY_MEALS_FLAG_KEY_V6, '1');
   return inserted;
 }
