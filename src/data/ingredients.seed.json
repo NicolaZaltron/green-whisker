@@ -4043,7 +4043,13 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 23,
+            "proteine": 2.4,
+            "carboidrati": 4.9,
+            "grassi": 0.9,
+            "fibre": 3.2
+        }
     },
     {
         "id": "chili_powder",
@@ -4065,7 +4071,17 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.5,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 282,
+            "proteine": 13.5,
+            "carboidrati": 50,
+            "zuccheri": 7.2,
+            "grassi": 14.3,
+            "fibre": 34.8,
+            "calcio": 330,
+            "potassio": 1950,
+            "ferro": 17.3
+        }
     },
     {
         "id": "dark_chocolate_chips",
@@ -4249,7 +4265,9 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 0
+        }
     },
     {
         "id": "vegan_feta",
@@ -4289,7 +4307,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 407,
+            "proteine": 11,
+            "carboidrati": 72,
+            "grassi": 8,
+            "fibre": 4
+        }
     },
     {
         "id": "oil",
@@ -4313,7 +4337,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.92,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 884,
+            "grassi": 100,
+            "grassi_saturi": 14
+        }
     },
     {
         "id": "red_wine",
@@ -4368,7 +4396,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 350,
+            "proteine": 12,
+            "carboidrati": 70,
+            "grassi": 1.8,
+            "fibre": 3.5
+        }
     },
     {
         "id": "pecan_nuts",
@@ -4454,7 +4488,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 23,
+            "proteine": 2.1,
+            "carboidrati": 3.7,
+            "zuccheri": 0.9,
+            "grassi": 0.5,
+            "fibre": 2.8,
+            "calcio": 67,
+            "potassio": 521,
+            "ferro": 1.8,
+            "vitamina_c": 27
+        }
     },
     {
         "id": "coconut_sugar",
@@ -4476,7 +4521,16 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.85,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 375,
+            "proteine": 1,
+            "carboidrati": 92,
+            "zuccheri": 90,
+            "grassi": 0.5,
+            "fibre": 2,
+            "potassio": 1000,
+            "ferro": 2
+        }
     },
     {
         "id": "pumpkin",
@@ -4499,7 +4553,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 26,
+            "proteine": 1,
+            "carboidrati": 6.5,
+            "zuccheri": 2.8,
+            "grassi": 0.1,
+            "fibre": 0.5,
+            "potassio": 340,
+            "calcio": 21,
+            "ferro": 0.8,
+            "vitamina_c": 9
+        }
     },
     {
         "id": "smoked_tofu",
@@ -4520,7 +4585,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 175,
+            "proteine": 18,
+            "carboidrati": 2,
+            "zuccheri": 0.5,
+            "grassi": 10,
+            "grassi_saturi": 1.5,
+            "fibre": 1,
+            "calcio": 350,
+            "ferro": 2.5,
+            "sale": 1.5
+        }
     },
     {
         "id": "sweet_paprika",
@@ -4542,7 +4618,19 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.5,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 282,
+            "proteine": 14.1,
+            "carboidrati": 53.9,
+            "zuccheri": 10.3,
+            "grassi": 12.9,
+            "grassi_saturi": 2.1,
+            "fibre": 34.9,
+            "calcio": 229,
+            "potassio": 2280,
+            "ferro": 21.1,
+            "vitamina_c": 0.9
+        }
     },
     {
         "id": "unrefined_salt",
@@ -4591,7 +4679,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.5,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 325,
+            "proteine": 14.3,
+            "carboidrati": 55.8,
+            "zuccheri": 2.8,
+            "grassi": 14,
+            "grassi_saturi": 3.3,
+            "fibre": 33.2,
+            "calcio": 525,
+            "potassio": 1170,
+            "ferro": 19.1
+        }
     },
     {
         "id": "leek",
@@ -4647,7 +4746,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 19,
+            "carboidrati": 0.3,
+            "zuccheri": 0.1
+        }
     },
     {
         "id": "basil_pesto",
@@ -4669,7 +4772,17 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 450,
+            "proteine": 5,
+            "carboidrati": 7,
+            "zuccheri": 2,
+            "grassi": 45,
+            "grassi_saturi": 8,
+            "fibre": 2,
+            "sale": 2.5,
+            "calcio": 100
+        }
     },
     {
         "id": "dried_cherry_tomato",
@@ -4692,7 +4805,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 258,
+            "proteine": 14.1,
+            "carboidrati": 55.8,
+            "zuccheri": 37.6,
+            "grassi": 2.97,
+            "fibre": 12.3,
+            "potassio": 3427,
+            "ferro": 2.7
+        }
     },
     {
         "id": "flour_00",
@@ -4776,7 +4898,13 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1.4,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 316,
+            "proteine": 0.5,
+            "carboidrati": 78,
+            "zuccheri": 50,
+            "grassi": 0
+        }
     },
     {
         "id": "orange",
@@ -5070,7 +5198,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.85,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 380,
+            "carboidrati": 98,
+            "zuccheri": 97,
+            "calcio": 85,
+            "potassio": 133,
+            "ferro": 1.9
+        }
     },
     {
         "id": "chopped_pistachios",
@@ -5142,7 +5277,17 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 306,
+            "proteine": 30,
+            "carboidrati": 35,
+            "grassi": 5,
+            "fibre": 35,
+            "calcio": 70,
+            "ferro": 11,
+            "potassio": 2400,
+            "iodio": 1500
+        }
     },
     {
         "id": "asparagus",
@@ -5294,7 +5439,14 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1.4,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 318,
+            "proteine": 6.2,
+            "carboidrati": 71,
+            "zuccheri": 45,
+            "grassi": 0.2,
+            "fibre": 2.7
+        }
     },
     {
         "id": "red_cabbage",
@@ -5547,7 +5699,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.92,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 884,
+            "grassi": 100,
+            "grassi_saturi": 14
+        }
     },
     {
         "id": "durum_semolina",
@@ -5601,7 +5757,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "hazelnut",
@@ -5753,7 +5924,15 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 40,
+            "proteine": 1.5,
+            "carboidrati": 6,
+            "zuccheri": 4.5,
+            "grassi": 1,
+            "fibre": 1.5,
+            "sale": 0.7
+        }
     },
     {
         "id": "sparkling_water",
@@ -5775,7 +5954,9 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 0
+        }
     },
     {
         "id": "sunflower_seeds",
@@ -5954,7 +6135,13 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 220,
+            "carboidrati": 52,
+            "zuccheri": 45,
+            "proteine": 0.5,
+            "grassi": 0.1
+        }
     },
     {
         "id": "chia_seeds",
@@ -6035,7 +6222,10 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 0,
+            "sale": 68.6
+        }
     },
     {
         "id": "jam",
@@ -6122,7 +6312,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 141,
+            "proteine": 24.7,
+            "carboidrati": 5.3,
+            "zuccheri": 0.5,
+            "grassi": 1.9,
+            "grassi_saturi": 0.3,
+            "fibre": 0.6,
+            "ferro": 1.4
+        }
     },
     {
         "id": "artichoke",
@@ -6373,7 +6572,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "proteine": 0.5,
+            "carboidrati": 75,
+            "zuccheri": 65,
+            "grassi": 0.2,
+            "fibre": 2
+        }
     },
     {
         "id": "potato_starch",
@@ -6395,7 +6601,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 357,
+            "proteine": 0.1,
+            "carboidrati": 83,
+            "zuccheri": 0,
+            "grassi": 0.1,
+            "fibre": 0.5
+        }
     },
     {
         "id": "quinoa",
@@ -6416,7 +6629,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 368,
+            "proteine": 14.1,
+            "carboidrati": 64.2,
+            "grassi": 6.1,
+            "fibre": 7
+        }
     },
     {
         "id": "brown_rice",
@@ -6615,7 +6834,14 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 240,
+            "proteine": 0.5,
+            "carboidrati": 59,
+            "zuccheri": 55,
+            "grassi": 0.1,
+            "fibre": 1.5
+        }
     },
     {
         "id": "fumetto_cornmeal",
@@ -6698,7 +6924,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "carboidrati": 33,
+            "zuccheri": 33
+        }
     },
     {
         "id": "shredded_coconut",
@@ -6719,7 +6949,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 660,
+            "proteine": 6.9,
+            "carboidrati": 23.7,
+            "zuccheri": 7.4,
+            "grassi": 64.5,
+            "grassi_saturi": 57.2,
+            "fibre": 16.3,
+            "potassio": 543,
+            "ferro": 2.4,
+            "zinco": 2
+        }
     },
     {
         "id": "strong_flour",
@@ -6773,7 +7014,14 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 240,
+            "proteine": 0.5,
+            "carboidrati": 59,
+            "zuccheri": 54,
+            "grassi": 0.2,
+            "fibre": 2
+        }
     },
     {
         "id": "mixed_berries",
@@ -6896,7 +7144,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 80,
+            "proteine": 1.8,
+            "carboidrati": 17.8,
+            "zuccheri": 1.7,
+            "grassi": 0.8,
+            "fibre": 2,
+            "potassio": 415,
+            "calcio": 16,
+            "ferro": 0.6,
+            "vitamina_c": 5
+        }
     },
     {
         "id": "dill",
@@ -6918,7 +7177,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 43,
+            "proteine": 3.5,
+            "carboidrati": 7,
+            "zuccheri": 0,
+            "grassi": 1.1,
+            "fibre": 2.1,
+            "calcio": 208,
+            "potassio": 738,
+            "ferro": 6.6,
+            "vitamina_c": 85
+        }
     },
     {
         "id": "dehydrated_yeast",
@@ -6971,7 +7241,19 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 192,
+            "proteine": 20.3,
+            "carboidrati": 7.6,
+            "zuccheri": 0.3,
+            "grassi": 10.8,
+            "grassi_saturi": 2.2,
+            "fibre": 3.8,
+            "calcio": 111,
+            "potassio": 412,
+            "ferro": 2.7,
+            "zinco": 1.1
+        }
     },
     {
         "id": "flax_seeds",
@@ -7151,7 +7433,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "vegetables",
@@ -7206,7 +7503,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 81,
+            "proteine": 5.4,
+            "carboidrati": 14.5,
+            "zuccheri": 5.7,
+            "grassi": 0.4,
+            "fibre": 5.1,
+            "calcio": 25,
+            "potassio": 244,
+            "ferro": 1.5,
+            "vitamina_c": 40
+        }
     },
     {
         "id": "sushi_rice",
@@ -7227,7 +7535,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 2.67,
+            "grassi": 0.28,
+            "carboidrati": 28,
+            "kcal": 129,
+            "zuccheri": 0.05,
+            "fibre": 0.4,
+            "calcio": 10,
+            "ferro": 1.19,
+            "potassio": 35,
+            "sale": 0.613,
+            "zinco": 0.49,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.013,
+            "grassi_saturi": 0.077
+        }
     },
     {
         "id": "matcha",
@@ -7248,7 +7571,19 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.5,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 324,
+            "proteine": 30.6,
+            "carboidrati": 38.5,
+            "zuccheri": 0,
+            "grassi": 5.3,
+            "fibre": 38.5,
+            "calcio": 420,
+            "potassio": 2700,
+            "ferro": 17.5,
+            "zinco": 6.3,
+            "vitamina_c": 60
+        }
     },
     {
         "id": "balsamic_vinegar",
@@ -7363,7 +7698,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "rigatoni",
@@ -7382,7 +7732,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "pumpkin_pie_spice",
@@ -7426,7 +7791,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 35,
+            "proteine": 1.2,
+            "carboidrati": 7,
+            "zuccheri": 3.5,
+            "grassi": 0.3,
+            "fibre": 2
+        }
     },
     {
         "id": "savoy_cabbage",
@@ -7538,7 +7910,14 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": 1.1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 60,
+            "proteine": 10,
+            "carboidrati": 5,
+            "zuccheri": 1,
+            "grassi": 0.1,
+            "sale": 14
+        }
     },
     {
         "id": "ketchup",
@@ -7593,7 +7972,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 628,
+            "proteine": 15,
+            "carboidrati": 17,
+            "zuccheri": 4.3,
+            "grassi": 61,
+            "grassi_saturi": 4.5,
+            "fibre": 9.7,
+            "calcio": 114,
+            "potassio": 680,
+            "ferro": 4.7
+        }
     },
     {
         "id": "dried_figs",
@@ -7712,7 +8102,14 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 18,
+            "proteine": 0.8,
+            "carboidrati": 2.9,
+            "zuccheri": 0.8,
+            "grassi": 0.2,
+            "sale": 0.4
+        }
     },
     {
         "id": "brown_rice_flour",
@@ -7762,7 +8159,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 252,
+            "proteine": 12.5,
+            "carboidrati": 42.7,
+            "grassi": 3.5,
+            "fibre": 6
+        }
     },
     {
         "id": "apple_butter",
@@ -7784,7 +8187,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 170,
+            "proteine": 0.3,
+            "carboidrati": 44,
+            "zuccheri": 38,
+            "grassi": 0.2,
+            "fibre": 2
+        }
     },
     {
         "id": "rum",
@@ -7996,7 +8406,16 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 40,
+            "proteine": 1.9,
+            "carboidrati": 8.8,
+            "zuccheri": 5.3,
+            "grassi": 0.4,
+            "fibre": 1.5,
+            "potassio": 322,
+            "vitamina_c": 143.7
+        }
     },
     {
         "id": "cloves",
@@ -8020,7 +8439,20 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 274,
+            "proteine": 6,
+            "carboidrati": 65.5,
+            "zuccheri": 2.4,
+            "grassi": 13,
+            "grassi_saturi": 3.6,
+            "fibre": 33.9,
+            "calcio": 632,
+            "potassio": 1020,
+            "ferro": 11.8,
+            "zinco": 2.3,
+            "vitamina_c": 0.2
+        }
     },
     {
         "id": "digestive_biscuits",
@@ -8039,7 +8471,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 480,
+            "proteine": 7,
+            "carboidrati": 63,
+            "zuccheri": 19,
+            "grassi": 21,
+            "grassi_saturi": 9,
+            "fibre": 4.5
+        }
     },
     {
         "id": "banana_bread_spread",
@@ -8289,7 +8729,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 150,
+            "proteine": 5,
+            "carboidrati": 25,
+            "zuccheri": 18,
+            "grassi": 2,
+            "fibre": 6,
+            "potassio": 900
+        }
     },
     {
         "id": "marjoram",
@@ -8311,7 +8759,19 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 271,
+            "proteine": 12.7,
+            "carboidrati": 60.6,
+            "zuccheri": 4.1,
+            "grassi": 7,
+            "grassi_saturi": 0.5,
+            "fibre": 40.3,
+            "calcio": 1990,
+            "potassio": 1522,
+            "ferro": 82.7,
+            "zinco": 3.6
+        }
     },
     {
         "id": "wholemeal_soft_wheat_flour",
@@ -8364,7 +8824,17 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 15,
+            "proteine": 1.5,
+            "carboidrati": 2.5,
+            "zuccheri": 1,
+            "grassi": 0.2,
+            "fibre": 1.2,
+            "calcio": 39,
+            "potassio": 173,
+            "vitamina_c": 28
+        }
     },
     {
         "id": "vinegar",
@@ -8441,7 +8911,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 345,
+            "proteine": 12,
+            "carboidrati": 68,
+            "grassi": 2,
+            "fibre": 5
+        }
     },
     {
         "id": "high_oleic_sunflower_oil",
@@ -8489,7 +8965,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1.01,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 18,
+            "carboidrati": 0.5,
+            "zuccheri": 0.2
+        }
     },
     {
         "id": "flaked_almonds",
@@ -8576,7 +9056,17 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 17,
+            "proteine": 1.7,
+            "carboidrati": 3.2,
+            "zuccheri": 0.5,
+            "grassi": 0.2,
+            "fibre": 2.1,
+            "potassio": 300,
+            "calcio": 40,
+            "ferro": 0.8
+        }
     },
     {
         "id": "silken_tofu",
@@ -8597,7 +9087,17 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 55,
+            "proteine": 5.3,
+            "carboidrati": 1.8,
+            "zuccheri": 0.6,
+            "grassi": 2.9,
+            "grassi_saturi": 0.4,
+            "calcio": 31,
+            "ferro": 1.2,
+            "potassio": 120
+        }
     },
     {
         "id": "white_onion",
@@ -8651,7 +9151,9 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 1.2,
-        "nutrients": {}
+        "nutrients": {
+            "sale": 98
+        }
     },
     {
         "id": "millet",
@@ -8710,7 +9212,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.5,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 335,
+            "proteine": 9,
+            "carboidrati": 71.6,
+            "zuccheri": 3.4,
+            "grassi": 4.2,
+            "fibre": 14.1,
+            "calcio": 114,
+            "potassio": 1320,
+            "ferro": 19.8,
+            "zinco": 3.6
+        }
     },
     {
         "id": "orecchiette",
@@ -8730,7 +9243,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "paccheri",
@@ -8749,7 +9277,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "semi_wholemeal_spelt_flour",
@@ -8770,7 +9313,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 360,
+            "proteine": 14,
+            "carboidrati": 70,
+            "grassi": 2.5,
+            "fibre": 6
+        }
     },
     {
         "id": "lupin_flour",
@@ -8792,7 +9341,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 371,
+            "proteine": 36,
+            "carboidrati": 40,
+            "zuccheri": 10,
+            "grassi": 9,
+            "fibre": 19,
+            "calcio": 176,
+            "potassio": 1013,
+            "ferro": 4.4,
+            "zinco": 4.8
+        }
     },
     {
         "id": "borlotti_beans",
@@ -8913,7 +9473,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "mixed_mushrooms",
@@ -8934,7 +9509,15 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 25,
+            "proteine": 2.5,
+            "carboidrati": 3.5,
+            "zuccheri": 1.7,
+            "grassi": 0.4,
+            "fibre": 1.5,
+            "potassio": 350
+        }
     },
     {
         "id": "vegan_egg_yolk",
@@ -8979,7 +9562,12 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 25,
+            "carboidrati": 5,
+            "zuccheri": 2,
+            "sale": 18
+        }
     },
     {
         "id": "pineapple_preserving_water",
@@ -9001,7 +9589,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 25,
+            "carboidrati": 6,
+            "zuccheri": 5.5
+        }
     },
     {
         "id": "orange_blossom_water",
@@ -9023,7 +9615,9 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 0
+        }
     },
     {
         "id": "tonic_water",
@@ -9112,7 +9706,17 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 45,
+            "proteine": 3,
+            "carboidrati": 9,
+            "zuccheri": 0.7,
+            "grassi": 0.6,
+            "fibre": 0.5,
+            "calcio": 150,
+            "ferro": 2.2,
+            "potassio": 50
+        }
     },
     {
         "id": "vegan_salmon_alternative",
@@ -9154,7 +9758,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 450,
+            "proteine": 8,
+            "carboidrati": 74,
+            "zuccheri": 55,
+            "grassi": 13,
+            "grassi_saturi": 1.2,
+            "fibre": 3
+        }
     },
     {
         "id": "rice_amasake",
@@ -9175,7 +9787,14 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 150,
+            "proteine": 2,
+            "carboidrati": 34,
+            "zuccheri": 20,
+            "grassi": 0.5,
+            "fibre": 0.5
+        }
     },
     {
         "id": "amasake",
@@ -9193,7 +9812,14 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 160,
+            "proteine": 2,
+            "carboidrati": 37,
+            "zuccheri": 20,
+            "grassi": 0.5,
+            "fibre": 1
+        }
     },
     {
         "id": "rice_starch",
@@ -9215,7 +9841,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 350,
+            "proteine": 0.5,
+            "carboidrati": 87,
+            "zuccheri": 0,
+            "grassi": 0.1
+        }
     },
     {
         "id": "tapioca_starch",
@@ -9237,7 +9869,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 358,
+            "proteine": 0.2,
+            "carboidrati": 88.7,
+            "zuccheri": 3.4,
+            "grassi": 0.02,
+            "fibre": 0.9
+        }
     },
     {
         "id": "aged_cashew_cheese",
@@ -9311,7 +9950,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "watermelon",
@@ -9367,7 +10021,16 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 337,
+            "proteine": 17.6,
+            "carboidrati": 50,
+            "grassi": 15.9,
+            "fibre": 14.6,
+            "calcio": 646,
+            "potassio": 1441,
+            "ferro": 36.9
+        }
     },
     {
         "id": "candied_orange",
@@ -9388,7 +10051,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "proteine": 0.5,
+            "carboidrati": 75,
+            "zuccheri": 65,
+            "grassi": 0.2,
+            "fibre": 2
+        }
     },
     {
         "id": "rum_flavouring",
@@ -9431,7 +10101,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 20,
+            "proteine": 2.2,
+            "carboidrati": 3.9,
+            "zuccheri": 1.9,
+            "grassi": 0.1,
+            "fibre": 2.1,
+            "potassio": 202,
+            "calcio": 24,
+            "ferro": 2.1,
+            "vitamina_c": 5.6
+        }
     },
     {
         "id": "wholegrain_oats",
@@ -9485,7 +10166,18 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 31,
+            "proteine": 1.8,
+            "carboidrati": 7,
+            "zuccheri": 3.3,
+            "grassi": 0.2,
+            "fibre": 3.4,
+            "potassio": 211,
+            "calcio": 37,
+            "ferro": 1,
+            "vitamina_c": 12.2
+        }
     },
     {
         "id": "bagel",
@@ -9536,7 +10228,11 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.85,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 400,
+            "carboidrati": 100,
+            "zuccheri": 100
+        }
     },
     {
         "id": "bechamel",
@@ -9556,7 +10252,15 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": 1.03,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 105,
+            "proteine": 3.5,
+            "carboidrati": 8,
+            "zuccheri": 3.5,
+            "grassi": 6.5,
+            "grassi_saturi": 4,
+            "calcio": 100
+        }
     },
     {
         "id": "beyond_meat",
@@ -9576,7 +10280,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "proteine": 17,
+            "carboidrati": 7,
+            "zuccheri": 0.5,
+            "grassi": 19,
+            "grassi_saturi": 5,
+            "fibre": 2,
+            "sale": 0.75
+        }
     },
     {
         "id": "chard",
@@ -9661,7 +10374,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 490,
+            "proteine": 6.5,
+            "carboidrati": 67,
+            "zuccheri": 32,
+            "grassi": 22,
+            "grassi_saturi": 11,
+            "fibre": 4
+        }
     },
     {
         "id": "pea_bites",
@@ -9751,7 +10472,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 95,
+            "proteine": 1,
+            "carboidrati": 16,
+            "zuccheri": 11,
+            "grassi": 3,
+            "grassi_saturi": 1.5
+        }
     },
     {
         "id": "cocoa_butter",
@@ -9773,7 +10501,11 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 884,
+            "grassi": 100,
+            "grassi_saturi": 60.5
+        }
     },
     {
         "id": "pistachio_butter",
@@ -9795,7 +10527,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 562,
+            "proteine": 20,
+            "carboidrati": 28,
+            "zuccheri": 7.5,
+            "grassi": 45,
+            "grassi_saturi": 5.6,
+            "fibre": 10,
+            "potassio": 1025,
+            "calcio": 105,
+            "ferro": 4
+        }
     },
     {
         "id": "raw_cocoa_powder",
@@ -10006,7 +10749,15 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 120,
+            "proteine": 1.5,
+            "carboidrati": 12,
+            "zuccheri": 8,
+            "grassi": 7,
+            "grassi_saturi": 1,
+            "fibre": 3
+        }
     },
     {
         "id": "capers_in_vinegar",
@@ -10030,7 +10781,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 23,
+            "proteine": 2.4,
+            "carboidrati": 4.9,
+            "grassi": 0.9,
+            "fibre": 3.2,
+            "sale": 3
+        }
     },
     {
         "id": "capers_in_salt",
@@ -10053,7 +10811,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 23,
+            "proteine": 2.4,
+            "carboidrati": 4.9,
+            "grassi": 0.9,
+            "fibre": 3.2,
+            "sale": 20
+        }
     },
     {
         "id": "cardoon",
@@ -10076,7 +10841,16 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 17,
+            "proteine": 0.7,
+            "carboidrati": 4.1,
+            "zuccheri": 1.1,
+            "grassi": 0.1,
+            "fibre": 1.6,
+            "calcio": 70,
+            "potassio": 400
+        }
     },
     {
         "id": "yellow_carrot",
@@ -10128,7 +10902,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "brussels_sprouts",
@@ -10279,7 +11068,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 25,
+            "proteine": 2.9,
+            "carboidrati": 4.5,
+            "zuccheri": 2.3,
+            "grassi": 0.3,
+            "fibre": 3,
+            "calcio": 22,
+            "potassio": 303,
+            "ferro": 1.2,
+            "vitamina_c": 43
+        }
     },
     {
         "id": "candied_citron",
@@ -10300,7 +11100,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "proteine": 0.5,
+            "carboidrati": 75,
+            "zuccheri": 65,
+            "grassi": 0.2,
+            "fibre": 2
+        }
     },
     {
         "id": "pickled_gherkin",
@@ -10325,7 +11132,16 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 12,
+            "proteine": 0.5,
+            "carboidrati": 2.4,
+            "zuccheri": 1.1,
+            "grassi": 0.2,
+            "fibre": 1,
+            "sale": 2.5,
+            "potassio": 100
+        }
     },
     {
         "id": "coffee_beans",
@@ -10435,7 +11251,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 23,
+            "proteine": 1.7,
+            "carboidrati": 4.7,
+            "zuccheri": 0.7,
+            "grassi": 0.3,
+            "fibre": 4,
+            "calcio": 100,
+            "potassio": 420,
+            "ferro": 0.9,
+            "vitamina_c": 24
+        }
     },
     {
         "id": "vegan_mozzarella_balls",
@@ -10480,7 +11307,14 @@
         "purchase_amount": 100,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 560,
+            "proteine": 1.5,
+            "carboidrati": 60,
+            "zuccheri": 56,
+            "grassi": 35,
+            "grassi_saturi": 22
+        }
     },
     {
         "id": "cardoncelli_mushrooms",
@@ -10542,7 +11376,17 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 349,
+            "proteine": 8.9,
+            "carboidrati": 83,
+            "zuccheri": 38,
+            "grassi": 0.5,
+            "fibre": 15.2,
+            "potassio": 985,
+            "calcio": 384,
+            "ferro": 3.9
+        }
     },
     {
         "id": "coconut",
@@ -10594,7 +11438,14 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 480,
+            "proteine": 5,
+            "carboidrati": 65,
+            "zuccheri": 60,
+            "grassi": 24,
+            "grassi_saturi": 15
+        }
     },
     {
         "id": "food_binder",
@@ -10681,7 +11532,14 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 75,
+            "proteine": 0.2,
+            "carboidrati": 19,
+            "zuccheri": 16,
+            "grassi": 0.1,
+            "fibre": 1.5
+        }
     },
     {
         "id": "conchiglioni",
@@ -10700,7 +11558,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "cherry_jam",
@@ -10725,7 +11598,14 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "proteine": 0.5,
+            "carboidrati": 62,
+            "zuccheri": 58,
+            "grassi": 0.1,
+            "fibre": 1
+        }
     },
     {
         "id": "corn_flakes",
@@ -10776,7 +11656,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 3.77,
+            "grassi": 0.16,
+            "carboidrati": 23.1,
+            "kcal": 111,
+            "zuccheri": 0.1,
+            "fibre": 1.4,
+            "calcio": 8,
+            "ferro": 0.38,
+            "potassio": 58,
+            "sale": 0.473,
+            "zinco": 0.26,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.027,
+            "grassi_saturi": 0.029
+        }
     },
     {
         "id": "corn_couscous",
@@ -10798,7 +11693,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 3.77,
+            "grassi": 0.16,
+            "carboidrati": 23.1,
+            "kcal": 111,
+            "zuccheri": 0.1,
+            "fibre": 1.4,
+            "calcio": 8,
+            "ferro": 0.38,
+            "potassio": 58,
+            "sale": 0.473,
+            "zinco": 0.26,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.027,
+            "grassi_saturi": 0.029
+        }
     },
     {
         "id": "cracker",
@@ -10882,7 +11792,17 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 160,
+            "proteine": 2,
+            "carboidrati": 8.5,
+            "zuccheri": 0.7,
+            "grassi": 14.7,
+            "grassi_saturi": 2.1,
+            "fibre": 6.7,
+            "potassio": 485,
+            "calcio": 12
+        }
     },
     {
         "id": "date_cream",
@@ -10906,7 +11826,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 282,
+            "proteine": 2.5,
+            "carboidrati": 75,
+            "zuccheri": 63,
+            "grassi": 0.4,
+            "fibre": 6.7,
+            "potassio": 650
+        }
     },
     {
         "id": "nut_cream",
@@ -10985,7 +11913,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 550,
+            "proteine": 7,
+            "carboidrati": 56,
+            "zuccheri": 50,
+            "grassi": 34,
+            "grassi_saturi": 6,
+            "fibre": 4
+        }
     },
     {
         "id": "pea_cream",
@@ -11007,7 +11943,15 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 85,
+            "proteine": 5,
+            "carboidrati": 12,
+            "zuccheri": 4,
+            "grassi": 1.5,
+            "fibre": 4,
+            "potassio": 250
+        }
     },
     {
         "id": "pistachio_cream",
@@ -11029,7 +11973,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 560,
+            "proteine": 8,
+            "carboidrati": 50,
+            "zuccheri": 45,
+            "grassi": 37,
+            "grassi_saturi": 8,
+            "fibre": 3
+        }
     },
     {
         "id": "chocolate_spread",
@@ -11082,7 +12034,15 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 550,
+            "proteine": 6,
+            "carboidrati": 57,
+            "zuccheri": 53,
+            "grassi": 33,
+            "grassi_saturi": 8,
+            "fibre": 3
+        }
     },
     {
         "id": "eggplant_spread",
@@ -11105,7 +12065,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 100,
+            "proteine": 1.5,
+            "carboidrati": 8,
+            "zuccheri": 4,
+            "grassi": 7,
+            "fibre": 3
+        }
     },
     {
         "id": "fresh_turmeric",
@@ -11127,7 +12094,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 70,
+            "proteine": 1.5,
+            "carboidrati": 14.9,
+            "zuccheri": 0.7,
+            "grassi": 0.7,
+            "fibre": 3.2,
+            "potassio": 208,
+            "calcio": 23,
+            "ferro": 0.9,
+            "vitamina_c": 25.9
+        }
     },
     {
         "id": "vegetable_stock_cube",
@@ -11151,7 +12129,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 150,
+            "proteine": 5,
+            "carboidrati": 15,
+            "zuccheri": 5,
+            "grassi": 8,
+            "grassi_saturi": 4,
+            "sale": 45
+        }
     },
     {
         "id": "medjool_dates",
@@ -11206,7 +12192,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 350,
+            "proteine": 14,
+            "carboidrati": 67,
+            "grassi": 2.5,
+            "fibre": 8
+        }
     },
     {
         "id": "dried_herbs",
@@ -11250,7 +12242,18 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 19,
+            "proteine": 1.8,
+            "carboidrati": 3.6,
+            "zuccheri": 0.4,
+            "grassi": 0.2,
+            "fibre": 1.6,
+            "calcio": 51,
+            "potassio": 379,
+            "ferro": 1.8,
+            "vitamina_c": 30
+        }
     },
     {
         "id": "erythritol",
@@ -11272,7 +12275,11 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.85,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 0,
+            "carboidrati": 100,
+            "zuccheri": 0
+        }
     },
     {
         "id": "purple_carrot_extract",
@@ -11575,7 +12582,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 367,
+            "proteine": 15.1,
+            "carboidrati": 68.7,
+            "grassi": 3.8,
+            "fibre": 8.7
+        }
     },
     {
         "id": "nut_flour",
@@ -11618,7 +12631,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 370,
+            "proteine": 75,
+            "carboidrati": 13,
+            "grassi": 1.9,
+            "fibre": 0.6
+        }
     },
     {
         "id": "buckwheat_flour",
@@ -11670,7 +12689,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 337,
+            "proteine": 14.5,
+            "carboidrati": 70,
+            "grassi": 2,
+            "fibre": 9
+        }
     },
     {
         "id": "red_lentil_flour",
@@ -11692,7 +12717,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 353,
+            "proteine": 25.8,
+            "carboidrati": 60.1,
+            "zuccheri": 2,
+            "grassi": 1.1,
+            "fibre": 10.8,
+            "calcio": 35,
+            "potassio": 767,
+            "ferro": 6.5,
+            "zinco": 3.3
+        }
     },
     {
         "id": "cornmeal",
@@ -11714,7 +12750,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 362,
+            "proteine": 8.1,
+            "carboidrati": 76.9,
+            "grassi": 3.6,
+            "fibre": 7.3
+        }
     },
     {
         "id": "fine_cornmeal",
@@ -11736,7 +12778,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 362,
+            "proteine": 8.1,
+            "carboidrati": 76.9,
+            "grassi": 3.6,
+            "fibre": 7.3
+        }
     },
     {
         "id": "precooked_cornmeal",
@@ -11758,7 +12806,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 360,
+            "proteine": 7,
+            "carboidrati": 79,
+            "grassi": 2,
+            "fibre": 4
+        }
     },
     {
         "id": "pistachio_flour",
@@ -11780,7 +12834,15 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 562,
+            "proteine": 20,
+            "carboidrati": 28,
+            "zuccheri": 7.5,
+            "grassi": 45,
+            "grassi_saturi": 5.6,
+            "fibre": 10
+        }
     },
     {
         "id": "wholegrain_venere_rice_flour",
@@ -11862,7 +12924,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 340,
+            "proteine": 13,
+            "carboidrati": 65,
+            "grassi": 2.5,
+            "fibre": 10
+        }
     },
     {
         "id": "gluten_free_shortcrust_flour",
@@ -11886,7 +12954,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 355,
+            "carboidrati": 80,
+            "proteine": 4,
+            "grassi": 2,
+            "fibre": 3
+        }
     },
     {
         "id": "medium_strong_flour",
@@ -11907,7 +12981,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 364,
+            "proteine": 12,
+            "carboidrati": 73,
+            "grassi": 1.5,
+            "fibre": 2.7
+        }
     },
     {
         "id": "breadcrumb_flour",
@@ -11989,7 +13069,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 355,
+            "carboidrati": 80,
+            "proteine": 4,
+            "grassi": 2,
+            "fibre": 3
+        }
     },
     {
         "id": "flour_type_2",
@@ -12010,7 +13096,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 340,
+            "proteine": 12,
+            "carboidrati": 67,
+            "grassi": 2,
+            "fibre": 5
+        }
     },
     {
         "id": "greek_fava",
@@ -12175,7 +13267,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 364,
+            "proteine": 6,
+            "carboidrati": 80,
+            "grassi": 0.6,
+            "fibre": 1.5
+        }
     },
     {
         "id": "orange_aroma",
@@ -12256,7 +13354,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 660,
+            "proteine": 6.9,
+            "carboidrati": 23.7,
+            "zuccheri": 7.4,
+            "grassi": 64.5,
+            "grassi_saturi": 57.2,
+            "fibre": 16.3
+        }
     },
     {
         "id": "edible_flowers",
@@ -12338,7 +13444,16 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 35,
+            "proteine": 2.6,
+            "carboidrati": 5.3,
+            "grassi": 0.6,
+            "fibre": 3.8,
+            "calcio": 90,
+            "potassio": 500,
+            "ferro": 2
+        }
     },
     {
         "id": "smoked_cheese",
@@ -12359,7 +13474,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 350,
+            "proteine": 25,
+            "carboidrati": 1,
+            "zuccheri": 0.5,
+            "grassi": 27,
+            "grassi_saturi": 18,
+            "sale": 2,
+            "calcio": 700
+        }
     },
     {
         "id": "vegan_cheese_flakes",
@@ -12404,7 +13528,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 480,
+            "proteine": 6,
+            "carboidrati": 65,
+            "zuccheri": 22,
+            "grassi": 22,
+            "grassi_saturi": 10,
+            "fibre": 2.5
+        }
     },
     {
         "id": "fresh_fruit",
@@ -12458,7 +13590,10 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 10,
+            "carboidrati": 2
+        }
     },
     {
         "id": "king_oyster_mushrooms",
@@ -12513,7 +13648,17 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 26,
+            "proteine": 3.6,
+            "carboidrati": 3.3,
+            "zuccheri": 1.5,
+            "grassi": 0.4,
+            "fibre": 2.5,
+            "potassio": 450,
+            "ferro": 1,
+            "vitamina_c": 2
+        }
     },
     {
         "id": "dried_porcini_mushrooms",
@@ -12536,7 +13681,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 296,
+            "proteine": 30,
+            "carboidrati": 31,
+            "grassi": 3.5,
+            "fibre": 25,
+            "potassio": 2000,
+            "ferro": 8
+        }
     },
     {
         "id": "frozen_porcini_mushrooms",
@@ -12560,7 +13713,15 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 26,
+            "proteine": 3.6,
+            "carboidrati": 3.3,
+            "zuccheri": 1.5,
+            "grassi": 0.4,
+            "fibre": 2.5,
+            "potassio": 450
+        }
     },
     {
         "id": "portobello_mushrooms",
@@ -12615,7 +13776,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 280,
+            "proteine": 20,
+            "carboidrati": 50,
+            "grassi": 3,
+            "fibre": 25,
+            "potassio": 1500
+        }
     },
     {
         "id": "garam_masala",
@@ -12726,7 +13894,18 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 122,
+            "proteine": 13.1,
+            "carboidrati": 9.6,
+            "zuccheri": 4.1,
+            "grassi": 6.7,
+            "fibre": 1.1,
+            "calcio": 67,
+            "potassio": 484,
+            "ferro": 2.1,
+            "vitamina_c": 15.3
+        }
     },
     {
         "id": "pickled_vegetables",
@@ -12783,7 +13962,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "gnocchi",
@@ -12855,7 +14049,19 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 579,
+            "proteine": 21.2,
+            "carboidrati": 21.6,
+            "zuccheri": 4.4,
+            "grassi": 49.9,
+            "grassi_saturi": 3.8,
+            "fibre": 12.5,
+            "calcio": 269,
+            "potassio": 733,
+            "ferro": 3.7,
+            "zinco": 3.1
+        }
     },
     {
         "id": "sugar_sprinkles",
@@ -12968,7 +14174,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 17,
+            "proteine": 1.3,
+            "carboidrati": 3.4,
+            "zuccheri": 0.3,
+            "grassi": 0.2,
+            "fibre": 3.1,
+            "calcio": 19,
+            "potassio": 314,
+            "ferro": 0.2,
+            "vitamina_c": 3.5
+        }
     },
     {
         "id": "salad",
@@ -12991,7 +14208,18 @@
         "purchase_amount": 1,
         "purchase_unit": "pezzo",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 15,
+            "proteine": 1.4,
+            "carboidrati": 2.9,
+            "zuccheri": 0.8,
+            "grassi": 0.2,
+            "fibre": 1.3,
+            "calcio": 36,
+            "potassio": 194,
+            "ferro": 0.9,
+            "vitamina_c": 9.2
+        }
     },
     {
         "id": "wholegrain_venere_rice",
@@ -13199,7 +14427,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 763,
+            "proteine": 0,
+            "carboidrati": 8,
+            "grassi": 99,
+            "grassi_saturi": 15
+        }
     },
     {
         "id": "yellow_lentils",
@@ -13279,7 +14513,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.95,
+            "grassi": 1.7,
+            "carboidrati": 29.9,
+            "kcal": 148,
+            "zuccheri": 0.75,
+            "fibre": 3.9,
+            "calcio": 13,
+            "ferro": 1.71,
+            "potassio": 95,
+            "sale": 0.587,
+            "zinco": 1.33,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.098,
+            "grassi_saturi": 0.242
+        }
     },
     {
         "id": "amaretto_liqueur",
@@ -13302,7 +14551,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.95,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "carboidrati": 30,
+            "zuccheri": 30
+        }
     },
     {
         "id": "peach_liqueur",
@@ -13326,7 +14579,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.95,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "carboidrati": 30,
+            "zuccheri": 30
+        }
     },
     {
         "id": "lupini_beans",
@@ -13349,7 +14606,18 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 119,
+            "proteine": 15.6,
+            "carboidrati": 9.9,
+            "zuccheri": 2.8,
+            "grassi": 2.9,
+            "fibre": 2.8,
+            "calcio": 51,
+            "potassio": 245,
+            "ferro": 1.2,
+            "zinco": 1.4
+        }
     },
     {
         "id": "vegan_mince",
@@ -13390,7 +14658,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "vegan_yuzu_mayo",
@@ -13467,7 +14750,14 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 370,
+            "proteine": 5,
+            "carboidrati": 88,
+            "zuccheri": 20,
+            "grassi": 1,
+            "fibre": 2
+        }
     },
     {
         "id": "margarine",
@@ -13522,7 +14812,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "proteine": 0.4,
+            "carboidrati": 63,
+            "zuccheri": 60,
+            "grassi": 0.1,
+            "fibre": 1.5
+        }
     },
     {
         "id": "azuki_jam",
@@ -13546,7 +14843,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "proteine": 5,
+            "carboidrati": 55,
+            "zuccheri": 35,
+            "grassi": 0.5,
+            "fibre": 5
+        }
     },
     {
         "id": "raspberry_jam",
@@ -13605,7 +14909,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 240,
+            "proteine": 0.5,
+            "carboidrati": 60,
+            "zuccheri": 55,
+            "grassi": 0.2,
+            "fibre": 1.5
+        }
     },
     {
         "id": "sugar_free_blueberry_jam",
@@ -13664,7 +14975,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 240,
+            "proteine": 0.4,
+            "carboidrati": 60,
+            "zuccheri": 55,
+            "grassi": 0.1,
+            "fibre": 1.5
+        }
     },
     {
         "id": "rice_spaghetti",
@@ -13685,7 +15003,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 364,
+            "proteine": 6,
+            "carboidrati": 80,
+            "grassi": 0.6,
+            "fibre": 1.5
+        }
     },
     {
         "id": "borage",
@@ -13706,7 +15030,16 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 21,
+            "proteine": 1.8,
+            "carboidrati": 3.1,
+            "grassi": 0.7,
+            "fibre": 1.7,
+            "calcio": 93,
+            "potassio": 470,
+            "ferro": 3.3
+        }
     },
     {
         "id": "agretti",
@@ -13727,7 +15060,18 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 17,
+            "proteine": 1.8,
+            "carboidrati": 2.5,
+            "zuccheri": 0.5,
+            "grassi": 0.2,
+            "fibre": 2.2,
+            "potassio": 250,
+            "calcio": 100,
+            "ferro": 1.2,
+            "vitamina_c": 20
+        }
     },
     {
         "id": "pomegranate",
@@ -13815,7 +15159,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "mirin",
@@ -13835,7 +15194,12 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": 1.05,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 241,
+            "carboidrati": 43,
+            "zuccheri": 40,
+            "proteine": 0.3
+        }
     },
     {
         "id": "dried_blueberries",
@@ -13946,7 +15310,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 395,
+            "proteine": 13,
+            "carboidrati": 72,
+            "grassi": 5,
+            "fibre": 4
+        }
     },
     {
         "id": "blackberry",
@@ -14066,7 +15436,11 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 0.92,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 884,
+            "grassi": 100,
+            "grassi_saturi": 14
+        }
     },
     {
         "id": "corn_oil",
@@ -14175,7 +15549,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "barley",
@@ -14232,7 +15621,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 266,
+            "proteine": 8.9,
+            "carboidrati": 49,
+            "grassi": 3.5,
+            "fibre": 2.7
+        }
     },
     {
         "id": "five_grain_bread",
@@ -14318,7 +15713,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 370,
+            "proteine": 5,
+            "carboidrati": 82,
+            "grassi": 2,
+            "fibre": 3
+        }
     },
     {
         "id": "rolls",
@@ -14373,7 +15774,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 290,
+            "proteine": 9,
+            "carboidrati": 52,
+            "grassi": 5,
+            "fibre": 2.5
+        }
     },
     {
         "id": "cashew_cream",
@@ -14394,7 +15801,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 170,
+            "proteine": 4,
+            "carboidrati": 8,
+            "zuccheri": 2,
+            "grassi": 14,
+            "grassi_saturi": 2.5,
+            "fibre": 1
+        }
     },
     {
         "id": "soy_cream",
@@ -14415,7 +15830,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 160,
+            "proteine": 3,
+            "carboidrati": 4,
+            "zuccheri": 1,
+            "grassi": 15,
+            "grassi_saturi": 2,
+            "fibre": 0.5
+        }
     },
     {
         "id": "vegan_parmesan",
@@ -14522,7 +15945,15 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 360,
+            "proteine": 21,
+            "carboidrati": 55,
+            "zuccheri": 3,
+            "grassi": 6,
+            "fibre": 10,
+            "ferro": 4
+        }
     },
     {
         "id": "filo_pastry",
@@ -14544,7 +15975,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 299,
+            "proteine": 8,
+            "carboidrati": 58,
+            "grassi": 3,
+            "fibre": 2
+        }
     },
     {
         "id": "spelt_wholewheat_pasta",
@@ -14564,7 +16001,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.95,
+            "grassi": 1.7,
+            "carboidrati": 29.9,
+            "kcal": 148,
+            "zuccheri": 0.75,
+            "fibre": 3.9,
+            "calcio": 13,
+            "ferro": 1.71,
+            "potassio": 95,
+            "sale": 0.587,
+            "zinco": 1.33,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.098,
+            "grassi_saturi": 0.242
+        }
     },
     {
         "id": "pure_pistachio_paste",
@@ -14586,7 +16038,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 562,
+            "proteine": 20,
+            "carboidrati": 28,
+            "zuccheri": 7.5,
+            "grassi": 45,
+            "grassi_saturi": 5.6,
+            "fibre": 10,
+            "calcio": 105,
+            "potassio": 1025,
+            "ferro": 4
+        }
     },
     {
         "id": "pure_hazelnut_paste",
@@ -14608,7 +16071,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 628,
+            "proteine": 15,
+            "carboidrati": 17,
+            "zuccheri": 4.3,
+            "grassi": 61,
+            "grassi_saturi": 4.5,
+            "fibre": 9.7,
+            "calcio": 114,
+            "potassio": 680,
+            "ferro": 4.7
+        }
     },
     {
         "id": "new_potato",
@@ -14631,7 +16105,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 77,
+            "proteine": 2,
+            "carboidrati": 17.5,
+            "zuccheri": 0.8,
+            "grassi": 0.1,
+            "fibre": 2.1,
+            "potassio": 425,
+            "calcio": 12,
+            "ferro": 0.8,
+            "vitamina_c": 19.7
+        }
     },
     {
         "id": "purple_potato",
@@ -14654,7 +16139,17 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 87,
+            "proteine": 2,
+            "carboidrati": 20,
+            "zuccheri": 1,
+            "grassi": 0.1,
+            "fibre": 3,
+            "potassio": 400,
+            "ferro": 1,
+            "vitamina_c": 15
+        }
     },
     {
         "id": "baked_crisps",
@@ -14677,7 +16172,16 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 450,
+            "proteine": 6,
+            "carboidrati": 68,
+            "zuccheri": 2,
+            "grassi": 17,
+            "grassi_saturi": 2,
+            "fibre": 4,
+            "sale": 1.5
+        }
     },
     {
         "id": "french_fries",
@@ -14738,7 +16242,16 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 250,
+            "proteine": 2,
+            "carboidrati": 6,
+            "zuccheri": 1,
+            "grassi": 25,
+            "grassi_saturi": 4,
+            "fibre": 4,
+            "sale": 3
+        }
     },
     {
         "id": "bell_pepper_pate",
@@ -14762,7 +16275,16 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 150,
+            "proteine": 2,
+            "carboidrati": 10,
+            "zuccheri": 7,
+            "grassi": 11,
+            "grassi_saturi": 1.5,
+            "fibre": 3,
+            "sale": 2
+        }
     },
     {
         "id": "chili_flakes",
@@ -14784,7 +16306,14 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 318,
+            "proteine": 12,
+            "carboidrati": 56,
+            "zuccheri": 10,
+            "grassi": 17,
+            "fibre": 27
+        }
     },
     {
         "id": "green_bell_pepper",
@@ -14839,7 +16368,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 330,
+            "proteine": 8,
+            "carboidrati": 53,
+            "grassi": 9,
+            "fibre": 2
+        }
     },
     {
         "id": "wholemeal_piadina",
@@ -14861,7 +16396,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 310,
+            "proteine": 9,
+            "carboidrati": 48,
+            "grassi": 8,
+            "fibre": 6
+        }
     },
     {
         "id": "risotto",
@@ -14879,7 +16420,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 2.67,
+            "grassi": 0.28,
+            "carboidrati": 28,
+            "kcal": 129,
+            "zuccheri": 0.05,
+            "fibre": 0.4,
+            "calcio": 10,
+            "ferro": 1.19,
+            "potassio": 35,
+            "sale": 0.613,
+            "zinco": 0.49,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.013,
+            "grassi_saturi": 0.077
+        }
     },
     {
         "id": "purple_broccoli",
@@ -14930,7 +16486,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "vegan_chicken",
@@ -15006,7 +16577,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 18,
+            "proteine": 0.9,
+            "carboidrati": 3.9,
+            "zuccheri": 2.6,
+            "grassi": 0.2,
+            "fibre": 1.2,
+            "potassio": 237,
+            "calcio": 10,
+            "ferro": 0.3,
+            "vitamina_c": 14
+        }
     },
     {
         "id": "confit_cherry_tomato",
@@ -15029,7 +16611,16 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 100,
+            "proteine": 1.5,
+            "carboidrati": 7,
+            "zuccheri": 5,
+            "grassi": 7,
+            "fibre": 1.5,
+            "potassio": 250,
+            "vitamina_c": 15
+        }
     },
     {
         "id": "diced_tomato",
@@ -15118,7 +16709,15 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": 0.6,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 200,
+            "proteine": 2.5,
+            "carboidrati": 88,
+            "zuccheri": 0,
+            "grassi": 0.6,
+            "fibre": 78,
+            "ferro": 1.1
+        }
     },
     {
         "id": "persimmon_puree",
@@ -15176,7 +16775,17 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 34,
+            "proteine": 1.1,
+            "carboidrati": 8.1,
+            "zuccheri": 3.3,
+            "grassi": 0.3,
+            "fibre": 2.9,
+            "potassio": 206,
+            "calcio": 26,
+            "ferro": 1.4
+        }
     },
     {
         "id": "red_quinoa",
@@ -15197,7 +16806,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 368,
+            "proteine": 14.1,
+            "carboidrati": 64.2,
+            "grassi": 6.1,
+            "fibre": 7
+        }
     },
     {
         "id": "tricolour_quinoa",
@@ -15218,7 +16833,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 368,
+            "proteine": 14.1,
+            "carboidrati": 64.2,
+            "grassi": 6.1,
+            "fibre": 7
+        }
     },
     {
         "id": "radicchio",
@@ -15366,7 +16987,14 @@
         "purchase_amount": 1,
         "purchase_unit": "vasetto",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 160,
+            "proteine": 12,
+            "carboidrati": 8,
+            "zuccheri": 4,
+            "grassi": 9,
+            "fibre": 3
+        }
     },
     {
         "id": "soy_ricotta",
@@ -15444,7 +17072,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 2.67,
+            "grassi": 0.28,
+            "carboidrati": 28,
+            "kcal": 129,
+            "zuccheri": 0.05,
+            "fibre": 0.4,
+            "calcio": 10,
+            "ferro": 1.19,
+            "potassio": 35,
+            "sale": 0.613,
+            "zinco": 0.49,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.013,
+            "grassi_saturi": 0.077
+        }
     },
     {
         "id": "wholegrain_carnaroli_rice",
@@ -15465,7 +17108,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 2.43,
+            "grassi": 1.11,
+            "carboidrati": 25.8,
+            "kcal": 123,
+            "zuccheri": 0.22,
+            "fibre": 1,
+            "calcio": 5,
+            "ferro": 0.4,
+            "potassio": 80,
+            "sale": 0.503,
+            "zinco": 0.63,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.031,
+            "grassi_saturi": 0.199
+        }
     },
     {
         "id": "red_wholegrain_rice",
@@ -15550,7 +17208,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "kala_namak",
@@ -15573,7 +17246,9 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 1.2,
-        "nutrients": {}
+        "nutrients": {
+            "sale": 95
+        }
     },
     {
         "id": "tamarind_sauce",
@@ -15597,7 +17272,14 @@
         "purchase_amount": 500,
         "purchase_unit": "ml",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 150,
+            "proteine": 1,
+            "carboidrati": 36,
+            "zuccheri": 25,
+            "grassi": 0.5,
+            "sale": 1
+        }
     },
     {
         "id": "hot_sauce",
@@ -15742,7 +17424,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "celeriac",
@@ -15764,7 +17461,18 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 42,
+            "proteine": 1.5,
+            "carboidrati": 9.2,
+            "zuccheri": 1.6,
+            "grassi": 0.3,
+            "fibre": 1.8,
+            "potassio": 300,
+            "calcio": 43,
+            "ferro": 0.7,
+            "vitamina_c": 8
+        }
     },
     {
         "id": "wholegrain_rye",
@@ -15815,7 +17523,17 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 311,
+            "proteine": 10.8,
+            "carboidrati": 68.5,
+            "zuccheri": 0,
+            "grassi": 6.7,
+            "fibre": 28,
+            "calcio": 383,
+            "potassio": 1119,
+            "ferro": 14
+        }
     },
     {
         "id": "fennel_seeds",
@@ -15837,7 +17555,18 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 345,
+            "proteine": 15.8,
+            "carboidrati": 52.3,
+            "zuccheri": 0,
+            "grassi": 14.9,
+            "fibre": 39.8,
+            "calcio": 1196,
+            "potassio": 1694,
+            "ferro": 18.5,
+            "zinco": 3.7
+        }
     },
     {
         "id": "poppy_seeds",
@@ -15858,7 +17587,20 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 525,
+            "proteine": 18,
+            "carboidrati": 28.1,
+            "zuccheri": 3,
+            "grassi": 41.6,
+            "grassi_saturi": 4.5,
+            "fibre": 19.5,
+            "calcio": 1438,
+            "potassio": 719,
+            "ferro": 9.8,
+            "zinco": 7.9,
+            "omega3": 0.3
+        }
     },
     {
         "id": "black_sesame_seeds",
@@ -15911,7 +17653,13 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": 0.55,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 340,
+            "proteine": 13,
+            "carboidrati": 65,
+            "grassi": 2.5,
+            "fibre": 10
+        }
     },
     {
         "id": "buckwheat_spaghetti",
@@ -15932,7 +17680,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "timilia_spaghetti",
@@ -15952,7 +17715,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.95,
+            "grassi": 1.7,
+            "carboidrati": 29.9,
+            "kcal": 148,
+            "zuccheri": 0.75,
+            "fibre": 3.9,
+            "calcio": 13,
+            "ferro": 1.71,
+            "potassio": 95,
+            "sale": 0.587,
+            "zinco": 1.33,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.098,
+            "grassi_saturi": 0.242
+        }
     },
     {
         "id": "wholewheat_spaghetti",
@@ -16011,7 +17789,18 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 614,
+            "proteine": 21,
+            "carboidrati": 19,
+            "zuccheri": 4.4,
+            "grassi": 56,
+            "grassi_saturi": 4.2,
+            "fibre": 10.3,
+            "calcio": 264,
+            "potassio": 705,
+            "ferro": 3.7
+        }
     },
     {
         "id": "vegan_spread",
@@ -16156,7 +17945,17 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 247,
+            "proteine": 4,
+            "carboidrati": 81,
+            "zuccheri": 2.2,
+            "grassi": 1.2,
+            "fibre": 53.1,
+            "calcio": 1002,
+            "potassio": 431,
+            "ferro": 8.3
+        }
     },
     {
         "id": "soy_strips",
@@ -16255,7 +18054,14 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 50,
+            "proteine": 0.5,
+            "carboidrati": 12,
+            "zuccheri": 11,
+            "grassi": 0.1,
+            "potassio": 150
+        }
     },
     {
         "id": "mandarin_juice",
@@ -16276,7 +18082,15 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 43,
+            "proteine": 0.5,
+            "carboidrati": 10,
+            "zuccheri": 8.5,
+            "grassi": 0.2,
+            "potassio": 150,
+            "vitamina_c": 30
+        }
     },
     {
         "id": "apple_juice",
@@ -16363,7 +18177,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 430,
+            "proteine": 10,
+            "carboidrati": 68,
+            "grassi": 13,
+            "fibre": 3
+        }
     },
     {
         "id": "truffle",
@@ -16387,7 +18207,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 31,
+            "proteine": 3,
+            "carboidrati": 5,
+            "grassi": 0.5,
+            "fibre": 2
+        }
     },
     {
         "id": "chickpea_tempeh",
@@ -16471,7 +18297,17 @@
         "purchase_amount": 1,
         "purchase_unit": "kg",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 73,
+            "proteine": 2,
+            "carboidrati": 17.4,
+            "zuccheri": 9.6,
+            "grassi": 0.01,
+            "fibre": 1.6,
+            "potassio": 429,
+            "calcio": 14,
+            "ferro": 3.4
+        }
     },
     {
         "id": "trenette",
@@ -16491,7 +18327,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "trofie",
@@ -16511,7 +18362,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "trombette",
@@ -16531,7 +18397,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "dough",
@@ -16575,7 +18456,9 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 1
+        }
     },
     {
         "id": "earl_grey_tea",
@@ -16598,7 +18481,9 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 1
+        }
     },
     {
         "id": "black_tea",
@@ -16655,7 +18540,9 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 1
+        }
     },
     {
         "id": "green_tea",
@@ -16707,7 +18594,13 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 340,
+            "proteine": 10,
+            "carboidrati": 70,
+            "grassi": 1,
+            "fibre": 3
+        }
     },
     {
         "id": "grape",
@@ -16764,7 +18657,16 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 69,
+            "proteine": 0.7,
+            "carboidrati": 18.1,
+            "zuccheri": 15.5,
+            "grassi": 0.2,
+            "fibre": 0.9,
+            "potassio": 191,
+            "vitamina_c": 4
+        }
     },
     {
         "id": "sparkling_white_wine",
@@ -16817,7 +18719,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 306,
+            "proteine": 8.2,
+            "carboidrati": 49.4,
+            "grassi": 8,
+            "fibre": 2.5
+        }
     },
     {
         "id": "vegan_wieners",
@@ -16861,7 +18769,14 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 105,
+            "proteine": 1,
+            "carboidrati": 14,
+            "zuccheri": 10,
+            "grassi": 5,
+            "grassi_saturi": 4
+        }
     },
     {
         "id": "greek_soy_yogurt",
@@ -16957,7 +18872,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "coloured_sugar_sprinkles",
@@ -16977,7 +18907,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 390,
+            "carboidrati": 97,
+            "zuccheri": 90,
+            "grassi": 1,
+            "grassi_saturi": 0.5
+        }
     },
     {
         "id": "date_sugar",
@@ -18257,7 +20193,20 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 402,
+            "proteine": 32,
+            "carboidrati": 0,
+            "zuccheri": 0,
+            "grassi": 30,
+            "grassi_saturi": 20,
+            "sale": 1.6,
+            "calcio": 1155,
+            "potassio": 92,
+            "ferro": 0.8,
+            "zinco": 3.2,
+            "vitamina_b2": 0.33
+        }
     },
     {
         "id": "grana_padano",
@@ -18276,7 +20225,19 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 398,
+            "proteine": 33,
+            "carboidrati": 0,
+            "zuccheri": 0,
+            "grassi": 29,
+            "grassi_saturi": 18,
+            "sale": 1.5,
+            "calcio": 1165,
+            "potassio": 120,
+            "zinco": 11,
+            "vitamina_b2": 0.36
+        }
     },
     {
         "id": "mascarpone",
@@ -18294,7 +20255,15 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 429,
+            "proteine": 4.2,
+            "carboidrati": 4.1,
+            "zuccheri": 4.1,
+            "grassi": 44,
+            "grassi_saturi": 29,
+            "calcio": 120
+        }
     },
     {
         "id": "ricotta",
@@ -18341,7 +20310,17 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 334,
+            "proteine": 25,
+            "carboidrati": 2.3,
+            "zuccheri": 0.5,
+            "grassi": 25,
+            "grassi_saturi": 17,
+            "sale": 1.8,
+            "calcio": 700,
+            "potassio": 100
+        }
     },
     {
         "id": "minced_pork",
@@ -18417,7 +20396,11 @@
         "purchase_amount": 750,
         "purchase_unit": "ml",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 160,
+            "carboidrati": 12,
+            "zuccheri": 10
+        }
     },
     {
         "id": "vanillin",
@@ -18438,7 +20421,10 @@
         "purchase_amount": 1,
         "purchase_unit": "bustina",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 288,
+            "carboidrati": 12
+        }
     },
     {
         "id": "pennette",
@@ -18458,7 +20444,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "ditalini",
@@ -18479,7 +20480,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "egg_lasagne",
@@ -18499,7 +20515,22 @@
         "purchase_amount": 250,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 5.76,
+            "grassi": 0.92,
+            "carboidrati": 30.7,
+            "kcal": 157,
+            "zuccheri": 0.56,
+            "fibre": 1.8,
+            "calcio": 7,
+            "ferro": 1.27,
+            "potassio": 44,
+            "sale": 0.58,
+            "zinco": 0.51,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.135,
+            "grassi_saturi": 0.175
+        }
     },
     {
         "id": "whipping_cream",
@@ -18761,7 +20792,13 @@
         "purchase_amount": 1,
         "purchase_unit": "l",
         "density_g_per_ml": 1,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 7,
+            "proteine": 1,
+            "carboidrati": 0.5,
+            "grassi": 0.2,
+            "sale": 0.8
+        }
     },
     {
         "id": "sweet_chili",
@@ -18784,7 +20821,16 @@
         "purchase_amount": 1,
         "purchase_unit": "pezzo",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 31,
+            "proteine": 1,
+            "carboidrati": 6,
+            "zuccheri": 4.2,
+            "grassi": 0.3,
+            "fibre": 2.1,
+            "potassio": 211,
+            "vitamina_c": 80
+        }
     },
     {
         "id": "cherry_tomato",
@@ -18996,7 +21042,18 @@
         "purchase_amount": 100,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 21,
+            "proteine": 2,
+            "carboidrati": 3.6,
+            "zuccheri": 0.7,
+            "grassi": 0.4,
+            "fibre": 1.8,
+            "potassio": 459,
+            "calcio": 38,
+            "ferro": 2.2,
+            "vitamina_c": 38
+        }
     },
     {
         "id": "radish",
@@ -19480,7 +21537,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 315,
+            "proteine": 19,
+            "carboidrati": 0.5,
+            "zuccheri": 0.5,
+            "grassi": 26,
+            "grassi_saturi": 18,
+            "sale": 2,
+            "calcio": 500
+        }
     },
     {
         "id": "stracchino",
@@ -19502,7 +21568,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 300,
+            "proteine": 17,
+            "carboidrati": 2,
+            "zuccheri": 2,
+            "grassi": 25,
+            "grassi_saturi": 17,
+            "sale": 1,
+            "calcio": 500
+        }
     },
     {
         "id": "crescenza",
@@ -19524,7 +21599,16 @@
         "purchase_amount": 200,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 281,
+            "proteine": 16,
+            "carboidrati": 2.5,
+            "zuccheri": 2.5,
+            "grassi": 23,
+            "grassi_saturi": 15,
+            "sale": 0.8,
+            "calcio": 400
+        }
     },
     {
         "id": "brie",
@@ -19692,7 +21776,14 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 370,
+            "proteine": 10,
+            "carboidrati": 67,
+            "zuccheri": 15,
+            "grassi": 7,
+            "fibre": 8
+        }
     },
     {
         "id": "rusks",
@@ -19716,7 +21807,13 @@
         "purchase_amount": 1,
         "purchase_unit": "confezione",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 407,
+            "proteine": 11,
+            "carboidrati": 76,
+            "grassi": 5,
+            "fibre": 3.5
+        }
     },
     {
         "id": "milk_chocolate",
@@ -19736,7 +21833,18 @@
         "purchase_amount": 100,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 535,
+            "proteine": 7.6,
+            "carboidrati": 59.4,
+            "zuccheri": 51.5,
+            "grassi": 29.7,
+            "grassi_saturi": 18.5,
+            "fibre": 3.4,
+            "calcio": 189,
+            "ferro": 2.4,
+            "potassio": 372
+        }
     },
     {
         "id": "honey",
@@ -19994,7 +22102,22 @@
         "purchase_amount": 500,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "proteine": 1.12,
+            "grassi": 0.28,
+            "carboidrati": 12.5,
+            "kcal": 58,
+            "zuccheri": 0.25,
+            "fibre": 0.6,
+            "calcio": 4,
+            "ferro": 0.65,
+            "potassio": 21,
+            "sale": 0.178,
+            "zinco": 0.11,
+            "vitamina_c": 0,
+            "vitamina_b2": 0.054,
+            "grassi_saturi": 0.035
+        }
     },
     {
         "id": "tortilla",
@@ -20212,7 +22335,16 @@
         "purchase_amount": 300,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 170,
+            "proteine": 2.5,
+            "carboidrati": 25,
+            "zuccheri": 1,
+            "grassi": 7,
+            "grassi_saturi": 1,
+            "fibre": 2,
+            "sale": 0.8
+        }
     },
     {
         "id": "popcorn",
@@ -20331,7 +22463,15 @@
         "purchase_amount": 400,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 390,
+            "proteine": 5.5,
+            "carboidrati": 55,
+            "zuccheri": 30,
+            "grassi": 17,
+            "grassi_saturi": 7,
+            "fibre": 2
+        }
     },
     {
         "id": "tart_packaged",
@@ -20353,7 +22493,15 @@
         "purchase_amount": 400,
         "purchase_unit": "g",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 390,
+            "proteine": 5,
+            "carboidrati": 58,
+            "zuccheri": 28,
+            "grassi": 15,
+            "grassi_saturi": 6,
+            "fibre": 2
+        }
     },
     {
         "id": "muffin_packaged",
@@ -20568,7 +22716,16 @@
         "purchase_amount": 1,
         "purchase_unit": "pezzo",
         "density_g_per_ml": null,
-        "nutrients": {}
+        "nutrients": {
+            "kcal": 210,
+            "proteine": 27,
+            "carboidrati": 0,
+            "grassi": 11,
+            "grassi_saturi": 3.8,
+            "sale": 0.8,
+            "ferro": 1.5,
+            "zinco": 3.5
+        }
     },
     {
         "id": "cotechino_precooked",

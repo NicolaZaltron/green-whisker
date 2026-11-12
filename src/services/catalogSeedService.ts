@@ -15,8 +15,8 @@ import {
 
 const RECIPE_LINKS_FLAG_KEY = 'recipe_links_v1';
 const READY_MEALS_FLAG_KEY = 'ready_meals_v1';
-// v15: ricollega le ricette con gli ingredient_id del seme aggiornato.
-const RECIPE_LINKS_FLAG_KEY_V15 = 'recipe_links_v15';
+// v16: ricollega le ricette con gli ingredient_id del seme aggiornato.
+const RECIPE_LINKS_FLAG_KEY_V16 = 'recipe_links_v16';
 // v4: ricarica i pronti dopo aver tolto il fuori casa (i database con v2 già impostato tenevano le voci vecchie)
 const READY_MEALS_FLAG_KEY_V6 = 'ready_meals_v6';
 const CATEGORY_SET = new Set<string>(READY_MEAL_CATEGORIES);
@@ -156,10 +156,10 @@ export async function seedReadyMealsIfEmpty(): Promise<number> {
  * Returns the number of recipe-ingredient rows inserted, or 0 if already done.
  */
 export async function seedRecipeLinksV2(): Promise<number> {
-  if ((await getKV(RECIPE_LINKS_FLAG_KEY_V15)) !== null) return 0;
+  if ((await getKV(RECIPE_LINKS_FLAG_KEY_V16)) !== null) return 0;
 
   const inserted = await importRecipeLinks(await listIngredients());
-  await setKV(RECIPE_LINKS_FLAG_KEY_V15, '1');
+  await setKV(RECIPE_LINKS_FLAG_KEY_V16, '1');
   return inserted;
 }
 
