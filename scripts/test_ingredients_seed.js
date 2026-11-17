@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const seedPath = path.join(root, 'src/data/ingredients.seed.json');
 const catalogPath = path.join(root, 'src/types/catalog.ts');
 
-const EXPECTED_COUNT = 980; // v17 seed items (nutritional review of 13 November 2026)
+const EXPECTED_COUNT = 1006; // v17 seed items (nutritional review of 13 November 2026)
 const failures = [];
 
 function fail(msg) {

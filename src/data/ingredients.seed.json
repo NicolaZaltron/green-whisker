@@ -2747,7 +2747,7 @@
       "ceci",
       "chickpea",
       "chickpeas"
-    ],
+    , "ceci secchi", "dried chickpeas"],
     "name": "Cece",
     "type": "legumi",
     "tags": [
@@ -3445,9 +3445,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 150,
+    "default_unit": "g",
     "purchase_amount": 1,
     "purchase_unit": "kg",
     "density_g_per_ml": null,
@@ -13121,9 +13121,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 150,
+    "default_unit": "g",
     "purchase_amount": 250,
     "purchase_unit": "g",
     "density_g_per_ml": null,
@@ -16603,9 +16603,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 150,
+    "default_unit": "g",
     "purchase_amount": 1,
     "purchase_unit": "kg",
     "density_g_per_ml": null,
@@ -17583,9 +17583,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
     "purchase_amount": 1,
     "purchase_unit": "kg",
     "density_g_per_ml": null,
@@ -19780,9 +19780,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 150,
+    "default_unit": "g",
     "purchase_amount": 1,
     "purchase_unit": "kg",
     "density_g_per_ml": null,
@@ -20894,105 +20894,6 @@
       "reference_status": "matched_generic",
       "sources": [
         "https://fdc.nal.usda.gov/food-details/169703/nutrients"
-      ],
-      "nutrient_qualifiers": {},
-      "omega3_completeness": "partial_reported_components",
-      "derivation_issues": [],
-      "volume_conversion": null,
-      "notes": [
-        "USDA SR Legacy numeric values per 100 g edible portion; mass nutrients in g, minerals and vitamins in mg except iodine in micrograms. Missing USDA values stay null.",
-        "Available carbohydrate approximation = USDA carbohydrate by difference minus dietary fibre; differs from a directly measured EU label value.",
-        "Omega-3 is the partial sum of reported explicit n-3 fatty acid components and stearidonic acid, not a verified full total; undifferentiated 18:3 is excluded."
-      ]
-    }
-  },
-  {
-    "id": "dried_chickpeas",
-    "aliases": [
-      "ceci secchi",
-      "dried chickpeas"
-    ],
-    "name": "Ceci secchi",
-    "type": "legumi",
-    "tags": [
-      "vegano",
-      "vegetariano",
-      "senza_glutine",
-      "solo_ricetta"
-    ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
-    "purchase_amount": 500,
-    "purchase_unit": "g",
-    "density_g_per_ml": null,
-    "nutrients": {
-      "kcal": 378.0,
-      "proteine": 20.47,
-      "carboidrati": 50.75,
-      "grassi": 6.04,
-      "grassi_saturi": 0.603,
-      "zuccheri": 10.7,
-      "fibre": 12.2,
-      "sale": 0.06,
-      "calcio": 57.0,
-      "ferro": 4.31,
-      "potassio": 718.0,
-      "zinco": 2.76,
-      "vitamina_b2": 0.212,
-      "vitamina_c": 4.0
-    },
-    "nutrition": {
-      "schema_version": 1,
-      "nutrients_basis": "per_100g_edible",
-      "per_100g": {
-        "kcal": 378.0,
-        "proteine": 20.47,
-        "carboidrati": 50.75,
-        "grassi": 6.04,
-        "grassi_saturi": 0.603,
-        "zuccheri": 10.7,
-        "fibre": 12.2,
-        "sale": 0.06,
-        "omega3": null,
-        "calcio": 57.0,
-        "ferro": 4.31,
-        "potassio": 718.0,
-        "zinco": 2.76,
-        "iodio": null,
-        "vitamina_b2": 0.212,
-        "vitamina_c": 4.0
-      },
-      "portion": {
-        "kind": "reference_only",
-        "amount": 100,
-        "unit": "g",
-        "edible_grams": 100,
-        "basis": "riferimento_100g_non_porzione_di_consumo",
-        "estimated": false
-      },
-      "per_serving": {
-        "kcal": 378.0,
-        "proteine": 20.47,
-        "carboidrati": 50.75,
-        "grassi": 6.04,
-        "grassi_saturi": 0.603,
-        "zuccheri": 10.7,
-        "fibre": 12.2,
-        "sale": 0.06,
-        "omega3": null,
-        "calcio": 57.0,
-        "ferro": 4.31,
-        "potassio": 718.0,
-        "zinco": 2.76,
-        "iodio": null,
-        "vitamina_b2": 0.212,
-        "vitamina_c": 4.0
-      },
-      "serving_values_quality": "reference_estimate",
-      "reference_status": "matched_generic",
-      "sources": [
-        "https://fdc.nal.usda.gov/food-details/173756/nutrients"
       ],
       "nutrient_qualifiers": {},
       "omega3_completeness": "partial_reported_components",
@@ -68723,9 +68624,9 @@
       "vegetariano",
       "senza_glutine"
     ],
-    "edible_alone": false,
-    "default_amount": null,
-    "default_unit": "",
+    "edible_alone": true,
+    "default_amount": 150,
+    "default_unit": "g",
     "purchase_amount": 500,
     "purchase_unit": "g",
     "density_g_per_ml": null,
@@ -84091,94 +83992,6 @@
     }
   },
   {
-    "id": "tonno_rio_mare",
-    "aliases": [
-      "tonno rio mare",
-      "rio mare"
-    ],
-    "name": "Tonno Rio Mare all'Olio d'Oliva",
-    "type": "pesce",
-    "tags": [
-      "senza_glutine",
-      "confezionato",
-      "in_scatola"
-    ],
-    "edible_alone": true,
-    "default_amount": 80,
-    "default_unit": "g",
-    "purchase_amount": 1,
-    "purchase_unit": "confezione",
-    "density_g_per_ml": null,
-    "nutrients": {
-      "kcal": 403.0,
-      "proteine": 17.5,
-      "carboidrati": 0.0,
-      "grassi": 37.0,
-      "grassi_saturi": 5.8,
-      "zuccheri": 0.0,
-      "fibre": 0.0,
-      "sale": 1.1
-    },
-    "nutrition": {
-      "schema_version": 1,
-      "nutrients_basis": "per_100g_edible",
-      "per_100g": {
-        "kcal": 403.0,
-        "proteine": 17.5,
-        "carboidrati": 0.0,
-        "grassi": 37.0,
-        "grassi_saturi": 5.8,
-        "zuccheri": 0.0,
-        "fibre": 0.0,
-        "sale": 1.1,
-        "omega3": null,
-        "calcio": null,
-        "ferro": null,
-        "potassio": null,
-        "zinco": null,
-        "iodio": null,
-        "vitamina_b2": null,
-        "vitamina_c": null
-      },
-      "portion": {
-        "kind": "default_serving",
-        "amount": 80,
-        "unit": "g",
-        "edible_grams": 80,
-        "basis": "massa_dichiarata",
-        "estimated": false
-      },
-      "per_serving": {
-        "kcal": 322.4,
-        "proteine": 14.0,
-        "carboidrati": 0.0,
-        "grassi": 29.6,
-        "grassi_saturi": 4.64,
-        "zuccheri": 0.0,
-        "fibre": 0.0,
-        "sale": 0.88,
-        "omega3": null,
-        "calcio": null,
-        "ferro": null,
-        "potassio": null,
-        "zinco": null,
-        "iodio": null,
-        "vitamina_b2": null,
-        "vitamina_c": null
-      },
-      "serving_values_quality": "provisional_legacy_estimate",
-      "reference_status": "legacy_unverified",
-      "sources": [],
-      "nutrient_qualifiers": {},
-      "omega3_completeness": null,
-      "derivation_issues": [],
-      "volume_conversion": null,
-      "notes": [
-        "Do not interpret missing nutrients as zero; existing seed values remain unverified."
-      ]
-    }
-  },
-  {
     "id": "insalatissime_rio_mare",
     "aliases": [
       "insalatissime",
@@ -91464,6 +91277,532 @@
       "notes": [
         "Riferimento cotto e lessato scolato senza sale. Il metodo effettivo (forno/vapore) e la perdita di acqua possono differire: è un riferimento generico di stato cotto, non un’analisi della ricetta."
       ]
+    }
+  },
+  {
+    "id": "potato_gnocchi",
+    "aliases": [
+      "gnocchi",
+      "gnocchi di patate"
+    ],
+    "name": "Gnocchi di patate",
+    "type": "cereali",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 500,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "rice_gnocchi",
+    "aliases": [
+      "gnocchi di riso"
+    ],
+    "name": "Gnocchi di riso",
+    "type": "cereali",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 500,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "squacquerone",
+    "aliases": [
+      "squacquerone",
+      "squaquerone"
+    ],
+    "name": "Squacquerone",
+    "type": "latticini",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 50,
+    "default_unit": "g",
+    "purchase_amount": 200,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "spatzle",
+    "aliases": [
+      "spatzle",
+      "spätzle",
+      "spaetzle"
+    ],
+    "name": "Spatzle",
+    "type": "cereali",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "roast_beef",
+    "aliases": [
+      "roast beef"
+    ],
+    "name": "Roast beef",
+    "type": "carne",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 150,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "guanciale",
+    "aliases": [
+      "guanciale"
+    ],
+    "name": "Guanciale",
+    "type": "carne",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 150,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "ragu_di_carne",
+    "aliases": [
+      "ragù di carne",
+      "ragu di carne"
+    ],
+    "name": "Ragù di carne",
+    "type": "pronti",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 180,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "ragu_contadino",
+    "aliases": [
+      "ragù contadino",
+      "ragu contadino"
+    ],
+    "name": "Ragù contadino",
+    "type": "pronti",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 180,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "ragu_alla_salsiccia",
+    "aliases": [
+      "ragù alla salsiccia",
+      "ragu alla salsiccia"
+    ],
+    "name": "Ragù alla salsiccia",
+    "type": "pronti",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 180,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "tortellini",
+    "aliases": [
+      "tortellini"
+    ],
+    "name": "Tortellini",
+    "type": "pronti",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "ravioli",
+    "aliases": [
+      "ravioli"
+    ],
+    "name": "Ravioli",
+    "type": "pronti",
+    "tags": [],
+    "edible_alone": false,
+    "default_amount": null,
+    "default_unit": "",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "primosale",
+    "aliases": [
+      "primosale"
+    ],
+    "name": "Primosale",
+    "type": "latticini",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 50,
+    "default_unit": "g",
+    "purchase_amount": 200,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "tosella",
+    "aliases": [
+      "tosella"
+    ],
+    "name": "Tosella",
+    "type": "latticini",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 50,
+    "default_unit": "g",
+    "purchase_amount": 200,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_red_lentils",
+    "aliases": [
+      "lenticchie rosse cotte"
+    ],
+    "name": "Lenticchie rosse cotte",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_yellow_lentils",
+    "aliases": [
+      "lenticchie gialle cotte"
+    ],
+    "name": "Lenticchia gialla cotta",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_black_lentils",
+    "aliases": [
+      "lenticchie nere cotte"
+    ],
+    "name": "Lenticchia nera cotta",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_beans",
+    "aliases": [
+      "fagioli cotti"
+    ],
+    "name": "Fagioli cotti",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_spanish_white_beans",
+    "aliases": [
+      "fagioli bianchi di spagna cotti"
+    ],
+    "name": "Fagioli bianchi di Spagna cotti",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_corona_beans",
+    "aliases": [],
+    "name": "Fagiolo corona cotto",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_black_eyed_peas",
+    "aliases": [],
+    "name": "Fagiolo dall'occhio cotto",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_mung_beans",
+    "aliases": [],
+    "name": "Fagiolo mung cotto",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_tondini_beans",
+    "aliases": [],
+    "name": "Fagiolo tondino cotto",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_fava_beans",
+    "aliases": [
+      "fave cotte",
+      "fava cotta"
+    ],
+    "name": "Fava cotta",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_mung_dal",
+    "aliases": [
+      "dal cotto",
+      "dal di mung cotto"
+    ],
+    "name": "Dal cotto",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "cooked_edamame",
+    "aliases": [
+      "edamame cotti",
+      "edamame lessati"
+    ],
+    "name": "Edamame cotti",
+    "type": "legumi",
+    "tags": [
+      "vegano",
+      "vegetariano"
+    ],
+    "edible_alone": true,
+    "default_amount": 100,
+    "default_unit": "g",
+    "purchase_amount": 250,
+    "purchase_unit": "g",
+    "density_g_per_ml": null,
+    "nutrients": {}
+  },
+  {
+    "id": "tonno_all_olio_di_oliva",
+    "aliases": [
+      "tonno all'olio di oliva",
+      "tonno sott'olio"
+    ],
+    "name": "Tonno all'olio di oliva",
+    "type": "pesce",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 80,
+    "default_unit": "g",
+    "purchase_amount": 1,
+    "purchase_unit": "confezione",
+    "density_g_per_ml": null,
+    "nutrients": {
+      "kcal": 403,
+      "proteine": 17.5,
+      "carboidrati": 0,
+      "grassi": 37,
+      "grassi_saturi": 5.8,
+      "zuccheri": 0,
+      "fibre": 0,
+      "sale": 1.1
+    }
+  },
+  {
+    "id": "sgombro_al_naturale",
+    "aliases": [
+      "sgombro al naturale",
+      "sgombro in scatola al naturale"
+    ],
+    "name": "Sgombro al naturale",
+    "type": "pesce",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 80,
+    "default_unit": "g",
+    "purchase_amount": 1,
+    "purchase_unit": "confezione",
+    "density_g_per_ml": null,
+    "nutrients": {
+      "kcal": 156,
+      "proteine": 23.19,
+      "grassi": 6.3,
+      "grassi_saturi": 1.857,
+      "zuccheri": 0,
+      "fibre": 0,
+      "sale": 0.948,
+      "omega3": 1.23,
+      "calcio": 241,
+      "ferro": 2.04,
+      "potassio": 194,
+      "zinco": 1.02,
+      "vitamina_c": 0.9
+    }
+  },
+  {
+    "id": "sgombro_all_olio_di_oliva",
+    "aliases": [
+      "sgombro all'olio di oliva",
+      "sgombro sott'olio"
+    ],
+    "name": "Sgombro all'olio di oliva",
+    "type": "pesce",
+    "tags": [],
+    "edible_alone": true,
+    "default_amount": 80,
+    "default_unit": "g",
+    "purchase_amount": 1,
+    "purchase_unit": "confezione",
+    "density_g_per_ml": null,
+    "nutrients": {
+      "kcal": 244.4,
+      "proteine": 23.19,
+      "grassi": 16.3,
+      "grassi_saturi": 3.2569999999999997,
+      "zuccheri": 0,
+      "fibre": 0,
+      "sale": 0.948,
+      "omega3": 1.23,
+      "calcio": 241,
+      "ferro": 2.04,
+      "potassio": 194,
+      "zinco": 1.02,
+      "vitamina_c": 0.9
     }
   }
 ]

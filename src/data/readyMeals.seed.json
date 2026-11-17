@@ -5991,5 +5991,21 @@
       "nutrient_qualifiers": {},
       "notes": "Nome generico: il riferimento descrive una variante rappresentativa, non ogni prodotto. I valori assenti sono sconosciuti, non zero. Porzione modificabile. Stima da composizione assunta dei componenti gia cotti; proporzioni in peso finale, nessuna resa di cottura implicita. Carboidrati USDA meno fibre; sale da sodio. Sale/salse aggiunti esclusi salvo componenti dichiarati. La grammatura e un esempio per il calcolo, non una raccomandazione alimentare o un peso di confezione. Per verdure impiegate cotte ma rappresentate da voci crude, perdite di vitamine e acqua non modellate: micronutrienti soltanto indicativi."
     }
+  },
+  {
+    "name": "Peperonata",
+    "category": "pronto",
+    "tags": [
+      "verdura",
+      "confezionato"
+    ],
+    "slots": [
+      "pranzo",
+      "cena"
+    ],
+    "default_count": 1,
+    "nutrients": {},
+    "nutrients_basis": "per_serving",
+    "serving_weight_g": 150
   }
 ]

@@ -6,7 +6,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const READY_MEALS_PATH = path.join(ROOT, 'src/data/readyMeals.seed.json');
 
-const EXPECTED_READY_MEALS = 62;
+const EXPECTED_READY_MEALS = 63;
 const VALID_CATEGORIES = ['pronto'];
 const MEAL_SLOTS = ['colazione', 'spuntino_mattina', 'pranzo', 'spuntino_pomeriggio', 'cena'];
 

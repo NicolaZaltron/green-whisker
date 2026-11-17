@@ -27,7 +27,7 @@ Tipo `Ingredient` in `src/types/catalog.ts`.
 - `purchase_amount` / `purchase_unit`: quantità di default per la spesa.
 - `density_g_per_ml`: per convertire volumi in grammi.
 - `nutrients`: tabella `ingredient_nutrients(ingredient_id, nutrient, value)`, PK (ingredient_id, nutrient). **Valori per 100 g.** Chiavi `NUTRIENTS` (16): proteine, calcio, potassio, zinco, omega3, iodio, vitamina_b2, vitamina_c, ferro, fibre, kcal, carboidrati, grassi, grassi_saturi, zuccheri, sale.
-- Seed: `src/data/ingredients.seed.json` (980 voci, revisione nutrizionale del 13 novembre 2026). Campi: `nutrients` (per 100 g, chiavi `NUTRIENTS`), `nutrition` (per 100 g, per porzione, provenienza, attendibilità, qualificatori). 27 voci aggiunte dalla revisione sono approvate; acquisto e densità sono stime da confermare (elenco in `work/current/seed-additions-approved.json`). Per 8 di queste i nutrienti non hanno fonti e restano null (`legacy_unverified`).
+- Seed: `src/data/ingredients.seed.json` (1006 voci, revisione nutrizionale del 13 novembre 2026). Campi: `nutrients` (per 100 g, chiavi `NUTRIENTS`), `nutrition` (per 100 g, per porzione, provenienza, attendibilità, qualificatori). 27 voci aggiunte dalla revisione sono approvate; acquisto e densità sono stime da confermare (elenco in `work/current/seed-additions-approved.json`). Per 8 di queste i nutrienti non hanno fonti e restano null (`legacy_unverified`).
 
 ### 2.2 Ricette (`catalog`, `recipe_ingredients`, `favorites`, `recipe_notes`)
 Tipo `Recipe` in `src/types/recipe.ts`. In SQLite ogni ricetta è un JSON nella tabella `catalog(id, json_data, base_id, diet, origin, created_at, updated_at)`.
@@ -49,7 +49,7 @@ Tipo `Recipe` in `src/types/recipe.ts`. In SQLite ogni ricetta è un JSON nella 
 - Catalogo completo nel repo: `assets/ricette.json` (835 ricette, con tutti i campi e il blocco `nutrition`).
 
 ### 2.3 Pronti (`ready_meals`)
-Tipo `ReadyMeal`: `id`, `name`, `category` (`pronto`), `tags[]`, `slots[]`, `default_count`, `nutrients` (**schema: per porzione; il seed è per 100 g: decisione aperta**). Seed: `src/data/readyMeals.seed.json` (62 voci).
+Tipo `ReadyMeal`: `id`, `name`, `category` (`pronto`), `tags[]`, `slots[]`, `default_count`, `nutrients` (**schema: per porzione; il seed è per 100 g: decisione aperta**). Seed: `src/data/readyMeals.seed.json` (63 voci).
 
 ### 2.4 Planner (`meal_plan`)
 Tipo `MealPlanEntry` in `src/types/recipe.ts`. Una riga per pasto pianificato.
@@ -109,9 +109,9 @@ Tipo `ShoppingItem`: `id`, `recipe_id?`, `recipe_title?`, `ingredient_text`, `na
 
 ## 5. Seed, versioni e file di riferimento
 
-- Seed ingredienti: `src/data/ingredients.seed.json` (980). Flag attivo: `ingredients_seed_v17` (`ingredientsService.ts`).
+- Seed ingredienti: `src/data/ingredients.seed.json` (1006). Flag attivo: `ingredients_seed_v17` (`ingredientsService.ts`).
 - Collegamenti ricetta-ingrediente: creati dall'import delle ricette (`saveRecipeLinks`), non da un seed. Nessun flag.
-- Pronti: `src/data/readyMeals.seed.json` (62, `nutrients` per porzione, `nutrients_per_100g`, `serving_weight_g`). Flag: `ready_meals_v7`.
+- Pronti: `src/data/readyMeals.seed.json` (63, `nutrients` per porzione, `nutrients_per_100g`, `serving_weight_g`). Flag: `ready_meals_v7`.
 - Ogni modifica al seme richiede un nuovo flag, altrimenti i dispositivi non reimportano. Un reseed cancella i pasti pianificati (accettato dall'utente).
 - Catalogo completo con tutti i campi: `assets/ricette.json` (835, con `nutrition`). Ricette AI: `work/current/ai-recipes.json` (22). Pipeline e report nutrizione: `work/seed-review-by-gpt-6.1-sol/nutrizione/` (vedi `LEGGIMI.txt`).
 - Test: `scripts/test_*.js` (plain Node, `NODE_PATH=$PWD/node_modules node scripts/…`). Controlli: `npx tsc --noEmit`, `npx expo lint`.
