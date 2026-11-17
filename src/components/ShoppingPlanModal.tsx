@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -23,14 +23,14 @@ interface ShoppingPlanModalProps {
   onSaved: () => void;
 }
 
-// Data di oggi in YYYY-MM-DD, con le parti della data locale (non UTC).
+// Today's date in YYYY-MM-DD, using local date parts (not UTC).
 function getLocalToday(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// Quantità di default: quanto manca in lista, altrimenti quanto serve.
+// Default quantity: what is missing in the list, otherwise what is needed.
 function defaultAmountText(row: ShoppingPreviewRow): string {
   const value = row.missing ?? row.need;
   return value === null ? '' : String(value);
@@ -53,7 +53,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
   const [hasPlannedMeals, setHasPlannedMeals] = useState(false);
   const [noIngredientsFound, setNoIngredientsFound] = useState(false);
   const [rows, setRows] = useState<ShoppingPreviewRow[]>([]);
-  // Righe selezionate e quantità modificate dall'utente, indicizzate per row.key
+  // Rows selected and quantities edited by the user, indexed by row.key
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -87,9 +87,9 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
         ));
         const recipeRows = await Promise.all(recipeIds.map(id => listRecipeIngredients(id)));
         if (cancelled) return;
-        const recipeIngredients: Record<string, Array<{ ingredient_name: string; amount: number | null; unit: string }>> = {};
+        const recipeIngredients: Record<string, { ingredient_name: string; amount: number | null; unit: string }[]> = {};
         recipeIds.forEach((id, idx) => {
-          // Ricette senza collegamenti nel database (es. create o importate): si usano gli ingredienti della ricetta
+          // Recipes without links in the database (e.g. created or imported): the recipe's ingredients are used
           const linked = recipeRows[idx];
           recipeIngredients[id] = linked.length > 0
             ? linked
@@ -113,7 +113,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
 
         const initialSelected: Record<string, boolean> = {};
         computed.forEach(row => {
-          // Preselezionate le righe che mancano davvero in lista
+          // Rows that are actually missing in the list are preselected
           initialSelected[row.key] = row.missing !== null;
         });
 
@@ -140,7 +140,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
     [amounts]
   );
 
-  // Una riga è selezionabile solo se ha una quantità (default o digitata)
+  // A row is selectable only if it has a quantity (default or typed)
   const isSelectable = useCallback(
     (row: ShoppingPreviewRow) => parseAmount(getAmountText(row)) !== null,
     [getAmountText]
@@ -176,7 +176,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
 
   const changeAmount = (row: ShoppingPreviewRow, text: string) => {
     setAmounts(prev => ({ ...prev, [row.key]: text }));
-    // Digitare una quantità seleziona la riga
+    // Typing a quantity selects the row
     setSelected(prev => ({ ...prev, [row.key]: true }));
   };
 
@@ -260,7 +260,10 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
     <SheetModal visible={visible} onClose={onClose} fullScreen>
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.header}>
-          <Text style={styles.title}>{t('shoppingPlan.title')}</Text>
+          <View style={styles.titleBlock}>
+            <Text style={styles.title}>{t('shoppingPlan.title')}</Text>
+            <Text style={styles.subtitle}>{t('shoppingPlan.subtitle')}</Text>
+          </View>
           <TouchableOpacity
             onPress={onClose}
             style={styles.closeBtn}
@@ -334,10 +337,20 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.text,
+  },
+  subtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   closeBtn: {
     padding: 4,

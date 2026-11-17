@@ -1,4 +1,4 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_shopping_preview.js
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_shopping_preview.js
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -23,7 +23,7 @@ const recipe = (id, servings, list) => ({ id, title: 'R' + id, servings, detaile
 const entry = (id, date, recipe_id, servings = 4, ingredient_id, extra = {}) => ({ id, date, slot: 'cena', kind: ingredient_id ? 'ingredient' : 'recipe', recipe_id, ingredient_id, servings, created_at: 0, ...extra });
 const shop = (name, amount, unit, checked = false) => ({ id: name + unit, name, ingredient_text: name, amount, unit, checked, category: '', created_at: 0 });
 const food = (id, name, amount, unit) => ({ id, name, type: 'simple', default_amount: amount, default_unit: unit });
-// Deriva le mappe dai recipe(...) di test: ingredienti per ricetta alle porzioni base
+// Derives the maps from the test recipe(...) calls: ingredients per recipe at base servings
 const toRI = rs => Object.fromEntries(Object.values(rs).map(r => [r.id, r.detailed_ingredients.map(i => ({ ingredient_name: i.ingredient, amount: i.amount, unit: i.unit }))]));
 const run = o => computeShoppingPreview({
   today: '2026-06-10', entries: [], recipes: {}, ingredients: {}, readyMeals: {}, shoppingItems: [],

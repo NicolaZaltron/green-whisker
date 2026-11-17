@@ -17,13 +17,15 @@ import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
-import { Recipe, MealPlanEntry } from '../../types/recipe';
+import { Recipe, MealPlanEntry, RecipeSource } from '../../types/recipe';
 import type { Ingredient, ReadyMeal } from '../../types/catalog';
 import {
   getMealPlans,
   saveMealPlanEntryDetailed,
+  updateMealPlanEntryDetailed,
   deleteMealPlanEntry,
   deleteMealPlanForDates,
+  type MealPlanDetailInput,
 } from '../../db/database';
 import { listIngredients } from '../../db/ingredientsDb';
 import { listReadyMeals } from '../../db/readyMealsDb';
@@ -50,8 +52,8 @@ import { useCatalogVersion } from '../../hooks/useCatalog';
 import { useFavorites } from '../../context/FavoritesContext';
 
 
-// Stesse voci nello stesso ordine con gli stessi campi (MealPlanEntry ha solo valori primitivi):
-// se uguale si tiene il riferimento precedente, quindi nessun nuovo render
+// Same items in the same order with the same fields (MealPlanEntry has only primitive values):
+// if equal, the previous reference is kept, so no new render
 function sameEntries(prev: MealPlanEntry[], next: MealPlanEntry[]): boolean {
   if (prev.length !== next.length) return false;
   for (let i = 0; i < prev.length; i++) {
@@ -74,19 +76,19 @@ export default function PlannerScreen() {
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
-  // Modalità calendario dalle preferenze ('week' finché non sono caricate)
+  // Calendar mode from preferences ('week' until they are loaded)
   const calendarMode = prefs?.calendarMode ?? 'week';
   const weekResult = useMemo(
     () => getPlannerDays(calendarMode, weekOffset, i18n.language.startsWith('en') ? 'en' : 'it'),
     [calendarMode, weekOffset, i18n.language],
   );
   const weekDays = weekResult.days;
-  // In settimana è l'etichetta di sempre; in modalità rolling è l'intervallo di date
+  // In week mode it is the usual label; in rolling mode it is the date range
   const weekLabel = weekResult.label;
 
   const catalogVersion = useCatalogVersion();
-  // Copia nuova a ogni modifica del catalogo, così il selettore si aggiorna
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // New copy on every catalog change, so the picker updates
+  // catalogVersion: the catalog is updated in place, the dependency forces recomputation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const pickerRecipes = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
 
@@ -103,17 +105,17 @@ export default function PlannerScreen() {
 
   // Recipe Picker Modal State
   const [pickerVisible, setPickerVisible] = useState(false);
-  // Il picker resta montato dopo la prima apertura: le aperture successive non ricreano la modale
+  // The picker stays mounted after the first opening: later openings do not recreate the modal
   const [pickerMounted, setPickerMounted] = useState(false);
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
   const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<Recipe | null>(null);
 
-  // Toast animation (valore tenuto in state per non essere trattato come ref in render) e timer di auto-chiusura
+  // Toast animation (value kept in state so it is not treated as a ref during render) and auto-close timer
   const [toastAnim] = useState(() => new Animated.Value(0));
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Solo i piani: ingredienti e piatti pronti hanno un effetto dedicato (vedi sotto)
-  // Solo la settimana visibile (anche sfogliando settimane precedenti o successive)
+  // Plans only: ingredients and ready meals have a dedicated effect (see below)
+  // Only the visible week (even when browsing previous or next weeks)
   const rangeFrom = weekDays[0]?.dateString;
   const rangeTo = weekDays[weekDays.length - 1]?.dateString;
   const loadPlans = useCallback(async () => {
@@ -124,7 +126,7 @@ export default function PlannerScreen() {
   const loadPlansRef = useRef(loadPlans);
   useEffect(() => { loadPlansRef.current = loadPlans; }, [loadPlans]);
 
-  // Cambio settimana o modalità calendario: si ricarica solo l'intervallo nuovo
+  // Week or calendar mode change: only the new range is reloaded
   useEffect(() => {
     let active = true;
     (async () => {
@@ -134,7 +136,7 @@ export default function PlannerScreen() {
     return () => { active = false; };
   }, [rangeFrom, rangeTo]);
 
-  // Toast flottante in basso (sopra la tab bar): un nuovo messaggio sostituisce il precedente e resetta il timer
+  // Floating toast at the bottom (above the tab bar): a new message replaces the previous one and resets the timer
   const showToast = useCallback((msg: string) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastAnim.stopAnimation();
@@ -148,19 +150,19 @@ export default function PlannerScreen() {
     }, 3500);
   }, [toastAnim]);
 
-  // Pulisce il timer del toast allo smontaggio
+  // Clears the toast timer on unmount
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
-  // Ingredienti e piatti pronti: caricati al mount e ricaricati a ogni cambio del catalogo.
-  // IngredientsModal (menu) chiama refreshCatalog via onChanged, che incrementa catalogVersion.
+  // Ingredients and ready meals: loaded on mount and reloaded on every catalog change.
+  // IngredientsModal (menu) calls refreshCatalog via onChanged, which increments catalogVersion.
   useEffect(() => {
     let active = true;
     (async () => {
       const [ings, meals] = await Promise.all([listIngredients(), listReadyMeals()]);
       if (!active) return;
-      // Caricati solo al mount o al cambio del catalogo: il riferimento nuovo basta
+      // Loaded only on mount or on catalog change: the new reference is enough
       setIngredients(ings);
       setReadyMeals(meals);
     })();
@@ -170,7 +172,7 @@ export default function PlannerScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      // Dopo la transizione della tab (InteractionManager è stato rimosso da RN 0.88), così non blocca l'animazione
+      // After the tab transition (InteractionManager was removed in RN 0.88), so it does not block the animation
       const cancelIdle = scheduleIdle(() => {
         (async () => {
           const [, p] = await Promise.all([
@@ -180,7 +182,7 @@ export default function PlannerScreen() {
           if (!active) return;
           setPrefs(p);
 
-          // Auto-generate on Monday (legge il piano da sé solo se serve)
+          // Auto-generate on Monday (reads the plan by itself only if needed)
           const result = await checkAndAutoGeneratePlan();
           if (result.generated && active) {
             await loadPlansRef.current();
@@ -192,10 +194,10 @@ export default function PlannerScreen() {
         active = false;
         cancelIdle();
       };
-    }, [])
+    }, [showToast, t])
   );
 
-  // Quando cambia settimana si seleziona oggi, se è nella settimana, altrimenti il primo giorno
+  // When the week changes, today is selected if it is in the week, otherwise the first day
   const [dateWeekOffset, setDateWeekOffset] = useState(weekOffset);
   if (dateWeekOffset !== weekOffset) {
     setDateWeekOffset(weekOffset);
@@ -229,11 +231,11 @@ export default function PlannerScreen() {
         }));
     });
     return result;
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // catalogVersion: the catalog is updated in place, the dependency forces recomputation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plans, selectedDate, catalogVersion, ingredientMap, readyMealMap]);
 
-  // Pasti già pianificati nello slot aperto nel picker (giorno selezionato): stesse schede della griglia
+  // Meals already planned in the slot open in the picker (selected day): same cards as the grid
   const plannedForSlot = useMemo<DayMealItem[]>(
     () => (dayItems[targetSlot] ?? []).filter(isVisiblePlannedItem),
     [dayItems, targetSlot]
@@ -245,15 +247,14 @@ export default function PlannerScreen() {
     setPickerVisible(true);
   }, []);
 
-  const handleSelectRecipeForSlot = async (recipe: Recipe) => {
-      const currentServings = prefs?.servings ?? 2;
-
+  const handleSelectRecipeForSlot = async (recipe: Recipe, servings: number, source: RecipeSource) => {
       await saveMealPlanEntryDetailed({
         date: selectedDate,
         slot: targetSlot,
         kind: 'recipe',
         recipeId: recipe.id,
-        servings: currentServings,
+        recipeSource: source,
+        servings,
       });
 
       loadPlans();
@@ -299,6 +300,11 @@ export default function PlannerScreen() {
     showToast(t('planner.slotRemovedToast'));
   }, [t, loadPlans, showToast]);
 
+  const handleUpdateSlot = useCallback(async (id: string, input: MealPlanDetailInput) => {
+    await updateMealPlanEntryDetailed(id, input);
+    loadPlans();
+  }, [loadPlans]);
+
   const handleManualGenerate = async (overwrite: boolean = false, scope: 'day' | 'week' = 'week') => {
     setIsGenerating(true);
     setShowConfirmRegen(false);
@@ -311,12 +317,12 @@ export default function PlannerScreen() {
   };
 
   const selectedDayInfo = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
-  const maxMeals = weekDays.length * SLOT_ORDER.length; // 4 slot per giorno
-  // Conteggi calcolati in un solo passaggio sui piani (non a ogni render con più filter)
+  const maxMeals = weekDays.length * SLOT_ORDER.length; // 4 slots per day
+  // Counts computed in a single pass over the plans (not on every render with multiple filters)
   const planCounts = useMemo(() => {
     const weekDates = new Set(weekDays.map(d => d.dateString));
     const entriesByDate = new Map<string, number>();
-    // Si conta lo slot occupato (data + pasto), non le singole voci: 8 piatti a colazione = 1 slot
+    // Counts the occupied slot (date + meal), not the individual entries: 8 dishes at breakfast = 1 slot
     const filledKeys = new Set<string>();
     const filledSlotsByDate = new Map<string, number>();
     let weekPlansCount = 0;
@@ -341,7 +347,7 @@ export default function PlannerScreen() {
     };
   }, [plans, weekDays, selectedDate]);
   const { entriesByDate, filledSlotsByDate, weekPlansCount, plannedCountDay, plannedCountWeek, selectedDayEntries } = planCounts;
-  const capacityDay = SLOT_ORDER.length; // slot per un singolo giorno
+  const capacityDay = SLOT_ORDER.length; // slots for a single day
   const capacityWeek = maxMeals;
   const selectedDateLabel = selectedDayInfo
     ? `${selectedDayInfo.dayName} ${selectedDayInfo.dayNumber} ${selectedDayInfo.monthName}`
@@ -402,7 +408,7 @@ export default function PlannerScreen() {
             {weekDays.map(d => {
               const isSelected = d.dateString === selectedDate;
               const hasMeal = (entriesByDate.get(d.dateString) ?? 0) > 0;
-              // Un pallino per ogni slot pianificato (max 5), non per ogni portata
+              // One dot for each planned slot (max 5), not for each course
               const mealCount = filledSlotsByDate.get(d.dateString) ?? 0;
               return (
                 <TouchableOpacity
@@ -435,7 +441,7 @@ export default function PlannerScreen() {
         </View>
 
         {/* ─── Day Content ─── */}
-        {/* Giorno e pulsanti fissi in alto: scorrono solo gli slot dei pasti */}
+        {/* Day and buttons fixed at the top: only the meal slots scroll */}
         <View style={styles.dayHeaderFixed}>
           <View style={styles.dayHeader}>
             <View>
@@ -484,7 +490,7 @@ export default function PlannerScreen() {
         </View>
 
         <TabScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Tutti e 4 gli slot del giorno in ordine canonico */}
+          {/* All 4 slots of the day in canonical order */}
           {SLOT_ORDER.map(slot => {
             const slotColors = SLOT_COLORS[slot];
             return (
@@ -498,6 +504,7 @@ export default function PlannerScreen() {
                 items={dayItems[slot] ?? []}
                 onAdd={handleOpenPicker}
                 onDelete={handleDeleteSlot}
+                onUpdate={handleUpdateSlot}
                 onView={setSelectedDetailRecipe}
               />
             );
@@ -562,6 +569,7 @@ export default function PlannerScreen() {
             plannedForSlot={plannedForSlot}
             onDeletePlanned={handleDeleteSlot}
             allRecipes={pickerRecipes}
+            eatServings={prefs?.servings ?? 2}
             favoriteIds={favoriteIds}
             ingredients={ingredients}
             readyMeals={readyMeals}
@@ -581,7 +589,7 @@ export default function PlannerScreen() {
         />
       </View>
 
-      {/* ─── Toast (overlay in basso, sopra la tab bar; non sposta il layout) ─── */}
+      {/* ─── Toast (overlay at the bottom, above the tab bar; does not shift the layout) ─── */}
       {toastMessage && (
         <Animated.View
           pointerEvents="none"
@@ -611,6 +619,7 @@ interface MealSlotCardProps {
   items: DayMealItem[];
   onAdd: (slot: MealSlot) => void;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, input: MealPlanDetailInput) => void;
   onView: (r: Recipe) => void;
 }
 
@@ -623,12 +632,13 @@ const MealSlotCard = React.memo(function MealSlotCard({
   items,
   onAdd,
   onDelete,
+  onUpdate,
   onView,
 }: MealSlotCardProps) {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
-  // Le ricette non più nel catalogo restano nascoste; i piatti semplici mancanti mostrano un segnaposto
+  // Recipes no longer in the catalog stay hidden; missing simple dishes show a placeholder
   const visibleItems = items.filter(isVisiblePlannedItem);
 
   return (
@@ -659,6 +669,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
                 color={color}
                 onView={onView}
                 onDelete={onDelete}
+                onUpdate={onUpdate}
               />
             </View>
           ))}
@@ -678,8 +689,8 @@ const MealSlotCard = React.memo(function MealSlotCard({
 });
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
-// Colori dati/brand che non hanno un token: variante scura per il tema dark
-const deleteBorderPink = (isDark: boolean) => (isDark ? '#5A3634' : '#E8B4B1'); // bordo elimina
+// Data/brand colors that have no token: dark variant for the dark theme
+const deleteBorderPink = (isDark: boolean) => (isDark ? '#5A3634' : '#E8B4B1'); // delete border
 
 const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
@@ -727,7 +738,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   dayChipNameSelected: { color: colors.onPrimary },
   dayChipNum: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 3 },
   dayChipNumSelected: { color: colors.onPrimary },
-  // Giorno corrente: bordo verde dello stesso spessore dei giorni, continuo con il bordo del pulsante
+  // Current day: green border of the same thickness as the days, continuous with the button border
   dayChipToday: { borderColor: colors.primary },
   mealDotRow: { flexDirection: 'row', gap: 3, marginTop: 4 },
   mealDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.primary },

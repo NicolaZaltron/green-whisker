@@ -1,4 +1,4 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_picker_ranking.js
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_picker_ranking.js
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -29,7 +29,7 @@ check('query "mel": inizio prima, poi contenuti; Ristorante escluso', () => {
     item('recipe', 'Besciamella'),
     item('out', 'Ristorante'),
   ];
-  // Besciamella contiene "mel" (be-sciamella), quindi entra nel gruppo "contiene" dopo Aceto di mele
+  // Besciamella contains "mel" (be-sciamella), so it falls in the "contains" group after Aceto di mele
   assert.deepEqual(labels(rankPickerMatches(items, 'mel')), [
     'Mele', 'Melanzane pronte', 'Aceto di mele', 'Besciamella',
   ]);
@@ -56,18 +56,18 @@ check('ordine gruppi: ingredient-inizio, ready-inizio, recipe-inizio, out-inizio
     item('ingredient', 'Sabbia'),
   ];
   assert.deepEqual(labels(rankPickerMatches(items, 'ab')), [
-    'Abete',                // ingredient inizio
-    'Abbacchio pronto',     // ready inizio
-    'Abruzzese',            // recipe inizio
-    'Abbuffata',            // out inizio
-    'Cabina',               // ingredient contiene
-    'Sabbia',               // ingredient contiene
-    'Pizza tabasco',        // ready contiene
-    'Tabasco pronto',       // ready contiene
-    'Crostata zabaglione',  // recipe contiene
-    'Lasagna con zabaione', // recipe contiene
-    'Bar Gabbiano',         // out contiene
-    'Dabba bar',            // out contiene
+    'Abete',                // ingredient start
+    'Abbacchio pronto',     // ready start
+    'Abruzzese',            // recipe start
+    'Abbuffata',            // out start
+    'Cabina',               // ingredient contains
+    'Sabbia',               // ingredient contains
+    'Pizza tabasco',        // ready contains
+    'Tabasco pronto',       // ready contains
+    'Crostata zabaglione',  // recipe contains
+    'Lasagna con zabaione', // recipe contains
+    'Bar Gabbiano',         // out contains
+    'Dabba bar',            // out contains
   ]);
 });
 

@@ -1,6 +1,5 @@
 import { Platform } from 'react-native';
-import { Recipe, ShoppingItem, MealPlanEntry } from '../types/recipe';
-import { cleanShoppingIngredientText } from '../utils/servingsScaler';
+import { Recipe, ShoppingItem, MealPlanEntry, RecipeSource } from '../types/recipe';
 import { classifyShoppingDepartment } from '../utils/shoppingClassifier';
 import { roundedWeightAmount, roundedVolumeAmount } from '../utils/shoppingAmounts';
 import { expandDeletion } from '../services/catalogFormat';
@@ -10,8 +9,6 @@ import {
   cleanSupermarketIngredientName,
   formatSupermarketIngredientText,
   accumulateSupermarketItem,
-  mergeRecipeTitles,
-  ConsolidatedSupermarketItem,
   unitGroupKey,
 } from '../utils/ingredientAggregator';
 
@@ -52,6 +49,10 @@ export function getWebData<T>(key: string, defaultValue: T): T {
   return mem ? JSON.parse(mem) : defaultValue;
 }
 
+// Known limit (web only, used for debugging): localStorage has a quota of about 5 MB per origin.
+// The catalog, ingredients and recipe-ingredient links (tens of thousands of rows with
+// the full recipe book) may exceed it: in that case setItem fails and it falls back to volatile
+// memory (memoryFallback), so data is lost on reload. On device SQLite is used.
 export function setWebData<T>(key: string, value: T): void {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -64,34 +65,41 @@ export function setWebData<T>(key: string, value: T): void {
   memoryFallback.set(key, JSON.stringify(value));
 }
 
-// Le transazioni sullo stesso database non possono annidarsi né sovrapporsi:
-// le scritture concorrenti (es. consolidamento della spesa e aggiunte dal planner) vanno in fila
+// Transactions on the same database cannot nest or overlap:
+// concurrent writes (e.g. shopping consolidation and planner additions) are queued
 let transactionQueue: Promise<unknown> = Promise.resolve();
 
-// Accoda fn dopo le operazioni già in coda; un errore non blocca la coda
+// Queues fn after the operations already in the queue; an error does not block the queue
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   const next = transactionQueue.then(fn, fn);
   transactionQueue = next.catch(() => undefined);
   return next;
 }
 
+// withTransactionAsync does not return the task value (Promise<void>): it is captured inside the transaction
 export function runQueuedTransaction<T>(db: any, fn: () => Promise<T>): Promise<T> {
-  return enqueue(() => db.withTransactionAsync(fn) as Promise<T>);
+  return enqueue(async () => {
+    let result: T | undefined;
+    await db.withTransactionAsync(async () => {
+      result = await fn();
+    });
+    return result as T;
+  });
 }
 
-// Scrittura singola fuori transazione, in coda con le transazioni: non deve mai essere chiamata
-// da dentro una runQueuedTransaction (la coda si bloccherebbe su se stessa)
+// Single write outside a transaction, queued with the transactions: it must never be called
+// from inside a runQueuedTransaction (the queue would block on itself)
 export function runWrite<T>(fn: () => Promise<T>): Promise<T> {
   return enqueue(fn);
 }
 
-// Rinomine applicate quando le opzioni di asporto sono state rinominate (vecchio nome -> nuovo nome)
+// Renames applied when the takeaway options were renamed (old name -> new name)
 export const OUT_OF_HOME_LABEL_RENAMES: Record<string, string> = {
   'Asporto pizza': 'Asporto - Pizza',
   'Asporto cinese': 'Asporto - Cinese',
 };
 
-// Riscrive le etichette vecchie dei pasti fuori casa nel planner. Idempotente: i nomi nuovi non sono chiavi della mappa
+// Rewrites the old out-of-home meal labels in the planner. Idempotent: new names are not keys of the map
 export async function migrateOutOfHomeLabels(): Promise<number> {
   if (isWebFallback || !dbInstance) {
     const entries = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
@@ -122,6 +130,24 @@ export async function migrateOutOfHomeLabels(): Promise<number> {
     console.error('migrateOutOfHomeLabels error', e);
     throw e;
   }
+}
+
+/**
+ * Deletes all local data: on-device database, or localStorage and memory on web.
+ * After the call the app must be restarted to recreate the database and rerun the seeds.
+ */
+export async function resetAllData(): Promise<void> {
+  if (isWebFallback || !dbInstance) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.clear();
+    }
+    memoryFallback.clear();
+    return;
+  }
+  const SQLite = await import('expo-sqlite');
+  await dbInstance.closeAsync();
+  dbInstance = null;
+  await SQLite.deleteDatabaseAsync('greenwhisker.db');
 }
 
 export async function initDatabase(): Promise<void> {
@@ -218,20 +244,21 @@ export async function initDatabase(): Promise<void> {
 
     await migrateCatalogSchema(dbInstance);
     await migrateMealPlanTable();
+    await migrateMealPlanRecipeSource();
 
     await dbInstance.execAsync(`
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date ON meal_plan(date);
       CREATE INDEX IF NOT EXISTS idx_meal_plan_date_slot ON meal_plan(date, slot);
     `);
   } catch (error) {
-    // Il web non arriva qui (ritorna subito sopra e usa localStorage). Su native non si ricade
-    // su localStorage (dati vuoti e silenziosi): l'errore viene propagato all'avvio
+    // Web does not get here (it returns right above and uses localStorage). On native we do not fall back
+    // to localStorage (silent empty data): the error is propagated at startup
     console.error('SQLite init failed:', error);
     dbInstance = null;
     throw error;
   }
 
-  // Dopo l'init riuscito (il catch sopra rilancia, quindi qui si arriva solo con successo)
+  // After a successful init (the catch above rethrows, so we only get here on success)
   try {
     await migrateOutOfHomeLabels();
   } catch (e) {
@@ -247,8 +274,8 @@ export function isWebMode(): boolean {
   return isWebFallback || !dbInstance;
 }
 
-// Migrazione one-time: rimuove side_recipe_id, rende recipe_id nullable, aggiunge food_id.
-// Le side recipe delle vecchie righe vengono scartate. Idempotente.
+// One-time migration: removes side_recipe_id, makes recipe_id nullable, adds food_id.
+// The side recipes of old rows are discarded. Idempotent.
 async function migrateMealPlanTable(): Promise<void> {
   const cols: any[] = await dbInstance.getAllAsync('PRAGMA table_info(meal_plan)');
   if (cols.some(c => c.name === 'food_id' || c.name === 'ingredient_id')) return;
@@ -277,6 +304,13 @@ async function migrateMealPlanTable(): Promise<void> {
     await dbInstance.execAsync('ROLLBACK');
     throw e;
   }
+}
+
+// One-time migration: adds recipe_source. Existing rows stay 'prepare', so the shopping list does not change. Idempotent.
+async function migrateMealPlanRecipeSource(): Promise<void> {
+  const cols: any[] = await dbInstance.getAllAsync('PRAGMA table_info(meal_plan)');
+  if (cols.some(c => c.name === 'recipe_source')) return;
+  await dbInstance.execAsync("ALTER TABLE meal_plan ADD COLUMN recipe_source TEXT NOT NULL DEFAULT 'prepare'");
 }
 
 // --- FAVORITES ---
@@ -361,14 +395,14 @@ function isNonPurchasableItem(cleanName: string, key: string): boolean {
   const k = (key || '').toLowerCase().trim();
   if (k === 'ghiaccio' || k === 'cubetti di ghiaccio' || k === 'cubetto di ghiaccio' || n === 'ghiaccio') return true;
   if (/^acqua\b/i.test(k) || /^acqua\b/i.test(n)) {
-    // Escludi acque comprate al supermercato
+    // Exclude water bought at the supermarket
     if (/acqua\s+di\s+cocco|acqua\s+tonica|acqua\s+di\s+rose|acqua\s+di\s+fiori/i.test(n)) return false;
     return true;
   }
   return false;
 }
 
-export async function addShoppingItems(items: Array<{
+export async function addShoppingItems(items: {
   recipeId?: string;
   recipeTitle?: string;
   ingredientText: string;
@@ -376,7 +410,7 @@ export async function addShoppingItems(items: Array<{
   amount?: number | null;
   unit?: string;
   category?: string;
-}>): Promise<void> {
+}[]): Promise<void> {
   if (!items || items.length === 0) return;
 
   const rawNewItems: ShoppingItem[] = items
@@ -411,7 +445,7 @@ export async function addShoppingItems(items: Array<{
   }
 
   try {
-    // Inserimenti e consolidamento nella stessa transazione in coda (nessuna queued function annidata)
+    // Inserts and consolidation in the same queued transaction (no nested queued function)
     const insertAndConsolidate = async () => {
       for (const item of rawNewItems) {
         await dbInstance.runAsync(
@@ -431,7 +465,7 @@ export async function addShoppingItems(items: Array<{
           ]
         );
       }
-      // Consolida e somma immediatamente per evitare duplicati e unità da cucina
+      // Consolidates and sums immediately to avoid duplicates and kitchen units
       await consolidateShoppingListInTx(dbInstance);
     };
 
@@ -446,13 +480,13 @@ export async function addShoppingItems(items: Array<{
 }
 
 /**
- * Consolida l'intera lista della spesa:
- * - Unisce gli stessi alimenti (es. "Yogurt di soia", "Pasta sfoglia", "Tofu")
- * - Elimina cucchiai, cucchiaini, pizzichi e milligrammi confusi
- * - Arrotonda per eccesso rotoli, panetti e confezioni (1.3 rotoli -> 2 rotoli)
- * - Somma pesi e volumi in grandezze reali da supermercato
+ * Consolidates the whole shopping list:
+ * - Merges the same foods (e.g. "Yogurt di soia", "Pasta sfoglia", "Tofu")
+ * - Removes confusing tablespoons, teaspoons, pinches and milligrams
+ * - Rounds up rolls, blocks and packs (1.3 rolls -> 2 rolls)
+ * - Sums weights and volumes into real supermarket sizes
  */
-// Lettura SQL della lista (stesso SQL e classificazione di getShoppingItems); gli errori risalgono al chiamante
+// SQL read of the list (same SQL and classification as getShoppingItems); errors bubble up to the caller
 async function readShoppingItemsRaw(db: any): Promise<ShoppingItem[]> {
   const rows = await db.getAllAsync(`
     SELECT id, recipe_id, recipe_title, ingredient_text, name, amount, unit, checked, category, created_at
@@ -466,8 +500,8 @@ async function readShoppingItemsRaw(db: any): Promise<ShoppingItem[]> {
   }));
 }
 
-// Lettura, calcolo e scrittura nello stesso contesto: va chiamata solo dentro una transazione in coda
-// (db null = web, localStorage). Non va mai chiamata da dentro un'altra runQueuedTransaction.
+// Read, compute and write in the same context: call only inside a queued transaction
+// (db null = web, localStorage). Never call from inside another runQueuedTransaction.
 async function consolidateShoppingListInTx(db: any | null): Promise<number> {
   const all = db ? await readShoppingItemsRaw(db) : await getShoppingItems();
   if (all.length === 0) return 0;
@@ -493,7 +527,7 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
     if (isNonPurchasableItem(cleanName, baseKey)) {
       continue;
     }
-    // Unità non sommabili (es. 500 g e 1 confezione) restano in gruppi separati
+    // Non-summable units (e.g. 500 g and 1 pack) stay in separate groups
     const key = `${baseKey}|${unitGroupKey(item.unit)}`;
     const category = classifyShoppingDepartment(cleanName, item.category);
 
@@ -527,8 +561,8 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
 
   const consolidatedNewItems: ShoppingItem[] = [];
   for (const group of groupMap.values()) {
-    // Stessi arrotondamenti di roundedWeightAmount / roundedVolumeAmount (25 g/ml, minimo 50 g),
-    // così il testo della riga usa le stesse grammature di amount e unità
+    // Same rounding as roundedWeightAmount / roundedVolumeAmount (25 g/ml, minimum 50 g),
+    // so the row text uses the same weights as amount and unit
     const roundedGrams = group.weightGrams !== null
       ? (group.weightGrams < 50 ? 50 : Math.round(group.weightGrams / 25) * 25)
       : null;
@@ -539,10 +573,9 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
       group.discreteUnit,
       roundedGrams,
       roundedMl,
-      group.hasKitchenUnitOnly
     );
 
-    // Quantità arrotondata una sola volta: amount e unità derivano entrambi da qui
+    // Quantity rounded only once: amount and unit both derive from here
     const weight = group.weightGrams !== null ? roundedWeightAmount(group.weightGrams) : null;
     const volume = group.volumeMl !== null ? roundedVolumeAmount(group.volumeMl) : null;
 
@@ -571,7 +604,7 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
     });
   }
 
-  // Confronto per id (non per indice) su tutti i campi visibili: se nulla cambia non si scrive nulla
+  // Compared by id (not by index) on all visible fields: if nothing changes nothing is written
   const uncheckedById = new Map(unchecked.map(u => [u.id, u]));
   const hasChanges = unchecked.length !== consolidatedNewItems.length ||
     consolidatedNewItems.some(c => {
@@ -585,7 +618,7 @@ async function consolidateShoppingListInTx(db: any | null): Promise<number> {
         c.checked !== Boolean(u.checked);
     });
 
-  // Early return prima di qualsiasi DELETE
+  // Early return before any DELETE
   if (!hasChanges) {
     return consolidatedNewItems.length;
   }
@@ -631,7 +664,7 @@ export async function consolidateShoppingList(): Promise<number> {
 
   try {
     if (typeof (dbInstance as any).withTransactionAsync === 'function') {
-      // Lettura, calcolo e scrittura nella stessa transazione in coda: niente TOCTOU
+      // Read, compute and write in the same queued transaction: no TOCTOU
       return await runQueuedTransaction(dbInstance, () => consolidateShoppingListInTx(dbInstance));
     }
     return await consolidateShoppingListInTx(dbInstance);
@@ -641,7 +674,7 @@ export async function consolidateShoppingList(): Promise<number> {
   }
 }
 
-/** Aggiorna quantità e unità di un elemento della lista; il testo dell'ingrediente segue la quantità. */
+/** Updates quantity and unit of a list item; the ingredient text follows the quantity. */
 export async function updateShoppingItemQuantity(id: string, name: string, amount: number | null, unit: string): Promise<void> {
   const ingredientText = (amount === null ? name : `${amount} ${unit} ${name}`).replace(/\s+/g, ' ').trim();
   if (isWebFallback || !dbInstance) {
@@ -726,9 +759,9 @@ export async function getMealPlans(range?: { fromDate: string; toDate: string })
   }
 
   try {
-    // Con intervallo: solo le date richieste (usa idx_meal_plan_date); senza, lettura completa
+    // With a range: only the requested dates (uses idx_meal_plan_date); without, a full read
     const rows = await dbInstance.getAllAsync(
-      `SELECT id, date, slot, kind, recipe_id, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at
+      `SELECT id, date, slot, kind, recipe_id, recipe_source, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at
       FROM meal_plan
       ${range ? 'WHERE date BETWEEN ? AND ?' : ''}
       ORDER BY date ASC, slot ASC`,
@@ -764,7 +797,7 @@ export async function saveMealPlanEntry(entry: {
     created_at: Date.now()
   };
 
-  // Più ricette possono coesistere nello stesso pasto: si aggiunge sempre una nuova entry
+  // Several recipes can coexist in the same meal: a new entry is always added
   if (isWebFallback || !dbInstance) {
     const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
     setWebData(WEB_STORAGE_KEYS.PLANNER, [...existing, newEntry]);
@@ -848,16 +881,18 @@ export type MealPlanDetailInput = {
   unit?: string;
   count?: number;
   servings?: number;
+  recipeSource?: RecipeSource;
 };
 
 function normalizeDetail(input: MealPlanDetailInput) {
-  // Fuori casa: solo un'etichetta, nessun collegamento a ricette, ingredienti o pronti
+  // Out of home: only a label, no link to recipes, ingredients or ready meals
   if (input.kind === 'out') {
     const label = input.label?.trim();
     if (!label) throw new Error('meal plan entry: label must be set for out-of-home meals');
     return {
       kind: 'out' as const,
       recipe_id: null,
+      recipe_source: 'prepare' as const,
       ingredient_id: null,
       ready_meal_id: null,
       label,
@@ -874,6 +909,7 @@ function normalizeDetail(input: MealPlanDetailInput) {
   return {
     kind: input.kind,
     recipe_id: input.kind === 'recipe' ? input.recipeId! : null,
+    recipe_source: (input.kind === 'recipe' ? input.recipeSource ?? 'prepare' : 'prepare') as RecipeSource,
     ingredient_id: input.kind === 'ingredient' ? input.ingredientId! : null,
     ready_meal_id: input.kind === 'ready' ? input.readyMealId! : null,
     label: null,
@@ -894,6 +930,7 @@ export async function saveMealPlanEntryDetailed(input: MealPlanDetailInput & {
     slot: input.slot,
     kind: d.kind,
     recipe_id: d.recipe_id ?? undefined,
+    recipe_source: d.recipe_source,
     ingredient_id: d.ingredient_id ?? undefined,
     ready_meal_id: d.ready_meal_id ?? undefined,
     label: d.label ?? undefined,
@@ -925,6 +962,7 @@ export async function updateMealPlanEntryDetailed(id: string, input: MealPlanDet
       ...p,
       kind: d.kind,
       recipe_id: d.recipe_id ?? undefined,
+      recipe_source: d.recipe_source,
       ingredient_id: d.ingredient_id ?? undefined,
       ready_meal_id: d.ready_meal_id ?? undefined,
       label: d.label ?? undefined,
@@ -940,8 +978,8 @@ export async function updateMealPlanEntryDetailed(id: string, input: MealPlanDet
       await runWrite(() => dbInstance.runAsync('UPDATE meal_plan SET servings = ? WHERE id = ?', [input.servings, id]));
     }
     await runWrite(() => dbInstance.runAsync(
-      'UPDATE meal_plan SET kind = ?, recipe_id = ?, ingredient_id = ?, ready_meal_id = ?, label = ?, amount = ?, unit = ?, count = ? WHERE id = ?',
-      [d.kind, d.recipe_id, d.ingredient_id, d.ready_meal_id, d.label, d.amount, d.unit, d.count, id]
+      'UPDATE meal_plan SET kind = ?, recipe_id = ?, recipe_source = ?, ingredient_id = ?, ready_meal_id = ?, label = ?, amount = ?, unit = ?, count = ? WHERE id = ?',
+      [d.kind, d.recipe_id, d.recipe_source, d.ingredient_id, d.ready_meal_id, d.label, d.amount, d.unit, d.count, id]
     ));
   } catch (e) {
     console.error('updateMealPlanEntryDetailed error', e);
@@ -1003,9 +1041,9 @@ const BULK_DELETE_SQL = "DELETE FROM meal_plan WHERE date = ? AND slot = ? AND k
 function bulkDeleteParams(e: MealPlanEntry): any[] {
   return [e.date, e.slot, entryKind(e), activeId(e)];
 }
-const BULK_INSERT_SQL = 'INSERT INTO meal_plan (id, date, slot, kind, recipe_id, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+const BULK_INSERT_SQL = 'INSERT INTO meal_plan (id, date, slot, kind, recipe_id, recipe_source, ingredient_id, ready_meal_id, label, amount, unit, count, servings, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 function bulkInsertParams(e: MealPlanEntry): any[] {
-  return [e.id, e.date, e.slot, entryKind(e), e.recipe_id ?? null, e.ingredient_id ?? null, e.ready_meal_id ?? null, e.label ?? null, e.amount ?? null, e.unit ?? '', e.count ?? 1, e.servings, e.notes || '', e.created_at];
+  return [e.id, e.date, e.slot, entryKind(e), e.recipe_id ?? null, e.recipe_source ?? 'prepare', e.ingredient_id ?? null, e.ready_meal_id ?? null, e.label ?? null, e.amount ?? null, e.unit ?? '', e.count ?? 1, e.servings, e.notes || '', e.created_at];
 }
 
 export async function saveMealPlanEntriesBulk(entries: MealPlanEntry[]): Promise<void> {
@@ -1013,7 +1051,7 @@ export async function saveMealPlanEntriesBulk(entries: MealPlanEntry[]): Promise
 
   if (isWebFallback || !dbInstance) {
     const existing = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
-    // Sostituisce solo la stessa ricetta/piatto nello stesso giorno e pasto
+    // Replaces only the same recipe/dish on the same day and meal
     const keyOf = (e: MealPlanEntry) => `${e.date}|${e.slot}|${activeKey(e)}`;
     const newKeys = new Set(entries.map(keyOf));
     const filtered = existing.filter(p => !newKeys.has(keyOf(p)));
@@ -1067,7 +1105,7 @@ export async function clearMealPlans(): Promise<void> {
 }
 
 /**
- * Elimina tutti i pasti pianificati nelle date indicate (formato YYYY-MM-DD). Restituisce il numero di pasti eliminati.
+ * Deletes all meals planned on the given dates (YYYY-MM-DD format). Returns the number of meals deleted.
  */
 export async function deleteMealPlanForDates(dates: string[]): Promise<number> {
   if (!dates || dates.length === 0) return 0;
@@ -1196,8 +1234,8 @@ export async function setKV(key: string, value: string): Promise<void> {
   }
 }
 
-// --- CATALOGO ---
-// Tutte le ricette del telefono (originali e varianti). Le varianti hanno base_id valorizzato.
+// --- CATALOG ---
+// All the phone's recipes (originals and variants). Variants have base_id set.
 
 function catalogIndexFields(recipe: Recipe) {
   const now = Date.now();
@@ -1231,9 +1269,9 @@ export async function getCatalogRecipes(): Promise<Recipe[]> {
 }
 
 /**
- * Inserisce o aggiorna le ricette. Con mode 'keep' le ricette con un id già presente non vengono toccate.
+ * Decides which recipes to write: with mode 'keep' those with an id already present are skipped.
  */
-export async function upsertCatalogRecipes(recipes: Recipe[], mode: 'overwrite' | 'keep' = 'overwrite'): Promise<{ inserted: number; updated: number; skipped: number }> {
+export async function planCatalogUpsert(recipes: Recipe[], mode: 'overwrite' | 'keep' = 'overwrite'): Promise<{ toWrite: Recipe[]; result: { inserted: number; updated: number; skipped: number } }> {
   const existing = new Set((await getCatalogRecipes()).map(r => r.id));
   const result = { inserted: 0, updated: 0, skipped: 0 };
   const toWrite = recipes.filter(r => {
@@ -1248,45 +1286,64 @@ export async function upsertCatalogRecipes(recipes: Recipe[], mode: 'overwrite' 
     result.updated++;
     return true;
   });
+  return { toWrite, result };
+}
+
+/** Writes the recipes to the web catalog (localStorage): one read and one write. */
+export async function writeCatalogRecipesWeb(toWrite: Recipe[]): Promise<void> {
+  const byId = new Map((await getCatalogRecipes()).map(r => [r.id, r]));
+  toWrite.forEach(r => byId.set(r.id, r));
+  setWebData(WEB_STORAGE_KEYS.CATALOG, Array.from(byId.values()));
+}
+
+/**
+ * Writes the recipes to SQLite WITHOUT opening a transaction: call it from inside a
+ * runQueuedTransaction (or where atomicity is not needed). It never calls runQueuedTransaction/runWrite.
+ */
+export async function writeCatalogRecipesInTx(db: any, toWrite: Recipe[]): Promise<void> {
+  for (const recipe of toWrite) {
+    const f = catalogIndexFields(recipe);
+    await db.runAsync(`
+      INSERT INTO catalog (id, json_data, base_id, diet, origin, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        json_data = excluded.json_data,
+        base_id = excluded.base_id,
+        diet = excluded.diet,
+        origin = excluded.origin,
+        updated_at = excluded.updated_at
+    `, [recipe.id, JSON.stringify(recipe), f.base, f.diet, f.origin, f.created, f.updated]);
+  }
+}
+
+/**
+ * Inserts or updates recipes. With mode 'keep' recipes with an id already present are not touched.
+ * On a write error it rethrows after logging it: callers must handle it.
+ */
+export async function upsertCatalogRecipes(recipes: Recipe[], mode: 'overwrite' | 'keep' = 'overwrite'): Promise<{ inserted: number; updated: number; skipped: number }> {
+  const { toWrite, result } = await planCatalogUpsert(recipes, mode);
 
   if (isWebFallback || !dbInstance) {
-    const byId = new Map((await getCatalogRecipes()).map(r => [r.id, r]));
-    toWrite.forEach(r => byId.set(r.id, r));
-    setWebData(WEB_STORAGE_KEYS.CATALOG, Array.from(byId.values()));
+    await writeCatalogRecipesWeb(toWrite);
     return result;
   }
 
-  const write = async () => {
-    for (const recipe of toWrite) {
-      const f = catalogIndexFields(recipe);
-      await dbInstance.runAsync(`
-        INSERT INTO catalog (id, json_data, base_id, diet, origin, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          json_data = excluded.json_data,
-          base_id = excluded.base_id,
-          diet = excluded.diet,
-          origin = excluded.origin,
-          updated_at = excluded.updated_at
-      `, [recipe.id, JSON.stringify(recipe), f.base, f.diet, f.origin, f.created, f.updated]);
-    }
-  };
-
   try {
     if (typeof (dbInstance as any).withTransactionAsync === 'function') {
-      await runQueuedTransaction(dbInstance, write);
+      await runQueuedTransaction(dbInstance, () => writeCatalogRecipesInTx(dbInstance, toWrite));
     } else {
-      await write();
+      await writeCatalogRecipesInTx(dbInstance, toWrite);
     }
   } catch (e) {
     console.error('upsertCatalogRecipes error', e);
+    throw e;
   }
   return result;
 }
 
 /**
- * Rimuove dal planner, dai preferiti e dalle note le ricette eliminate dal catalogo.
- * La lista della spesa non viene toccata: conserva già il testo degli ingredienti.
+ * Removes from the planner, favorites and notes the recipes deleted from the catalog.
+ * The shopping list is not touched: it already keeps the ingredient text.
  */
 export async function removeRecipeReferences(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
@@ -1317,7 +1374,7 @@ export async function removeRecipeReferences(ids: string[]): Promise<void> {
 }
 
 /**
- * Elimina le ricette indicate e le loro varianti. Restituisce gli id eliminati, per pulire i riferimenti.
+ * Deletes the given recipes and their variants. Returns the deleted ids, to clean up references.
  */
 export async function deleteCatalogRecipes(ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
@@ -1330,13 +1387,13 @@ export async function deleteCatalogRecipes(ids: string[]): Promise<string[]> {
     return deleted;
   }
 
-  // Gli errori non vanno inghiottiti: chi chiama deve sapere che la cancellazione non è avvenuta
+  // Errors must not be swallowed: the caller needs to know the deletion did not happen
   const placeholders = deleted.map(() => '?').join(',');
   await runWrite(() => dbInstance.runAsync(`DELETE FROM catalog WHERE id IN (${placeholders})`, deleted));
   return deleted;
 }
 
-// Ricette personali della vecchia versione (tabella custom_recipes): solo per la migrazione
+// Personal recipes from the old version (custom_recipes table): for migration only
 async function readLegacyCustomRecipes(): Promise<Recipe[]> {
   if (isWebFallback || !dbInstance) {
     return getWebData<Recipe[]>(WEB_STORAGE_KEYS.CUSTOM_RECIPES, []);
@@ -1356,7 +1413,7 @@ async function readLegacyCustomRecipes(): Promise<Recipe[]> {
 }
 
 /**
- * Migrazione una tantum dalla vecchia tabella delle ricette personali. Le ricette importate dall'AI diventano origin 'ai'.
+ * One-time migration from the old personal recipes table. Recipes imported by the AI become origin 'ai'.
  */
 export async function initCatalog(): Promise<void> {
   if ((await getKV(CATALOG_INIT_KEY)) === '1') return;

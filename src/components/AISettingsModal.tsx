@@ -17,7 +17,7 @@ const GEMINI_SIMPLE_MODEL = 'gemini-flash-lite-latest';
 const GEMINI_COMPLEX_MODEL = 'gemini-flash-latest';
 const GEMINI_MODEL_PRESETS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
 
-// Modelli predefiniti per le due famiglie di operazioni di un provider
+// Default models for the two families of operations of a provider
 function defaultModels(id: AIProvider): { simple: string; complex: string } {
   if (id === 'gemini') return { simple: GEMINI_SIMPLE_MODEL, complex: GEMINI_COMPLEX_MODEL };
   const model = getEnvAIConfig(id).model;
@@ -44,8 +44,8 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
   const modelDefaults = defaultModels(provider);
   const savedKey = settings.providers[provider]?.apiKey;
 
-  // I campi modello mostrano sempre un valore: quello salvato, altrimenti quello predefinito.
-  // Il vecchio campo "model" fa da ripiego per le operazioni semplici (compatibilità con dati già salvati).
+  // The model fields always show a value: the saved one, otherwise the default one.
+  // The old "model" field acts as a fallback for simple operations (compatibility with already saved data).
   const showProvider = (id: AIProvider, source: AISettings) => {
     const saved = source.providers[id] ?? {};
     const modelDef = defaultModels(id);
@@ -72,7 +72,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
     })();
   }, [visible]);
 
-  // Si salvano solo i valori diversi dai predefiniti, così un futuro cambio di default si applica da solo
+  // Only values different from the defaults are saved, so a future change of default applies by itself
   const persist = async (providerFields: ProviderSettings) => {
     const simpleModel = providerFields.simpleModel?.trim();
     const complexModel = providerFields.complexModel?.trim();

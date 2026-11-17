@@ -4,16 +4,16 @@ import { SHOPPING_UNITS } from '../constants/shoppingUnits';
 import { loadAISettings } from './settingsService';
 import { ingredientItemFromText } from '../utils/servingsScaler';
 import { matchCatalogName } from '../utils/catalogNameMatch';
-import { buildRecipeRequestPayload, namesFromSeed, namesAndAliasesFromSeed } from './recipePayload';
+import { buildRecipeRequestPayload, namesAndAliasesFromSeed } from './recipePayload';
 import SEED_INGREDIENTS from '../data/ingredients.seed.json';
 import i18n from '../i18n';
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom';
 
-// Modalità di estrazione: 'original' non adatta la ricetta, le altre generano una variante
+// Extraction mode: 'original' does not adapt the recipe, the others generate a variant
 export type ExtractMode = 'original' | 'vegetarian' | 'vegan';
 
-// Ruolo del modello: 'simple' per testo semplice, 'complex' per immagini e adattamenti
+// Model role: 'simple' for plain text, 'complex' for images and adaptations
 export type ModelRole = 'simple' | 'complex';
 
 export interface AIConfig {
@@ -26,16 +26,16 @@ export interface AIConfig {
 interface ProviderDefaults {
   label: string;
   model: string;
-  // Modello per ricette complesse (immagini, adattamenti)
+  // Model for complex recipes (images, adaptations)
   complexModel: string;
   modelPresets?: string[];
   baseUrl?: string;
-  // Indirizzo modificabile dall'utente (server compatibili OpenAI, modelli locali)
+  // User-editable address (OpenAI-compatible servers, local models)
   baseUrlEditable?: boolean;
 }
 
 /**
- * Valori predefiniti per provider, usati quando né le impostazioni dell'app né il .env indicano altro
+ * Default values per provider, used when neither the app settings nor the .env say otherwise
  */
 export const PROVIDER_DEFAULTS: Record<AIProvider, ProviderDefaults> = {
   gemini: {
@@ -62,7 +62,7 @@ function getEnvApiKey(provider: AIProvider): string {
 }
 
 /**
- * Configurazione da file .env (inclusa nell'APK solo se impostata al momento della build)
+ * Configuration from the .env file (included in the APK only if set at build time)
  */
 export function getEnvAIConfig(providerOverride?: AIProvider): AIConfig {
   const envProvider = (process.env.EXPO_PUBLIC_AI_PROVIDER || 'gemini').toLowerCase() as AIProvider;
@@ -78,14 +78,14 @@ export function getEnvAIConfig(providerOverride?: AIProvider): AIConfig {
 }
 
 /**
- * Configurazione di un provider: le impostazioni salvate nell'app hanno la precedenza sul .env
+ * Configuration of a provider: settings saved in the app take precedence over the .env
  */
 export async function getAIConfigFor(provider: AIProvider, role: ModelRole = 'simple'): Promise<AIConfig> {
   const settings = await loadAISettings();
   const envConfig = getEnvAIConfig(provider);
   const saved = settings.providers[provider] ?? {};
 
-  // EXPO_PUBLIC_AI_MODEL vale solo per il ruolo 'simple'
+  // EXPO_PUBLIC_AI_MODEL applies only to the 'simple' role
   const model = role === 'complex'
     ? saved.complexModel || PROVIDER_DEFAULTS[provider].complexModel
     : saved.simpleModel || saved.model || envConfig.model;
@@ -99,11 +99,11 @@ export async function getAIConfigFor(provider: AIProvider, role: ModelRole = 'si
 }
 
 /**
- * Configurazione del provider attivo per il ruolo richiesto
+ * Configuration of the active provider for the requested role
  */
 export async function getAIConfig(role: ModelRole = 'simple'): Promise<AIConfig> {
   const settings = await loadAISettings();
-  // Senza provider salvato si usa quello del .env
+  // Without a saved provider the .env one is used
   const provider = settings.provider ?? getEnvAIConfig().provider;
   return getAIConfigFor(provider, role);
 }
@@ -135,7 +135,7 @@ async function fetchWithTimeout(
   }
 }
 
-// Ritardi tra i tentativi, solo per errori di rete (l'app può andare in background durante la chiamata)
+// Delays between attempts, for network errors only (the app may go to the background during the call)
 const NETWORK_RETRY_DELAYS_MS = [1500, 3000];
 const NETWORK_ERROR_MARKERS = ['fetch failed', 'Network request failed', 'UnknownHost', 'Unable to resolve host'];
 
@@ -146,7 +146,7 @@ function isNetworkError(error: unknown): boolean {
 }
 
 /**
- * fetchWithTimeout con nuovi tentativi solo su errori di rete; gli errori HTTP non vengono ritentati
+ * fetchWithTimeout with retries on network errors only; HTTP errors are not retried
  */
 async function fetchWithNetworkRetry(
   url: string,
@@ -163,7 +163,7 @@ async function fetchWithNetworkRetry(
   }
 }
 
-// Pattern di immagini da scartare (loghi, avatar, icone, miniature)
+// Image patterns to discard (logos, avatars, icons, thumbnails)
 const EXCLUDED_IMAGE_PATTERNS = ['profile_pic', 'avatar', 'logo', 'icon', 'emoji', 'sprite', 'favicon', 's150x150'];
 const IMAGE_SIZE_SEGMENT = /\/s\d{2,3}x\d{2,3}/;
 
@@ -172,7 +172,7 @@ function isExcludedImageUrl(url: string): boolean {
   return EXCLUDED_IMAGE_PATTERNS.some(pattern => lower.includes(pattern)) || IMAGE_SIZE_SEGMENT.test(lower);
 }
 
-// Legge og:image / twitter:image dalla pagina, con attributi in entrambi gli ordini
+// Reads og:image / twitter:image from the page, with attributes in both orders
 async function fetchPageImage(url: string): Promise<string> {
   try {
     const res = await fetchWithTimeout(url, {
@@ -205,7 +205,7 @@ async function fetchPageImage(url: string): Promise<string> {
   }
 }
 
-// Prima immagine non scartata nel markdown di Jina (sintassi ![..](url) o URL diretti)
+// First non-discarded image in Jina's markdown (![..](url) syntax or direct URLs)
 function pickMarkdownImage(markdown: string): string {
   const imageRegex = /!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)"'<>]+\.(?:jpe?g|png|webp)(?=[?#\s)"'<>]|$))/gi;
   for (const match of markdown.matchAll(imageRegex)) {
@@ -284,11 +284,11 @@ const LEGACY_CAT_MAP: Record<string, string> = {
   'a base di yogurt vegetale': 'CAT_A_BASE_DI_YOGURT_VEGETALE',
 };
 
-// Unità degli ingredienti strutturati: quelle della lista della spesa più "q.b." (nessuna quantità)
+// Units of structured ingredients: those of the shopping list plus "q.b." (no quantity)
 const INGREDIENT_UNITS: string[] = [...SHOPPING_UNITS, 'q.b.'];
 const INGREDIENT_UNIT_LIST = INGREDIENT_UNITS.map(u => `"${u}"`).join(', ');
 const RECIPE_DIETS: RecipeDiet[] = ['omnivore', 'vegetarian', 'vegan'];
-// Difficoltà richieste al modello in italiano; l'app salva easy/medium/hard
+// Difficulties requested from the model in Italian; the app stores easy/medium/hard
 const DIFFICULTY_FROM_MODEL = new Map<string, 'easy' | 'medium' | 'hard'>([
   ['Facile', 'easy'], ['Media', 'medium'], ['Difficile', 'hard'],
   ['easy', 'easy'], ['medium', 'medium'], ['hard', 'hard'],
@@ -313,6 +313,9 @@ IMPORTANT LANGUAGE INSTRUCTION:
 CONTENT RULES:
 - Never invent quantities: if a quantity is missing write 'q.b.'.
 - Do not add steps that are not implied by the source recipe.
+- Do not output nutritional values: nutrition is calculated separately from the ingredient list.
+- Keep one detailed ingredient for each distinct ingredient: do not merge two lines and do not duplicate one.
+- Do not list equipment (containers, jars, tools) or headings such as "Per invasettare" as ingredients: mention them in the instructions only.
 
 STRICT SCHEMA & PARSING RULES:
 1. "title": Clean Italian recipe title (e.g., "Trofie al Pesto con Patate e Fagiolini"). Do not prepend unnecessary words or brand labels.
@@ -341,8 +344,8 @@ STRICT SCHEMA & PARSING RULES:
 9. "veggie_color": Dominant vegetable phytocolor: "green", "red_orange", "purple_blue", "yellow_white", "neutral".
 10. "is_complete_plate": Boolean (true if self-contained balanced meal, false if structured component needing side/main).
 11. "difficulty": Exactly one of: "Facile", "Media", "Difficile".
-12. "servings": Integer number of servings (e.g. 4, 2).
-13. "servings_text": Description in Italian (e.g. "4 porzioni", "2 porzioni").
+12. "servings": Integer number of PORTIONS (people or single servings, e.g. 4, 2). Never a weight or a volume: if the source gives only a weight of the finished product (e.g. "250 g netti"), estimate a reasonable number of portions and say so in servings_text.
+13. "servings_text": Description in Italian (e.g. "4 porzioni", "2 porzioni", or "250 g netti (circa 4 porzioni)" when the source gives a weight).
 14. "times": Object with:
     - "total_minutes": Integer number (e.g. 30)
     - "prep_time": String in Italian (e.g. "10 minuti")
@@ -376,7 +379,7 @@ function buildRecipePrompt(diet: ExtractMode = 'original'): string {
 
 const ALL_CATEGORY_IDS: string[] = Object.values(RECIPE_TAXONOMY).flat();
 
-// Schema per Gemini: tipi e, dove esistono valori validi, enum
+// Schema for Gemini: types and, where valid values exist, enums
 const RECIPE_RESPONSE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -454,18 +457,18 @@ export interface ParseRecipeInput {
   imageBase64?: string;
   imageMimeType?: string;
   images?: RecipeImageInput[];
-  // Dieta a cui adattare la ricetta; 'original' la estrae senza sostituire gli ingredienti
+  // Diet to adapt the recipe to; 'original' extracts it without replacing ingredients
   diet?: ExtractMode;
-  // True quando si adatta una ricetta esistente a una dieta
+  // True when adapting an existing recipe to a diet
   adapt?: boolean;
-  // Nomi e alias del catalogo per allineare gli ingredienti; vuoto = nessun allineamento
-  catalogNames?: readonly {name: string; aliases?: readonly string[]}[];
+  // Catalog names and aliases to align the ingredients; empty = no alignment
+  catalogNames?: readonly {id?: string; name: string; aliases?: readonly string[]}[];
 }
 
-// Nomi e alias di prodotto dal seed, costruiti una sola volta. Restano sul dispositivo: servono al controllo locale.
-let seedNamesCache: {name: string; aliases?: readonly string[]}[] | null = null;
+// Product names and aliases from the seed, built only once. They stay on the device: they are used for the local check.
+let seedNamesCache: {id?: string; name: string; aliases?: readonly string[]}[] | null = null;
 
-export function seedCatalogNames(): {name: string; aliases?: readonly string[]}[] {
+export function seedCatalogNames(): {id?: string; name: string; aliases?: readonly string[]}[] {
   if (!seedNamesCache) {
     seedNamesCache = namesAndAliasesFromSeed(SEED_INGREDIENTS);
   }
@@ -473,7 +476,7 @@ export function seedCatalogNames(): {name: string; aliases?: readonly string[]}[
 }
 
 export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe> {
-  // Immagini e adattamenti richiedono il modello complesso
+  // Images and adaptations require the complex model
   const hasImages = (input.images?.length ?? 0) > 0 || !!input.imageBase64;
   const role: ModelRole = hasImages || input.adapt ? 'complex' : 'simple';
   const config = await getAIConfig(role);
@@ -482,7 +485,7 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
     throw new Error(i18n.t('errors.missingApiKey', { provider: PROVIDER_DEFAULTS[config.provider].label }));
   }
 
-  // Allineamento locale agli ingredienti del seed: i nomi non vanno nel payload verso il modello
+  // Local alignment to the seed ingredients: the names do not go in the payload to the model
   const effectiveInput: ParseRecipeInput = { ...input, catalogNames: input.catalogNames ?? seedCatalogNames() };
   const targetUrl = input.url || (input.text && /^https?:\/\/[^\s]+$/i.test(input.text.trim()) ? input.text.trim() : null);
 
@@ -527,7 +530,7 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
   }
 
   if (targetUrl) {
-    // L'immagine del modello si tiene solo se è valida; altrimenti si usa quella della pagina
+    // The model's image is kept only if valid; otherwise the page's one is used
     const modelImage = (recipe.image || '').trim();
     if (!modelImage || isExcludedImageUrl(modelImage)) {
       recipe = { ...recipe, image: chosenImage };
@@ -541,15 +544,15 @@ export async function parseRecipeWithAI(input: ParseRecipeInput): Promise<Recipe
 export const parseRecipeWithGemini = parseRecipeWithAI;
 
 async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promise<Recipe> {
-  // Modello scelto, poi alternative in caso di errore (senza ripetere quello già provato)
+  // Chosen model, then alternatives in case of error (without repeating the one already tried)
   const candidateModels = Array.from(new Set([
     config.model,
     'gemini-3.1-flash-lite',
     'gemini-flash-latest'
   ]));
 
-  // La lista dei prodotti non va mai inviata a Gemini: serve solo al controllo locale dopo la risposta.
-  // Il payload contiene solo systemInstruction, contents e generationConfig (nessun catalogNames).
+  // The product list must never be sent to Gemini: it is only for the local check after the response.
+  // The payload contains only systemInstruction, contents and generationConfig (no catalogNames).
   const payload = buildRecipeRequestPayload(input, RECIPE_RESPONSE_SCHEMA, buildRecipePrompt(input.diet));
 
   let lastErrorMsg = '';
@@ -580,7 +583,7 @@ async function parseWithGemini(input: ParseRecipeInput, config: AIConfig): Promi
         return normalizeParsedRecipe(rawContent, input.url, input.catalogNames);
       }
     } catch (e: any) {
-      // Rete non disponibile: inutile provare gli altri modelli
+      // Network unavailable: no point trying the other models
       if (isNetworkError(e)) {
         throw new Error(i18n.t('errors.networkUnavailable'));
       }
@@ -765,10 +768,10 @@ interface StructuredIngredients {
   detailed: (IngredientItem & { catalog_matched: boolean })[];
 }
 
-// Ingredienti come oggetti {section, amount, unit, name}; null se assenti (formato vecchio: stringhe)
+// Ingredients as {section, amount, unit, name} objects; null if absent (old format: strings)
 function parseStructuredIngredients(
   raw: unknown,
-  catalogEntries: readonly {name: string; aliases?: readonly string[] }[],
+  catalogEntries: readonly {id?: string; name: string; aliases?: readonly string[] }[],
 ): StructuredIngredients | null {
   if (!Array.isArray(raw)) return null;
   const items = raw.filter((i: any) => typeof i?.name === 'string' && i.name.trim() !== '');
@@ -783,7 +786,7 @@ function parseStructuredIngredients(
     const text = amount === null
       ? `q.b. di ${match.name}`
       : [String(amount), unit === 'pezzo' ? '' : unit, match.name].filter(Boolean).join(' ');
-    return { section, text, amount, unit, ingredient: match.name, catalog_matched: match.matched };
+    return { section, text, amount, unit, ingredient: match.name, catalog_matched: match.matched, ingredient_id: match.id };
   });
 
   const bySection: { section: string; ingredients: string[] }[] = [];
@@ -799,7 +802,7 @@ function parseStructuredIngredients(
   return { flat: detailed.map(d => d.text), bySection, detailed };
 }
 
-function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEntries: readonly {name: string; aliases?: readonly string[]}[] = []): Recipe {
+function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEntries: readonly {id?: string; name: string; aliases?: readonly string[]}[] = []): Recipe {
   let parsed: any;
   try {
     const cleaned = rawContent.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
@@ -856,13 +859,13 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEn
 
   const tempoTot = parsed.times?.total_minutes || parsed.tempi?.tempo_totale_minuti || 30;
 
-  // Sostituzioni per le varianti: incluse solo se nel formato {from, to} atteso
+  // Substitutions for the variants: included only if in the expected {from, to} format
   const substitutions: { from: string; to: string }[] | undefined =
     Array.isArray(parsed.substitutions) && parsed.substitutions.every((s: any) => typeof s?.from === 'string' && typeof s?.to === 'string')
       ? parsed.substitutions.map((s: any) => ({ from: s.from, to: s.to }))
       : undefined;
 
-  // Formato vecchio (sole stringhe): le quantità si ricavano dal testo mantenendo la sezione
+  // Old format (strings only): quantities are derived from the text keeping the section
   const legacyFlat: string[] = Array.isArray(parsed.ingredients || parsed.ingredienti) ? (parsed.ingredients || parsed.ingredienti) : [];
   const rawSections = parsed.ingredients_by_section || parsed.ingredienti_per_sezione;
   const legacySections = Array.isArray(rawSections) && rawSections.length > 0
@@ -879,7 +882,7 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEn
     ? sectionedDetailed
     : legacyFlat.map((t: string) => ingredientItemFromText(t));
 
-  // Formato attuale: oggetti {section, amount, unit, name} con allineamento al catalogo
+  // Current format: {section, amount, unit, name} objects aligned to the catalog
   const structured = parseStructuredIngredients(parsed.detailed_ingredients || parsed.ingredienti_dettagliati, catalogEntries);
 
   const recipe: Recipe & { substitutions?: { from: string; to: string }[] } = {

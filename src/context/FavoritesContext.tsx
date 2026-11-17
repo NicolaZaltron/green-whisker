@@ -10,7 +10,7 @@ interface FavoritesContextType {
 
 const FavoritesContext = createContext<FavoritesContextType | null>(null);
 
-// Stessi id (stessa dimensione e ogni id presente): evita di ridisegnare tutti i consumer
+// Same ids (same size and every id present): avoids re-rendering all consumers
 function sameIds(prev: Set<string>, ids: string[]): boolean {
   const next = new Set(ids);
   if (next.size !== prev.size) return false;
@@ -27,7 +27,7 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const refreshFavorites = useCallback(async () => {
     try {
       const ids = await getFavoriteIds();
-      // Se il contenuto è uguale tiene il Set precedente: nessun nuovo render
+      // If the content is the same, keeps the previous Set: no new render
       setFavoriteIds(prev => (sameIds(prev, ids) ? prev : new Set(ids)));
     } catch (e) {
       console.error('Failed to load favorites from database:', e);
@@ -35,8 +35,16 @@ export const FavoritesProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   useEffect(() => {
-    refreshFavorites();
-  }, [refreshFavorites]);
+    let active = true;
+    getFavoriteIds()
+      .then(ids => {
+        if (active) setFavoriteIds(prev => (sameIds(prev, ids) ? prev : new Set(ids)));
+      })
+      .catch(e => console.error('Failed to load favorites from database:', e));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Synchronous O(1) favorite lookup
   const isFavorite = useCallback(

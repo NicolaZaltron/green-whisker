@@ -1,4 +1,4 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_shopping_plan_save.js
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_shopping_plan_save.js
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');

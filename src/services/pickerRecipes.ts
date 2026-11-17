@@ -1,7 +1,7 @@
 import type { Recipe } from '../types/recipe';
 import { orderWithFavoritesFirst } from '../utils/pickerRanking';
 
-// Senza duplicati per id: vince la prima occorrenza
+// Without duplicates by id: the first occurrence wins
 export function uniquePickerRecipes(recipes: Recipe[]): Recipe[] {
   const seen = new Set<string>();
   return recipes.filter(r => {
@@ -18,12 +18,12 @@ interface SortedPickerCache {
   result: Recipe[];
 }
 
-// Ultimo risultato: la chiave è l'identità dell'array ricette e del Set dei preferiti
+// Last result: the key is the identity of the recipes array and of the favorites Set
 let sortedCache: SortedPickerCache | null = null;
 
 /**
- * Ricette del selettore pasti con query vuota: senza duplicati, preferite prima, poi alfabetico.
- * Il risultato è memorizzato e restituito di nuovo finché ricette e preferiti non cambiano identità.
+ * Meal picker recipes with an empty query: without duplicates, favorites first, then alphabetical.
+ * The result is memoized and returned again until recipes and favorites change identity.
  */
 export function getSortedPickerRecipes(
   recipes: Recipe[],

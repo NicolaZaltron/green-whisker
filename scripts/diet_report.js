@@ -1,5 +1,5 @@
-// Report della classificazione della dieta su un ricettario JSON (default: assets/ricette.json).
-// Uso: node scripts/diet_report.js [percorso.json]
+// Report of the diet classification on a JSON recipe book (default: assets/ricette.json).
+// Usage: node scripts/diet_report.js [path.json]
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -25,7 +25,7 @@ const review = [];
 for (const r of recipes) {
   const d = classifyDietDetailed(r);
   counts[d.diet]++;
-  // Da rivedere: il tag dichiara vegana una ricetta che contiene ingredienti animali
+  // To review: the tag declares a recipe vegan but it contains animal ingredients
   const tagSaysVegan = (r.tags || []).includes('100% Vegetale');
   if (tagSaysVegan && d.diet !== 'vegan') {
     review.push({ id: r.id, title: r.title, diet: d.diet, reasons: [`ingredienti: ${d.animalTerms.join(', ')}`] });

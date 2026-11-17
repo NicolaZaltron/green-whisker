@@ -5,7 +5,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 
 const THEME_MODE_KEY = 'gw_theme_mode';
 
-// Stessa logica delle impostazioni AI: SecureStore su dispositivo, localStorage sul web
+// Same logic as the AI settings: SecureStore on device, localStorage on web
 export async function loadThemeMode(): Promise<ThemeMode> {
   try {
     const raw = Platform.OS === 'web'
@@ -27,7 +27,7 @@ export async function saveThemeMode(mode: ThemeMode): Promise<void> {
 
 const LANGUAGE_KEY = 'gw_language';
 
-// Lingua scelta a mano nel menu: null se non è mai stata scelta (si usa la lingua del dispositivo)
+// Language chosen manually in the menu: null if never chosen (the device language is used)
 export async function loadLanguage(): Promise<'it' | 'en' | null> {
   try {
     const raw = Platform.OS === 'web'

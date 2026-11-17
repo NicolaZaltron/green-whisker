@@ -190,7 +190,7 @@ export async function replaceReadyMeals(items: ReadyMealInput[]): Promise<number
     updated_at: now,
   }));
 
-  // I pianificati da pronti puntano agli id vecchi: vanno rimossi insieme al catalogo
+  // Items planned from ready meals point to the old ids: they must be removed along with the catalog
   if (isWebMode()) {
     writeWeb(meals);
     const planner = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);

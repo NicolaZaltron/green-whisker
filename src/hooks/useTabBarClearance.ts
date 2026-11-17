@@ -1,11 +1,11 @@
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Altezza della navbar flottante (vedi src/app/(tabs)/_layout.tsx: BAR_HEIGHT)
+// Height of the floating navbar (see src/app/(tabs)/_layout.tsx: BAR_HEIGHT)
 const TAB_BAR_HEIGHT = 64;
 
 /**
- * Spazio in fondo alle liste delle schermate a tab: il contenuto scorre sotto la navbar
- * e l'ultimo elemento resta visibile sopra di essa.
+ * Space at the bottom of the tab screen lists: content scrolls under the navbar
+ * and the last element stays visible above it.
  */
 export function useTabBarClearance(): number {
   const insets = useSafeAreaInsets();

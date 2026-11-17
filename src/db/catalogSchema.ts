@@ -44,7 +44,7 @@ export async function migrateCatalogSchema(db: any): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_ingredient_nutrients_ingredient ON ingredient_nutrients(ingredient_id);
   `);
 
-  // Migrazione idempotente: aggiunge le colonne di quantità da acquistare alle installazioni già esistenti
+  // Idempotent migration: adds the to-buy quantity columns to existing installations
   const ingredientCols: any[] = await db.getAllAsync('PRAGMA table_info(ingredients)');
   if (!ingredientCols.some(c => c.name === 'purchase_amount')) {
     await db.execAsync('ALTER TABLE ingredients ADD COLUMN purchase_amount REAL');
@@ -56,10 +56,10 @@ export async function migrateCatalogSchema(db: any): Promise<void> {
   const cols: any[] = await db.getAllAsync('PRAGMA table_info(meal_plan)');
   if (cols.some(c => c.name === 'label')) return;
 
-  // Le tabelle già con le colonne per ingrediente/pronto vengono copiate per intero; le più vecchie solo le ricette
+  // Tables that already have the per-ingredient/ready columns are copied in full; older ones only the recipes
   const hasKindColumns = cols.some(c => c.name === 'ingredient_id');
-  // Righe con un valore di kind non previsto dal CHECK (es. dati vecchi o corrotti) farebbero fallire
-  // la migrazione e il rollback la bloccherebbe ad ogni avvio: quelle righe vengono copiate come 'recipe'.
+  // Rows with a kind value not allowed by the CHECK (e.g. old or corrupted data) would make
+  // the migration fail and the rollback would block it at every startup: those rows are copied as 'recipe'.
   const copySql = hasKindColumns
     ? `INSERT INTO meal_plan_v2 (id, date, slot, kind, recipe_id, ingredient_id, ready_meal_id, amount, unit, count, servings, notes, created_at)
         SELECT id, date, slot, CASE WHEN kind IN ('recipe','ingredient','ready','out') THEN kind ELSE 'recipe' END, recipe_id, ingredient_id, ready_meal_id, amount, unit, count, servings, notes, created_at

@@ -5,6 +5,8 @@ export interface IngredientItem {
   amount: number | null;
   unit: string;
   ingredient: string;
+  // Id of the ingredients seed, assigned by matching with the catalog; absent if the row is not catalogued
+  ingredient_id?: string;
 }
 
 export interface IngredientSection {
@@ -56,7 +58,7 @@ export interface Recipe {
   seasons: Season[];
   is_complete_plate: boolean;
 
-  // Campi del catalogo (opzionali: i file vecchi non li hanno)
+  // Catalog fields (optional: old files do not have them)
   diet?: RecipeDiet;
   diet_source?: 'auto' | 'manual';
   origin?: RecipeOrigin;
@@ -97,15 +99,19 @@ export interface SimpleItem {
   updated_at: number;
 }
 
+// Recipe to prepare (goes into the shopping list) or servings already ready (does not)
+export type RecipeSource = 'prepare' | 'ready';
+
 export interface MealPlanEntry {
   id: string;
   date: string; // YYYY-MM-DD
   slot: 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
   kind: 'recipe' | 'ingredient' | 'ready' | 'out';
   recipe_id?: string;
+  recipe_source?: RecipeSource; // only for kind 'recipe'; absent = 'prepare'
   ingredient_id?: string;
   ready_meal_id?: string;
-  label?: string; // solo per kind 'out': nome del pasto fuori casa
+  label?: string; // only for kind 'out': name of the out-of-home meal
   amount?: number | null;
   unit?: string;
   count?: number;

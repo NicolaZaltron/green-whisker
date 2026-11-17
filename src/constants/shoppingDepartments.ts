@@ -54,7 +54,7 @@ export interface DepartmentColor {
   border: string;
 }
 
-// Varianti per tema scuro: bg tinte scure dello stesso tono, text/border più chiari per restare leggibili.
+// Dark theme variants: dark-tinted bg of the same hue, lighter text/border to stay readable.
 export const DEPARTMENT_COLORS_DARK: Record<ShoppingDepartment, DepartmentColor> = {
   CAT_SHOPPING_VERDURA: { bg: '#1E2F20', text: '#A4D6AF', border: '#305032' },
   CAT_SHOPPING_BANCO_FRIGO: { bg: '#1E2C2F', text: '#9CD2DE', border: '#304B50' },
@@ -74,7 +74,7 @@ export const DEPARTMENT_COLORS_DARK: Record<ShoppingDepartment, DepartmentColor>
 const FALLBACK_LIGHT: DepartmentColor = { bg: '#EAF0EB', text: '#34523C', border: '#CCE7D4' };
 const FALLBACK_DARK: DepartmentColor = { bg: '#2A3D2E', text: '#9CCBA8', border: '#3C4A3E' };
 
-// Colori di un reparto nel tema corrente (light o dark).
+// Colors of a department in the current theme (light or dark).
 export function departmentColors(dept: ShoppingDepartment, isDark: boolean): DepartmentColor {
   const table = isDark ? DEPARTMENT_COLORS_DARK : DEPARTMENT_COLORS;
   return table[dept] ?? (isDark ? FALLBACK_DARK : FALLBACK_LIGHT);

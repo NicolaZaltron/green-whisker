@@ -3,9 +3,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Recipe } from '../types/recipe';
-import { deleteCatalogRecipes, removeRecipeReferences, upsertCatalogRecipes } from '../db/database';
+import { deleteCatalogRecipes, removeRecipeReferences } from '../db/database';
 import { removeRecipeFromSimpleItems } from '../db/simpleItemsDb';
 import { refreshCatalog } from './recipeCatalog';
+import { RecipeLinkEntry, saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
+import { ingredientItemFromText } from '../utils/servingsScaler';
 import { ExportFilter, ParsedCatalogFile, CATALOG_NOT_LIST_ERROR, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
 import i18n from '../i18n';
 
@@ -20,7 +22,7 @@ export interface ImportResult {
 }
 
 /**
- * Legge il file scelto provando più metodi, in ordine. Se tutti falliscono, l'errore elenca ogni tentativo.
+ * Reads the chosen file trying several methods, in order. If all fail, the error lists every attempt.
  */
 async function readPickedFile(asset: { uri: string; file?: Blob & { text(): Promise<string> } }): Promise<string> {
   if (Platform.OS === 'web' && asset.file) return asset.file.text();
@@ -43,7 +45,7 @@ async function readPickedFile(asset: { uri: string; file?: Blob & { text(): Prom
 }
 
 /**
- * Chiede un file JSON al telefono e lo legge. Restituisce null se l'utente annulla.
+ * Asks the phone for a JSON file and reads it. Returns null if the user cancels.
  */
 export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
   const picked = await DocumentPicker.getDocumentAsync({
@@ -55,7 +57,8 @@ export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
   const asset = picked.assets[0];
   const text = await readPickedFile(asset);
   try {
-    return parseCatalogText(text);
+    const parsedFile = parseCatalogText(text);
+    return parsedFile;
   } catch (e: any) {
     if (e?.message === CATALOG_NOT_LIST_ERROR) throw new Error(i18n.t('errors.catalogNotList'));
     throw e;
@@ -63,11 +66,22 @@ export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
 }
 
 /**
- * Importa le ricette lette da un file. Con mode 'keep' le ricette già presenti restano invariate.
+ * Imports the recipes read from a file. With mode 'keep' recipes already present stay unchanged.
  */
 export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: ImportMode): Promise<ImportResult> {
   const now = Date.now();
-  const write = await upsertCatalogRecipes(parsed.recipes.map(r => normalizeImported(r, now)), mode);
+  const recipes = parsed.recipes.map(r => normalizeImported(r, now));
+  // A recipe without details does not touch the existing links: the text rows are used if present,
+  // otherwise the recipe is omitted. In 'keep' links are created only for the recipes written.
+  const links: RecipeLinkEntry[] = [];
+  for (const recipe of recipes) {
+    const items = recipe.detailed_ingredients?.length
+      ? recipe.detailed_ingredients
+      : (recipe.ingredients ?? []).filter(t => t && t.trim()).map(t => ingredientItemFromText(t));
+    if (items.length > 0) links.push({ recipeId: recipe.id, items });
+  }
+  // Recipes and links in a single transaction; an error interrupts the import and reaches the caller
+  const write = await saveCatalogRecipesWithLinks(recipes, mode, links);
   await refreshCatalog();
   return {
     imported: write.inserted,
@@ -79,7 +93,7 @@ export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: Import
 }
 
 /**
- * Elimina le ricette dal catalogo, con le loro varianti, e ripulisce planner, preferiti e note.
+ * Deletes the recipes from the catalog, with their variants, and cleans up planner, favorites and notes.
  */
 export async function deleteRecipes(ids: string[]): Promise<number> {
   const deleted = await deleteCatalogRecipes(ids);
@@ -90,7 +104,7 @@ export async function deleteRecipes(ids: string[]): Promise<number> {
 }
 
 /**
- * Esporta le ricette indicate come file JSON, con il nome che descrive il filtro usato
+ * Exports the given recipes as a JSON file, with a name describing the filter used
  */
 export async function exportRecipeBook(recipes: Recipe[], filter: ExportFilter): Promise<number> {
   const json = JSON.stringify(recipes, null, 2);

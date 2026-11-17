@@ -1,8 +1,8 @@
 import { Recipe, RecipeDiet } from '../types/recipe';
 
-// Classificazione della dieta dagli ingredienti. Funzione pura: usata dall'import e dallo script di report.
+// Diet classification from the ingredients. Pure function: used by the import and by the report script.
 
-// Carne e pesce: rendono la ricetta onnivora
+// Meat and fish: make the recipe omnivore
 const MEAT_AND_FISH = [
   'pollo', 'manzo', 'maiale', 'vitello', 'tacchino', 'agnello', 'coniglio', 'anatra', 'oca', 'faraona',
   'prosciutto', 'salame', 'speck', 'pancetta', 'bacon', 'wurstel', 'würstel', 'salsiccia', 'carne',
@@ -12,7 +12,7 @@ const MEAT_AND_FISH = [
   'sgombro', 'sardine', 'sardina', 'surimi', 'pesce spada', 'orata', 'branzino', 'spigola', 'trota', 'anguilla',
 ];
 
-// Uova e latticini: rendono la ricetta vegetariana
+// Eggs and dairy: make the recipe vegetarian
 const EGGS_AND_DAIRY = [
   'uova', 'uovo', 'albume', 'albumi', 'tuorlo', 'tuorli',
   'latte', 'burro', 'formaggio', 'parmigiano', 'grana', 'mozzarella', 'ricotta', 'panna', 'yogurt',
@@ -20,15 +20,15 @@ const EGGS_AND_DAIRY = [
   'stracchino', 'taleggio', 'provolone', 'scamorza', 'caciotta', 'emmental', 'gouda', 'brie',
 ];
 
-// Miele: non è vegano, ma è accettato dai vegetariani
+// Honey: not vegan, but accepted by vegetarians
 const HONEY = ['miele'];
 
-// Frasi in cui una parola animale indica in realtà un prodotto vegetale: vanno tolte prima del controllo
+// Phrases in which an animal word actually denotes a plant-based product: removed before the check
 const VEGETAL_EXCEPTIONS: RegExp[] = [
   /\b(?:pollo|manzo|tonno|salmone|hamburger|wurstel|würstel|salsiccia|prosciutto|bacon|carne|formaggio|latte|burro|yogurt|mozzarella|ricotta|panna|parmigiano|gamberi|pesce|uova|uovo)\s+(?:vegetal[ei]|vegan[oi]|di\s+soia|di\s+seitan|di\s+tofu|di\s+tempeh|di\s+lenticchie|di\s+ceci)\b/gi,
-  // Singolare e plurale: "ricotta di mandorla", "latte di mandorle"
+  // Singular and plural: "ricotta di mandorla", "latte di mandorle"
   /\b(?:latte|yogurt|burro|formaggio|panna|mozzarella|ricotta|besciamella)\s+(?:di\s+(?:mandorl[ae]|soi[ae]|aven[ae]|ris[oi]|cocc[oi]|nocciol[ae]|anacard[io]|arachid[ei]|cacao|karit[eè]|pistacch[io]|noci|sesamo|canapa|farro|kamut|cereali|tofu|ceci|lenticchie)|vegetal[ei]|vegan[oi])\b/gi,
-  // Prodotti vegetali chiamati con il nome animale: "tuorlo Veg", "burro Veg", "uova vegetali"
+  // Plant-based products named with the animal name: "tuorlo Veg", "burro Veg", "uova vegetali"
   /\b(?:uova?|tuorl[oi]|albumi?|burro|latte|formaggio|panna|yogurt)\s+veg\w*/gi,
   /\bsenza\s+(?:uova|uovo|latte|burro|formaggio|miele|carne|pesce)\b/gi,
   /\bsostitut[oi]\s+(?:delle?\s+)?(?:uova|uovo|latte|burro|formaggio)\b/gi,
@@ -53,9 +53,9 @@ function findTerms(text: string, terms: string[]): string[] {
 
 export interface DietClassification {
   diet: RecipeDiet;
-  // Termini che hanno determinato il risultato
+  // Terms that determined the result
   animalTerms: string[];
-  // Eccezioni "vegetale" riconosciute: utili da rivedere a mano
+  // Recognized "vegetale" exceptions: useful to review by hand
   exceptionsUsed: string[];
 }
 

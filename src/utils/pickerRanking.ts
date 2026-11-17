@@ -1,17 +1,17 @@
 export type PickerMatchKind = 'ingredient' | 'ready' | 'recipe' | 'out';
 
-// Collator di default (italiano). Il chiamante passa quello della lingua dell'app: va creato una volta sola, non a ogni confronto
+// Default collator (Italian). The caller passes the one for the app language: it must be created once, not on every comparison
 export const DEFAULT_PICKER_COLLATOR = new Intl.Collator('it', { sensitivity: 'base' });
 
 export interface PickerMatchItem<T> {
   kind: PickerMatchKind;
   label: string;
   value: T;
-  // Id della ricetta (solo kind 'recipe'), usato per il confronto con i preferiti
+  // Recipe id (only kind 'recipe'), used for comparison with favorites
   id?: string;
 }
 
-// Ordine dei gruppi: prima i match che iniziano con la query, poi quelli che la contengono
+// Group order: first the matches that start with the query, then those that contain it
 const GROUP_ORDER: { kind: PickerMatchKind; startsWith: boolean }[] = [
   { kind: 'ingredient', startsWith: true },
   { kind: 'ready', startsWith: true },
@@ -24,11 +24,11 @@ const GROUP_ORDER: { kind: PickerMatchKind; startsWith: boolean }[] = [
 ];
 
 /**
- * Ordina i risultati della scheda "Tutti" del selettore pasti.
- * Query vuota: restituisce gli elementi nell'ordine ricevuto.
- * Query non vuota: solo gli elementi che contengono la query (case-insensitive),
- * raggruppati per tipo e per inizio/contenimento, ordinati alfabeticamente in ogni gruppo.
- * Con favoriteIds: dentro ogni gruppo, le ricette preferite vengono prima delle altre.
+ * Sorts the results of the "All" tab of the meal picker.
+ * Empty query: returns the items in the order received.
+ * Non-empty query: only the items containing the query (case-insensitive),
+ * grouped by type and by start/containment, sorted alphabetically within each group.
+ * With favoriteIds: within each group, favorite recipes come before the others.
  */
 export function rankPickerMatches<T>(
   items: PickerMatchItem<T>[],
@@ -67,8 +67,8 @@ export function rankPickerMatches<T>(
 }
 
 /**
- * Ordine con query vuota: le ricette preferite prima, poi le altre; in ogni parte alfabetico.
- * Non scarta nessun elemento.
+ * Order with an empty query: favorite recipes first, then the others; alphabetical in each part.
+ * Does not discard any item.
  */
 export function orderWithFavoritesFirst<T extends { id: string; title: string }>(
   recipes: T[],

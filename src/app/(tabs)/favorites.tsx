@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -34,16 +34,16 @@ export default function FavoritesScreen() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const catalogVersion = useCatalogVersion();
 
-  // Sincronizza i preferiti alla messa a fuoco della schermata
+  // Syncs favorites when the screen gains focus
   useFocusEffect(
     useCallback(() => {
-      // In idle, dopo la transizione della tab; il provider non aggiorna lo stato se gli id sono invariati
+      // In idle, after the tab transition; the provider does not update state if the ids are unchanged
       const cancelIdle = scheduleIdle(() => { refreshFavorites(); });
       return () => cancelIdle();
     }, [refreshFavorites])
   );
 
-  // Ricette preferite dall'indice del catalogo (originali e varianti); catalogVersion ricalcola se il catalogo cambia
+  // Favorite recipes from the catalog index (originals and variants); catalogVersion recomputes if the catalog changes
   const favoriteRecipes = useMemo(() => {
     const list: Recipe[] = [];
     favoriteIds.forEach(id => {
@@ -51,7 +51,7 @@ export default function FavoritesScreen() {
       if (r) list.push(r);
     });
     return list;
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // catalogVersion: the catalog is updated in place, the dependency forces recomputation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [favoriteIds, catalogVersion]);
 
@@ -96,6 +96,7 @@ export default function FavoritesScreen() {
 
           {favoriteRecipes.length > 0 && (
             <AppTextField
+              variant="search"
               style={styles.searchField}
               leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
               placeholder={t('favorites.searchPlaceholder')}
@@ -166,7 +167,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   searchField: {
     marginTop: 4,
-    // Allineato al testo del titolo di ScreenHeader
+    // Aligned with the ScreenHeader title text
     marginHorizontal: 16,
   },
   listContent: {

@@ -1,12 +1,12 @@
-// Conversione unità per ingredienti: porta peso e volume a un'unità base (g / ml).
-// Funzione pura, senza dipendenze React/Expo.
+// Unit conversion for ingredients: brings weight and volume to a base unit (g / ml).
+// Pure function, without React/Expo dependencies.
 import { normalizeIngredientKey } from './ingredientAggregator';
 import { densityFor, PINCH_GRAMS } from './ingredientDensity';
 
 export type UnitFamily = 'weight' | 'volume' | 'none';
 
-// Plurali e varianti -> forma singolare/base. Le unità "a conteggio" (foglia, fetta, spicchio, ...)
-// restano separate: NON si convertono in g/ml e si confrontano solo con la stessa unità.
+// Plurals and variants -> singular/base form. "Count" units (leaf, slice, clove, ...)
+// stay separate: they are NOT converted to g/ml and are compared only with the same unit.
 const ALIASES: Record<string, string> = {
   grammi: 'g', gr: 'g', gramo: 'g', grammo: 'g',
   chilogrammi: 'kg', chilogrammo: 'kg', kilogrammi: 'kg', kg: 'kg',
@@ -30,10 +30,10 @@ export function normalizeUnit(unit: string): string {
 const DEFAULT_DENSITY_G_PER_ML = 1;
 
 const WEIGHT_TO_G: Record<string, number> = { g: 1, kg: 1000 };
-// bicchiere = 200 ml: ASSUNZIONE (un bicchiere standard), la dimensione reale varia.
+// glass = 200 ml: ASSUMPTION (a standard glass), the real size varies.
 const VOLUME_TO_ML: Record<string, number> = { ml: 1, l: 1000, cucchiaio: 15, cucchiaino: 5, bicchiere: 200 };
 
-// normalizeIngredientKey('acqua') produce una chiave stemmata ('acqu'): confronto su entrambe le forme.
+// normalizeIngredientKey('acqua') produces a stemmed key ('acqu'): comparison on both forms.
 const WATER_KEY = normalizeIngredientKey('acqua');
 function isWaterKey(k: string): boolean {
   return k === 'acqua' || k === WATER_KEY || normalizeIngredientKey(k) === WATER_KEY;
@@ -47,15 +47,15 @@ export function toBase(
   const u = normalizeUnit(unit);
   const isWater = isWaterKey(ingredientKey);
   if (u === 'pizzico') return { amount: amount * PINCH_GRAMS, unit: 'g', family: 'weight' };
-  // Senza densità nota si assume 1 g = 1 ml: così peso e volume dello stesso ingrediente si sommano
+  // Without a known density 1 g = 1 ml is assumed: so weight and volume of the same ingredient add up
   const density = isWater ? null : (densityFor(ingredientKey) ?? DEFAULT_DENSITY_G_PER_ML);
   if (density !== null && (u in VOLUME_TO_ML)) {
-    // Ingrediente con densità nota: volume -> grammi, così si somma con il peso
+    // Ingredient with known density: volume -> grams, so it adds up with the weight
     return { amount: amount * VOLUME_TO_ML[u] * density, unit: 'g', family: 'weight' };
   }
   if (u in WEIGHT_TO_G) {
     const grams = amount * WEIGHT_TO_G[u];
-    // Regola acqua: 1 g = 1 ml, quindi il peso diventa volume
+    // Water rule: 1 g = 1 ml, so weight becomes volume
     if (isWater) return { amount: grams, unit: 'ml', family: 'volume' };
     return { amount: grams, unit: 'g', family: 'weight' };
   }

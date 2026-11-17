@@ -1,4 +1,4 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_rolling_days.js
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_rolling_days.js
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -19,20 +19,20 @@ let passed = 0;
 const check = (label, fn) => { fn(); passed++; console.log('ok  ', label); };
 
 check('start on Sunday: 7 days end on Saturday', () => {
-  const start = new Date(2026, 10, 15); // domenica 15/11/2026
+  const start = new Date(2026, 10, 15); // Sunday 15/11/2026
   assert.equal(start.getDay(), 0);
   const { days, label } = rollingDays(start, 7);
   assert.equal(days.length, 7);
   assert.deepEqual(days.map(d => d.dateString),
     ['2026-11-15', '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21']);
-  // weekdayIndex Monday-first: domenica = 6, lunedì successivo = 0, sabato = 5
+  // weekdayIndex Monday-first: Sunday = 6, following Monday = 0, Saturday = 5
   assert.deepEqual(days.map(d => d.weekdayIndex), [6, 0, 1, 2, 3, 4, 5]);
   assert.equal(days[6].weekdayIndex, 5);
   assert.equal(label, '15 novembre – 21 novembre');
 });
 
 check('start on Monday: weekdayIndex runs 0..6', () => {
-  const start = new Date(2026, 10, 2); // lunedì 02/11/2026
+  const start = new Date(2026, 10, 2); // Monday 02/11/2026
   assert.equal(start.getDay(), 1);
   const { days } = rollingDays(start, 7);
   assert.deepEqual(days.map(d => d.weekdayIndex), [0, 1, 2, 3, 4, 5, 6]);

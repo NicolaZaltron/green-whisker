@@ -31,6 +31,8 @@ export interface AppTextFieldProps {
   editable?: boolean;
   /** Optional icon rendered before the input (e.g. a search icon). */
   leftIcon?: React.ReactNode;
+  /** Search field: white background, like the app's other search boxes. */
+  variant?: 'default' | 'search';
   accessibilityLabel?: string;
   testID?: string;
   /** Container override, for layout only (flex, width, margins). */
@@ -50,6 +52,9 @@ function createStyles(colors: Palette) {
       borderColor: colors.border,
       backgroundColor: colors.surfaceAlt,
       paddingHorizontal: 12,
+    },
+    containerSearch: {
+      backgroundColor: colors.surface,
     },
     containerMultiline: {
       height: undefined,
@@ -98,6 +103,7 @@ export const AppTextField = forwardRef<AppTextFieldHandle, AppTextFieldProps>(fu
     secureTextEntry,
     editable = true,
     leftIcon,
+    variant = 'default',
     accessibilityLabel,
     testID,
     style,
@@ -110,7 +116,7 @@ export const AppTextField = forwardRef<AppTextFieldHandle, AppTextFieldProps>(fu
   const showClear = editable && value.length > 0;
 
   return (
-    <View style={[styles.container, multiline && styles.containerMultiline, style]}>
+    <View style={[styles.container, variant === 'search' && styles.containerSearch, multiline && styles.containerMultiline, style]}>
       {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
       <TextInput
         ref={ref}

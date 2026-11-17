@@ -1,22 +1,22 @@
-// Palette dell'app: ogni colore ha un ruolo. Light e dark devono avere gli stessi nomi.
+// App palette: each color has a role. Light and dark must have the same names.
 export interface Palette {
-  background: string; // sfondo della schermata
-  surface: string; // card, pannelli, schede
-  surfaceAlt: string; // campi, chip non selezionati, sfondi secondari
-  surfaceMuted: string; // sfondi tenui (beige)
-  border: string; // bordi leggeri
-  borderStrong: string; // bordi più marcati
-  text: string; // testo principale
-  textSecondary: string; // testo di supporto
-  textMuted: string; // testo più tenue e icone secondarie
-  primary: string; // bottoni e accenti pieni
-  onPrimary: string; // testo e icone su primary
-  primarySoft: string; // pillole e sfondi verdi chiari
-  primaryText: string; // testo e icone verdi su sfondo chiaro
-  danger: string; // azioni distruttive
-  dangerSoft: string; // sfondo di azioni distruttive
-  overlay: string; // velo dietro modali e schede
-  shadow: string; // ombre
+  background: string; // screen background
+  surface: string; // cards, panels, sheets
+  surfaceAlt: string; // fields, unselected chips, secondary backgrounds
+  surfaceMuted: string; // soft backgrounds (beige)
+  border: string; // light borders
+  borderStrong: string; // stronger borders
+  text: string; // main text
+  textSecondary: string; // supporting text
+  textMuted: string; // fainter text and secondary icons
+  primary: string; // solid buttons and accents
+  onPrimary: string; // text and icons on primary
+  primarySoft: string; // light green pills and backgrounds
+  primaryText: string; // green text and icons on light background
+  danger: string; // destructive actions
+  dangerSoft: string; // background of destructive actions
+  overlay: string; // scrim behind modals and sheets
+  shadow: string; // shadows
 }
 
 export const lightPalette: Palette = {

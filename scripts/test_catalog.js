@@ -1,5 +1,5 @@
-// Verifica del formato del ricettario sui file in scripts/fixtures/catalog.
-// Uso: node scripts/test_catalog.js   (compila i moduli TypeScript in una cartella temporanea)
+// Check of the recipe book format on the files in scripts/fixtures/catalog.
+// Usage: node scripts/test_catalog.js (compiles the TypeScript modules in a temporary folder)
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');

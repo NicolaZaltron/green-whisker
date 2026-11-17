@@ -119,6 +119,11 @@
     "sideDish": "Contorno",
     "autoBanner": "Piano settimana generato automaticamente con {{count}} pasti!",
     "slotRemovedToast": "Pasto rimosso dal piano.",
+    "recipeSource": {
+      "prepare": "Da preparare",
+      "ready": "Già pronta"
+    },
+    "saveEdit": "Salva",
     "sideRemovedToast": "Contorno rimosso.",
     "weekClearedToast": "Piano settimana cancellato.",
     "slots": {
@@ -145,8 +150,8 @@
     },
     "preferencesModal": {
       "title": "Preferenze Planner",
-      "servings": "Porzioni di default",
-      "servingsSub": "Usate nella generazione automatica",
+      "servings": "Porzioni da mangiare per pasto",
+      "servingsSub": "Quante persone mangiano di solito; default per i pasti aggiunti e la generazione automatica",
       "weekend": "Include weekend",
       "weekendSub": "Pianifica Sabato e Domenica",
       "quickLunch": "Pranzo veloce nei feriali",
@@ -278,7 +283,6 @@
     "slotDinner": "Cena",
     "slotMeal": "Pasto",
     "titleWithServings": "{{title}} ({{servings}} porz.)",
-    "plannedToast": "Pianificato per {{slot}}!",
     "noteSaved": "Salvata",
     "noteSavedToast": "Nota personale salvata!",
     "openingTelegram": "Apertura Telegram in corso...",
@@ -289,8 +293,7 @@
     "notesPlaceholder": "Es. Forno statico a 180° per 25 min; ottima anche con farina d'avena...",
     "saveNote": "Salva Nota",
     "tipsTitle": "I consigli per te",
-    "choosePlanTime": "Scegli quando cucinare:",
-    "confirmInPlan": "Conferma nel Piano ({{day}} • {{slot}})",
+    "choosePlanTime": "Scegli quando pianificarlo:",
     "addToPlan": "Aggiungi al Piano ({{servings}} porz.)",
     "recipeJson": "JSON della ricetta",
     "close": "Chiudi",
@@ -306,7 +309,21 @@
     "systemShareSub": "Menu di condivisione di sistema",
     "copyRecipeTitle": "Copia negli Appunti",
     "copyRecipeSub": "Testo formattato con ingredienti e dosi",
-    "jsonSub": "Dati completi della ricetta"
+    "jsonSub": "Dati completi della ricetta",
+    "confirmInPlanCount_one": "Conferma nel piano (1 pasto)",
+    "confirmInPlanCount_other": "Conferma nel piano ({{count}} pasti)",
+    "plannedTitle": "Ricetta pianificata",
+    "plannedSummary_one": "1 pasto: {{slots}} · {{days}}",
+    "plannedSummary_other": "{{count}} pasti: {{slots}} · {{days}}",
+    "plannedDone": "Fatto",
+    "planBatchQuestion": "Come preparare più pasti?",
+    "planBatchEach": "Prepara ogni pasto separatamente",
+    "planBatchOnce": "Prepara solo la prima volta, poi mangia nei pasti successivi",
+    "planScreenTitle": "Aggiungi al planner settimanale",
+    "planBatchNeedsMeals": "Preparazione di più pasti disponibile solo se vengono selezionati più pasti o più giorni",
+    "planBatchNeedsPrepare": "Disponibile solo se scegli di preparare la ricetta",
+    "planServingsPerMeal": "Porzioni da mangiare per pasto",
+    "planServingsExceed": "Porzioni pianificate ({{planned}}) superiori a quelle da preparare ({{prepared}}). Puoi comunque confermare ma potrebbero non bastare."
   },
   "categories": {
     "MACRO_PRIMI_E_CEREALI": "Primi e Cereali",
@@ -377,7 +394,12 @@
     "theme": "Tema",
     "theme_light": "Chiaro",
     "theme_dark": "Scuro",
-    "theme_system": "Sistema"
+    "theme_system": "Sistema",
+    "resetData": "Cancella tutti i dati",
+    "resetDataTitle": "Cancellare tutti i dati?",
+    "resetDataBody": "Vengono eliminati ricette, pianificazione, lista della spesa, preferenze e chiavi AI. L'operazione non si può annullare.",
+    "resetDataConfirm": "Cancella",
+    "resetDataDone": "Dati cancellati. Chiudi e riapri l'app."
   },
   "recipeBook": {
     "title": "Ricettario",
@@ -639,6 +661,7 @@
   },
   "shoppingPlan": {
     "title": "Aggiungi dal planner",
+    "subtitle": "Vengono aggiunti alla spesa: le ricette «Da preparare», i piatti pronti e i prodotti singoli aggiunti al piano.",
     "selectAll": "Seleziona tutto",
     "deselectAll": "Deseleziona tutto",
     "need": "Serve: {{need}} {{unit}}",
@@ -685,6 +708,13 @@
     "cancel": "Annulla",
     "add": "Aggiungi",
     "count": "Quantità",
+    "recipeSourceQuestion": "Vuoi prepararla o mangiare porzioni già pronte?",
+    "recipeSource": {
+      "prepare": "Preparo",
+      "ready": "Già pronte"
+    },
+    "servingsToPrepare": "Porzioni da preparare",
+    "servingsToEat": "Porzioni da mangiare (per pasto)",
     "empty": "Nessun elemento per questo pasto",
     "loading": "Caricamento...",
     "out": "Fuori casa",

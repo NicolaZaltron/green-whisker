@@ -15,7 +15,7 @@ export interface PlannerPreferences {
   maxWeekdayLunchMinutes: number | null;
   autoGenerateOnMonday: boolean;
   includeSnacks?: boolean;
-  /** 'week' = lun-dom della settimana; 'rolling' = 7 giorni da oggi */
+  /** 'week' = Mon-Sun of the week; 'rolling' = 7 days from today */
   calendarMode: 'week' | 'rolling';
 }
 
@@ -45,35 +45,35 @@ export interface AutoPlanOptions {
 // NUTRITIONAL ROTATION & HEALTHY PLATE DOMAIN TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Matrice delle frequenze proteiche settimanali */
+/** Weekly protein frequency matrix */
 export type ProteinGroup =
-  | 'legumi_interi'      // ceci, lenticchie, fagioli, fave, piselli, cicerchie
+  | 'legumi_interi'      // chickpeas, lentils, beans, fava beans, peas, grass peas
   | 'soia_derivati'      // tofu, tempeh, edamame, seitan
-  | 'cereali_proteici'   // quinoa, farro, grano saraceno, farinata di ceci
-  | 'leggero_vegetale';  // vellutate, verdure dense con semi/noci
+  | 'cereali_proteici'   // quinoa, spelt, buckwheat, chickpea farinata
+  | 'leggero_vegetale';  // velvety soups, dense vegetables with seeds/nuts
 
-/** Rotazione cereali e carboidrati (max 2 volte/settimana per famiglia) */
+/** Rotation of cereals and carbohydrates (max 2 times/week per family) */
 export type CarbFamily =
   | 'pasta'              // pasta, spaghetti, fusilli, penne
-  | 'riso'               // riso basmati, integrale, venere, carnaroli
-  | 'farro_orzo'         // farro, orzo perlato/mondo
-  | 'pseudocereali'      // quinoa, grano saraceno, miglio, amaranto
-  | 'tuberi'             // patate, patate dolci, gnocchi
-  | 'pane_cereali_rapidi'// couscous, bulgur, pane, piadina, polenta
+  | 'riso'               // basmati, brown, black (venere), carnaroli rice
+  | 'farro_orzo'         // spelt, pearl/hulled barley
+  | 'pseudocereali'      // quinoa, buckwheat, millet, amaranth
+  | 'tuberi'             // potatoes, sweet potatoes, gnocchi
+  | 'pane_cereali_rapidi'// couscous, bulgur, bread, piadina, polenta
   | 'nessuno';
 
-/** Rainbow Plate: fitonutrienti per colore dominante */
+/** Rainbow Plate: phytonutrients by dominant color */
 export type VeggieColor =
-  | 'verde'              // clorofilla, folati, luteina
-  | 'rosso_arancione'    // carotenoidi, licopene, beta-carotene
-  | 'viola_blu'          // antociani, polifenoli
-  | 'bianco'             // allilsolfuri, quercetina
+  | 'verde'              // chlorophyll, folates, lutein
+  | 'rosso_arancione'    // carotenoids, lycopene, beta-carotene
+  | 'viola_blu'          // anthocyanins, polyphenols
+  | 'bianco'             // allyl sulfides, quercetin
   | 'misto_neutro';
 
-/** Stagionalità */
+/** Seasonality */
 export type Season = 'inverno' | 'primavera' | 'estate' | 'autunno';
 
-/** Risultato classificazione Regola del Piatto Bilanciato */
+/** Result of the Balanced Plate Rule classification */
 export interface HealthyPlateClassification {
   proteinGroup: ProteinGroup;
   carbFamily: CarbFamily;
@@ -85,18 +85,18 @@ export interface HealthyPlateClassification {
   isCompleteMeal: boolean;
 }
 
-// Tipo proteico legacy (compatibilità)
+// Legacy protein type (compatibility)
 export type ProteinType = 'legumi' | 'soya' | 'verdure' | null;
 
-// Tipo carboidrato legacy (compatibilità)
+// Legacy carbohydrate type (compatibility)
 export type CarbType = 'complessi' | 'semplici' | null;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COSTANTI NUTRIZIONALI
+// NUTRITIONAL CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Categorie per la colazione (Slot Matching Rule: Slot Colazione)
+ * Breakfast categories (Slot Matching Rule: Breakfast Slot)
  */
 export const BREAKFAST_CATEGORIES = new Set([
   'CAT_PORRIDGE_E_OVERNIGHT_OATS',
@@ -109,7 +109,7 @@ export const BREAKFAST_CATEGORIES = new Set([
 ]);
 
 /**
- * Categorie per gli spuntini mattina/pomeriggio (Slot Matching Rule: Slot Spuntini)
+ * Categories for morning/afternoon snacks (Slot Matching Rule: Snack Slot)
  */
 export const SNACK_CATEGORIES = new Set([
   'CAT_ENERGY_BALLS_E_BARRETTE',
@@ -119,7 +119,7 @@ export const SNACK_CATEGORIES = new Set([
 ]);
 
 /**
- * Categorie Piatto Unico autosufficiente (Struttura del Piatto: Opzione B)
+ * Self-sufficient One-Dish Meal categories (Plate Structure: Option B)
  */
 export const PIATTO_UNICO_CATEGORIES = new Set([
   'CAT_BOWL',
@@ -133,7 +133,7 @@ export const PIATTO_UNICO_CATEGORIES = new Set([
 ]);
 
 /**
- * Categorie Primi Piatti e Zuppe (Struttura del Piatto: Opzione A - Primo)
+ * First Courses and Soups categories (Plate Structure: Option A - First)
  */
 export const PRIMI_CATEGORIES = new Set([
   'CAT_PRIMI_PIATTI',
@@ -144,7 +144,7 @@ export const PRIMI_CATEGORIES = new Set([
 ]);
 
 /**
- * Categorie Secondi Piatti e Proteine (Struttura del Piatto: Opzione A - Secondo)
+ * Second Courses and Proteins categories (Plate Structure: Option A - Second)
  */
 export const SECONDI_CATEGORIES = new Set([
   'CAT_SECONDI_PIATTI',
@@ -159,7 +159,7 @@ export const SECONDI_CATEGORIES = new Set([
 ]);
 
 /**
- * Categorie Contorni e Verdure (Struttura del Piatto: Abbinamento Contorno)
+ * Side Dishes and Vegetables categories (Plate Structure: Side Dish Pairing)
  */
 export const CONTORNI_CATEGORIES = new Set([
   'CAT_CONTORNI',
@@ -168,10 +168,10 @@ export const CONTORNI_CATEGORIES = new Set([
   'CAT_VERDURE_BOLLITE_E_A_VAPORE',
 ]);
 
-/** Tipo slot giornaliero (5 pasti giornalieri) */
+/** Daily slot type (5 daily meals) */
 export type MealSlot = 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
 
-/** Ordine canonico dei 5 slot nel giorno (per display e loop) */
+/** Canonical order of the 5 slots in the day (for display and loops) */
 export const SLOT_ORDER: MealSlot[] = [
   'colazione',
   'spuntino_mattina',
@@ -180,7 +180,7 @@ export const SLOT_ORDER: MealSlot[] = [
   'cena',
 ];
 
-/** Etichette italiane degli slot */
+/** Italian labels of the slots */
 export const SLOT_LABELS: Record<MealSlot, string> = {
   colazione: 'Colazione',
   spuntino_mattina: 'Spuntino Mattina',
@@ -189,7 +189,7 @@ export const SLOT_LABELS: Record<MealSlot, string> = {
   cena: 'Cena',
 };
 
-/** Icone Ionicons per ogni slot */
+/** Ionicons icons for each slot */
 export const SLOT_ICONS: Record<MealSlot, string> = {
   colazione: 'cafe-outline',
   spuntino_mattina: 'nutrition-outline',
@@ -198,7 +198,7 @@ export const SLOT_ICONS: Record<MealSlot, string> = {
   cena: 'moon-outline',
 };
 
-/** Colori per ogni slot (light in color/bgColor, dark in darkColor/darkBgColor) */
+/** Colors for each slot (light in color/bgColor, dark in darkColor/darkBgColor) */
 export const SLOT_COLORS: Record<
   MealSlot,
   { color: string; bgColor: string; darkColor: string; darkBgColor: string }
@@ -211,9 +211,8 @@ export const SLOT_COLORS: Record<
 };
 
 /**
-/**
- * Restituisce le ricette adatte e consigliate per ciascuno dei 5 slot pasto,
- * basandosi sulla mappatura canonica delle categorie per slot (Slot Matching Rule).
+ * Returns the suitable and recommended recipes for each of the 5 meal slots,
+ * based on the canonical category mapping per slot (Slot Matching Rule).
  */
 export function getRecipesForSlot(slot: MealSlot): Recipe[] {
   if (slot === 'colazione') {
@@ -222,7 +221,7 @@ export function getRecipesForSlot(slot: MealSlot): Recipe[] {
   if (slot === 'spuntino_mattina' || slot === 'spuntino_pomeriggio') {
     return catalogRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
   }
-  // Pranzo e Cena: Piatti unici, Primi, Secondi e Contorni
+  // Lunch and Dinner: One-dish meals, First courses, Second courses and Side dishes
   return catalogRecipes.filter(r =>
     PIATTO_UNICO_CATEGORIES.has(r.category) ||
     PRIMI_CATEGORIES.has(r.category) ||
@@ -245,7 +244,7 @@ export function getSideRecipes(recipes: Recipe[] = catalogRecipes): Recipe[] {
 }
 
 /**
- * Restituisce la stagione corrente in base alla data
+ * Returns the current season based on the date
  */
 export function getCurrentSeason(date: Date = new Date()): Season {
   const m = date.getMonth() + 1; // 1 - 12
@@ -256,7 +255,7 @@ export function getCurrentSeason(date: Date = new Date()): Season {
 }
 
 /**
- * Classificatore O(1) della Regola del Piatto Bilanciato basato sui metadati normalizzati della ricetta.
+ * O(1) classifier of the Balanced Plate Rule based on the recipe's normalized metadata.
  */
 export function classifyHealthyPlate(recipe: Recipe, season: Season = getCurrentSeason()): HealthyPlateClassification {
   const proteinGroup: ProteinGroup = recipe.protein_group || 'leggero_vegetale';
@@ -303,7 +302,7 @@ export function classifyHealthyPlate(recipe: Recipe, season: Season = getCurrent
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CLASSIFICATORI LEGACY (per retrocompatibilità)
+// LEGACY CLASSIFIERS (for backward compatibility)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function classifyProtein(recipe: Recipe): ProteinType {
@@ -368,7 +367,7 @@ export function getWeekDays(offsetWeeks: number = 0): WeekDaysResult {
   return { days, weekLabel, offsetWeeks };
 }
 
-// Giorni del planner in base alla modalità calendario: 'week' usa getWeekDays, 'rolling' 7 giorni da oggi + offset*7
+// Planner days based on calendar mode: 'week' uses getWeekDays, 'rolling' 7 days from today + offset*7
 export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale: 'it' | 'en' = 'it'): { days: WeekDayInfo[]; label: string } {
   if (mode === 'week') {
     const { days, weekLabel } = getWeekDays(offset);
@@ -391,7 +390,7 @@ export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale:
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PREFERENZE
+// PREFERENCES
 // ─────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_PREFERENCES: PlannerPreferences = {
@@ -404,8 +403,8 @@ const DEFAULT_PREFERENCES: PlannerPreferences = {
 
 const PLANNER_PREFS_KEY = 'gw_planner_prefs';
 
-// Stessa logica delle impostazioni tema/lingua: SecureStore su dispositivo, localStorage sul web.
-// Se la chiave non esiste ancora nel nuovo storage, si legge la vecchia copia nel KV del database (migrazione).
+// Same logic as the theme/language settings: SecureStore on device, localStorage on web.
+// If the key does not exist yet in the new storage, the old copy in the database KV is read (migration).
 async function readPlannerPrefsRaw(): Promise<string | null> {
   if (Platform.OS === 'web') {
     return window.localStorage.getItem(PLANNER_PREFS_KEY);
@@ -439,7 +438,7 @@ export async function savePlannerPreferences(prefs: Partial<PlannerPreferences>)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ALGORITMO DI GENERAZIONE BILANCIATA
+// BALANCED GENERATION ALGORITHM
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -456,33 +455,33 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 /**
- * Genera un piano settimanale nutrizionalmente bilanciato e vario rispettando:
+ * Generates a nutritionally balanced and varied weekly plan respecting:
  *
- * 1. ASSEGNAZIONE AGLI SLOT DELLA GIORNATA (Slot Matching Rule):
- *    - Colazione: CAT_PORRIDGE_E_OVERNIGHT_OATS, CAT_A_BASE_DI_YOGURT_VEGETALE, CAT_A_BASE_DI_LATTE_VEGETALE,
+ * 1. ASSIGNMENT TO THE DAY'S SLOTS (Slot Matching Rule):
+ *    - Breakfast: CAT_PORRIDGE_E_OVERNIGHT_OATS, CAT_A_BASE_DI_YOGURT_VEGETALE, CAT_A_BASE_DI_LATTE_VEGETALE,
  *      CAT_BISCOTTI, CAT_MERENDE_E_COLAZIONI_DOLCI, CAT_FRULLATI, CAT_TORTE_E_ALTRI_DOLCI_DA_FORNO, CAT_FRUTTA_SECCA.
- *    - Spuntini: CAT_ENERGY_BALLS_E_BARRETTE, CAT_FRUTTA_FRESCA_E_MACEDONIE, CAT_FRUTTA_SECCA, CAT_GELATI, CAT_FRULLATI.
- *    - Pranzo e Cena: CAT_PRIMI_PIATTI, CAT_RISOTTI, CAT_GNOCCHI, CAT_POLENTA, CAT_PIATTI_A_BASE_DI_LEGUMI,
+ *    - Snacks: CAT_ENERGY_BALLS_E_BARRETTE, CAT_FRUTTA_FRESCA_E_MACEDONIE, CAT_FRUTTA_SECCA, CAT_GELATI, CAT_FRULLATI.
+ *    - Lunch and Dinner: CAT_PRIMI_PIATTI, CAT_RISOTTI, CAT_GNOCCHI, CAT_POLENTA, CAT_PIATTI_A_BASE_DI_LEGUMI,
  *      CAT_SECONDI_A_BASE_DI_TOFU/TEMPEH/SEITAN/SOIA, CAT_POLPETTE_E_BURGER, CAT_COTOLETTE, CAT_BOWL, CAT_ZUPPE_E_VELLUTATE,
  *      CAT_PASTA_AL_FORNO, CAT_PIADINE_E_WRAPS, CAT_TORTE_SALATE, CAT_PIZZE_E_FOCACCIE, CAT_PANINI_E_BRUSCHETTE.
  *
- * 2. STRUTTURA DEL PIATTO (Pasto Strutturato vs Piatto Unico):
- *    - Opzione A - Pasto Strutturato: Sceglie un Primo (CAT_PRIMI_PIATTI / CAT_RISOTTI / CAT_GNOCCHI) o un Secondo
- *      e lo abbina ad una ricetta di contorno autentica da CAT_CONTORNI, CAT_VERDURE_... o CAT_ZUPPE_E_VELLUTATE.
- *    - Opzione B - Piatto Unico: Sceglie una ricetta completa e autosufficiente (CAT_BOWL, CAT_INSALATE_DI_CEREALI,
+ * 2. PLATE STRUCTURE (Structured Meal vs One-Dish Meal):
+ *    - Option A - Structured Meal: Picks a First (CAT_PRIMI_PIATTI / CAT_RISOTTI / CAT_GNOCCHI) or a Second
+ *      and pairs it with an authentic side recipe from CAT_CONTORNI, CAT_VERDURE_... or CAT_ZUPPE_E_VELLUTATE.
+ *    - Option B - One-Dish Meal: Picks a complete and self-sufficient recipe (CAT_BOWL, CAT_INSALATE_DI_CEREALI,
  *      CAT_INSALATE_DI_LEGUMI, CAT_PASTA_AL_FORNO, CAT_PIADINE_E_WRAPS, CAT_TORTE_SALATE, CAT_PIZZE_E_FOCACCIE)
- *      senza forzare un contorno addizionale (nessuna seconda voce nello slot).
+ *      without forcing an additional side (no second entry in the slot).
  *
- * 3. ROTAZIONE ANTI-MONOTONIA (Anti-Repetition Score):
- *    - Finestra scorrevole delle categorie usate negli ultimi 3 pasti principali con penalità decrescente.
- *    - Rotazione continua tra le diverse fonti proteiche (tofu -> legumi -> farinate -> tempeh...).
- *    - Nessuna famiglia di carboidrati ripetuta per 2 pasti principali consecutivi.
- *    - Alternanza di formato: se a pranzo c'è un Piatto Unico, a cena pasto strutturato; alternanza primo/secondo.
- *    - Rainbow Plate & Stagionalità: contrasto cromatico tra pranzo e cena dello stesso giorno e bonus stagionale.
+ * 3. ANTI-MONOTONY ROTATION (Anti-Repetition Score):
+ *    - Sliding window of the categories used in the last 3 main meals with decreasing penalty.
+ *    - Continuous rotation among the different protein sources (tofu -> legumes -> farinate -> tempeh...).
+ *    - No carbohydrate family repeated for 2 consecutive main meals.
+ *    - Format alternation: if lunch is a One-Dish Meal, dinner is a structured meal; first/second alternation.
+ *    - Rainbow Plate & Seasonality: color contrast between lunch and dinner of the same day and seasonal bonus.
  */
 /**
- * Mappa una categoria proteica nella sua macro-sottofamiglia per garantire
- * l'alternanza anti-monotonia (es. soia/tofu -> legumi -> farinate/burger).
+ * Maps a protein category to its macro-subfamily to guarantee
+ * anti-monotony alternation (e.g. soy/tofu -> legumes -> farinate/burger).
  */
 export function getProteinSubgroup(category: string): string {
   if (
@@ -516,7 +515,7 @@ export function generateBalancedWeekPlan(
 ): MealPlanEntry[] {
   const currentSeason = getCurrentSeason();
 
-  // ── Pre-processing dei pool per categoria univoca (CAT_...) ──────────────────
+  // ── Pre-processing of pools per unique category (CAT_...) ──────────────────
   const breakfastPool   = catalogRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
   const snackPool       = catalogRecipes.filter(r => SNACK_CATEGORIES.has(r.category));
   const piattoUnicoPool = catalogRecipes.filter(r => PIATTO_UNICO_CATEGORIES.has(r.category));
@@ -524,32 +523,32 @@ export function generateBalancedWeekPlan(
   const secondiPool     = catalogRecipes.filter(r => SECONDI_CATEGORIES.has(r.category));
   const sidePool        = catalogRecipes.filter(r => CONTORNI_CATEGORIES.has(r.category));
 
-  // Pre-classificazione nutrizionale completa con Regola del Piatto Bilanciato
+  // Complete nutritional pre-classification with the Balanced Plate Rule
   const nutritionIndex = new Map<string, HealthyPlateClassification>();
   for (const r of catalogRecipes) {
     nutritionIndex.set(r.id, classifyHealthyPlate(r, currentSeason));
   }
 
-  // ── Memoria anti-monotonia (Anti-Repetition Tracking) ───────────────────────
+  // ── Anti-monotony memory (Anti-Repetition Tracking) ───────────────────────
   const usedRecipeIds = new Set<string>(existingPlans.map(p => p.recipe_id).filter((id): id is string => !!id));
-  const usedSideIds = new Set<string>(); // contorni scelti in questa generazione (quelli esistenti sono già in usedRecipeIds)
+  const usedSideIds = new Set<string>(); // side dishes chosen in this generation (existing ones are already in usedRecipeIds)
   const existingMap: Record<string, MealPlanEntry> = {};
   existingPlans.forEach(p => { existingMap[`${p.date}-${p.slot}`] = p; });
 
-  const recentCategories: string[] = []; // Categorie usate nei pasti principali recenti
-  const recentProteinCategories: string[] = []; // Sottofamiglie proteiche recenti
+  const recentCategories: string[] = []; // Categories used in recent main meals
+  const recentProteinCategories: string[] = []; // Recent protein subfamilies
   let lastCarbFamily: CarbFamily | null = null;
   let lastFormat: 'piatto_unico' | 'primo' | 'secondo' | null = null;
   const dayLunchColors: Record<string, VeggieColor> = {};
 
-  // Tracciamento rotazione colazioni e spuntini
+  // Breakfast and snack rotation tracking
   let lastBreakfastCat: string | null = null;
   let lastSnackMorningCat: string | null = null;
   let lastSnackAfternoonCat: string | null = null;
   const usedBreakfastIds = new Set<string>(existingPlans.filter(p => p.slot === 'colazione').map(p => p.recipe_id).filter((id): id is string => !!id));
   const usedSnackIds = new Set<string>(existingPlans.filter(p => p.slot === 'spuntino_mattina' || p.slot === 'spuntino_pomeriggio').map(p => p.recipe_id).filter((id): id is string => !!id));
 
-  // Pre-popola statistiche dai pasti già esistenti nel piano
+  // Pre-populates statistics from the meals already in the plan
   existingPlans.forEach(p => {
     if ((p.slot === 'pranzo' || p.slot === 'cena') && p.recipe_id) {
       const r = catalogRecipes.find(x => x.id === p.recipe_id);
@@ -565,8 +564,8 @@ export function generateBalancedWeekPlan(
 
   const newEntries: MealPlanEntry[] = [];
 
-  // Definizione degli slot da pianificare in ordine cronologico canonico
-  const slots: Array<{
+  // Definition of the slots to plan in canonical chronological order
+  const slots: {
     dateString: string;
     slot: MealSlot;
     isWeekend: boolean;
@@ -575,7 +574,7 @@ export function generateBalancedWeekPlan(
     isBreakfast: boolean;
     isSnackMat: boolean;
     isSnackPom: boolean;
-  }> = [];
+  }[] = [];
 
   const shouldIncludeSnacks = options.includeSnacks ?? true;
 
@@ -609,7 +608,7 @@ export function generateBalancedWeekPlan(
       continue;
     }
 
-    // ── 1. COLAZIONE ─────────────────────────────────────────────────────────
+    // ── 1. BREAKFAST ─────────────────────────────────────────────────────────
     if (slotInfo.isBreakfast) {
       const bfCandidates = breakfastPool.filter(r =>
         !usedBreakfastIds.has(r.id) && r.category !== lastBreakfastCat
@@ -630,7 +629,7 @@ export function generateBalancedWeekPlan(
       continue;
     }
 
-    // ── 2. SPUNTINO MATTINA ──────────────────────────────────────────────────
+    // ── 2. MORNING SNACK ─────────────────────────────────────────────────────
     if (slotInfo.isSnackMat) {
       const snkCandidates = snackPool.filter(r =>
         !usedSnackIds.has(r.id) && r.category !== lastSnackMorningCat
@@ -651,7 +650,7 @@ export function generateBalancedWeekPlan(
       continue;
     }
 
-    // ── 3. SPUNTINO POMERIGGIO ───────────────────────────────────────────────
+    // ── 3. AFTERNOON SNACK ───────────────────────────────────────────────────
     if (slotInfo.isSnackPom) {
       const snkCandidates = snackPool.filter(r =>
         !usedSnackIds.has(r.id) && r.category !== lastSnackMorningCat && r.category !== lastSnackAfternoonCat
@@ -672,10 +671,10 @@ export function generateBalancedWeekPlan(
       continue;
     }
 
-    // ── 4. PRANZO E CENA (STRUTTURA DEL PIATTO & ROTAZIONE ANTI-MONOTONIA) ───
+    // ── 4. LUNCH AND DINNER (PLATE STRUCTURE & ANTI-MONOTONY ROTATION) ───────
 
-    // Decisione della struttura del pasto: Piatto Unico vs Pasto Strutturato
-    // Regola: mai 2 piatti unici consecutivi. Se a pranzo c'era un piatto unico, a cena è strutturato.
+    // Meal structure decision: One-Dish Meal vs Structured Meal
+    // Rule: never 2 consecutive one-dish meals. If lunch was a one-dish meal, dinner is structured.
     const allowPiattoUnico = lastFormat !== 'piatto_unico' && (slotInfo.slot === 'pranzo' ? Math.random() < 0.40 : Math.random() < 0.25);
 
     let chosenFormat: 'piatto_unico' | 'primo' | 'secondo';
@@ -685,7 +684,7 @@ export function generateBalancedWeekPlan(
       chosenFormat = 'piatto_unico';
       candidatePool = piattoUnicoPool;
     } else {
-      // Pasto strutturato: alterna tra Primo e Secondo rispetto all'ultimo pasto strutturato
+      // Structured meal: alternates between First and Second relative to the last structured meal
       if (lastFormat === 'primo') {
         chosenFormat = 'secondo';
         candidatePool = secondiPool;
@@ -693,32 +692,32 @@ export function generateBalancedWeekPlan(
         chosenFormat = 'primo';
         candidatePool = primiPool;
       } else {
-        // Se si proviene da piatto unico, a pranzo preferisce Primo, a cena Secondo
+        // If coming from a one-dish meal, lunch prefers First, dinner Second
         chosenFormat = slotInfo.slot === 'pranzo' ? 'primo' : 'secondo';
         candidatePool = chosenFormat === 'primo' ? primiPool : secondiPool;
       }
     }
 
-    // Scoring Anti-Monotonia e Nutrizionale sui candidati del pool selezionato
+    // Anti-Monotony and Nutritional scoring on the candidates of the selected pool
     const lunchColor = dayLunchColors[slotInfo.dateString];
     let scoredCandidates = candidatePool.map(r => {
       let score = Math.random() * 5;
       const ni = nutritionIndex.get(r.id);
 
-      // Penalità forte se ricetta già usata nel piano corrente
+      // Strong penalty if the recipe is already used in the current plan
       if (usedRecipeIds.has(r.id)) score -= 150;
 
-      // Penalità Anti-Monotonia sulla categoria (finestra scorrevole degli ultimi 6 pasti / 2-3 giorni)
+      // Anti-Monotony penalty on the category (sliding window of the last 6 meals / 2-3 days)
       const catIdx = recentCategories.lastIndexOf(r.category);
       if (catIdx !== -1) {
-        const recency = recentCategories.length - catIdx; // 1 = pasto appena precedente
+        const recency = recentCategories.length - catIdx; // 1 = immediately preceding meal
         if (recency === 1) score -= 80;
         else if (recency === 2) score -= 60;
         else if (recency === 3) score -= 40;
         else if (recency <= 6) score -= 20;
       }
 
-      // Penalità Anti-Monotonia su gruppo proteico (es. Tofu/Soia vs Legumi vs Farinate/Burger)
+      // Anti-Monotony penalty on protein group (e.g. Tofu/Soy vs Legumes vs Farinate/Burger)
       if (SECONDI_CATEGORIES.has(r.category)) {
         const pg = getProteinSubgroup(r.category);
         const lastPgIdx = recentProteinCategories.lastIndexOf(pg);
@@ -729,21 +728,21 @@ export function generateBalancedWeekPlan(
         }
       }
 
-      // Penalità Anti-Monotonia su famiglia di carboidrati consecutivi
+      // Anti-Monotony penalty on consecutive carbohydrate family
       if (ni && ni.carbFamily !== 'nessuno' && lastCarbFamily && ni.carbFamily === lastCarbFamily) {
         score -= 45;
       }
 
-      // Bonus stagionalità
+      // Seasonality bonus
       if (ni?.isSeasonal) score += 10;
 
-      // Bonus alternanza cromatica Rainbow Plate a cena rispetto al pranzo dello stesso giorno
+      // Rainbow Plate color alternation bonus at dinner relative to lunch of the same day
       if (slotInfo.slot === 'cena' && lunchColor && ni) {
         if (lunchColor === 'verde' && (ni.veggieColor === 'rosso_arancione' || ni.veggieColor === 'viola_blu')) score += 14;
         else if (lunchColor !== 'verde' && ni.veggieColor === 'verde') score += 14;
       }
 
-      // Bonus pranzo veloce nei giorni feriali se richiesto
+      // Quick lunch bonus on weekdays if requested
       if (slotInfo.isWeekdayLunch && options.maxWeekdayLunchMinutes && r.times?.total_minutes > 0) {
         if (r.times.total_minutes <= options.maxWeekdayLunchMinutes) score += 12;
       }
@@ -757,7 +756,7 @@ export function generateBalancedWeekPlan(
 
     const chosenNi = nutritionIndex.get(chosen.id);
 
-    // Aggiorna memorie
+    // Updates memories
     usedRecipeIds.add(chosen.id);
     recentCategories.push(chosen.category);
     if (recentCategories.length > 6) recentCategories.shift();
@@ -775,7 +774,7 @@ export function generateBalancedWeekPlan(
     }
     lastFormat = chosenFormat;
 
-    // Abbinamento del Contorno per Pasti Strutturati (Opzione A)
+    // Side Dish pairing for Structured Meals (Option A)
     let chosenSide: Recipe | undefined = undefined;
     if (chosenFormat !== 'piatto_unico') {
       const availableSides = sidePool.filter(s => !usedSideIds.has(s.id) && !usedRecipeIds.has(s.id));
@@ -786,11 +785,11 @@ export function generateBalancedWeekPlan(
         const siB = nutritionIndex.get(b.id);
         if (!siA || !siB) return sB - sA;
 
-        // Contrasto cromatico del vegetale
+        // Color contrast of the vegetable
         if (chosenNi && siA.veggieColor !== chosenNi.veggieColor && siA.veggieColor !== 'misto_neutro') sA += 10;
         if (chosenNi && siB.veggieColor !== chosenNi.veggieColor && siB.veggieColor !== 'misto_neutro') sB += 10;
 
-        // Stagionalità del contorno
+        // Seasonality of the side dish
         if (siA.isSeasonal) sA += 8;
         if (siB.isSeasonal) sB += 8;
 
@@ -820,7 +819,7 @@ export function generateBalancedWeekPlan(
         slot: slotInfo.slot,
         recipe_id: chosenSide.id,
         servings: options.servings,
-        created_at: Date.now() + 1, // dopo il piatto principale nell'ordinamento
+        created_at: Date.now() + 1, // after the main dish in the ordering
       });
     }
   }
@@ -828,58 +827,13 @@ export function generateBalancedWeekPlan(
   return newEntries;
 }
 
-/**
- * Costruisce una sequenza di tipi proteici per i nuovi slot,
- * rispettando la regola "max 2 consecutivi dello stesso tipo".
- */
-function buildProteinSequence(
-  legumiTarget: number,
-  soyaTarget: number,
-  verdureTarget: number,
-  totalSlots: number,
-): ProteinType[] {
-  const bag: ProteinType[] = [
-    ...Array(legumiTarget).fill('legumi'),
-    ...Array(soyaTarget).fill('soya'),
-    ...Array(verdureTarget).fill('verdure'),
-  ];
-
-  // Completa se i target non coprono tutti gli slot (arrotondamenti)
-  while (bag.length < totalSlots) bag.push('verdure');
-
-  // Fisher-Yates via shared shuffle utility
-  const shuffled = shuffle(bag);
-  shuffled.forEach((v, i) => { bag[i] = v; });
-
-  // Rimuovi sequenze di 3+ uguali spostando elementi
-  for (let i = 2; i < bag.length; i++) {
-    if (bag[i] === bag[i - 1] && bag[i] === bag[i - 2]) {
-      // Cerca il prossimo elemento diverso dopo i
-      let swapIdx = -1;
-      for (let j = i + 1; j < bag.length; j++) {
-        if (bag[j] !== bag[i]) { swapIdx = j; break; }
-      }
-      // Se trovato, scambia
-      if (swapIdx !== -1) {
-        [bag[i], bag[swapIdx]] = [bag[swapIdx], bag[i]];
-      }
-      // Se non trovato, inverti la coppia precedente (edge case con pool piccolo)
-      else if (i >= 1) {
-        [bag[i - 1], bag[i]] = [bag[i], bag[i - 1]];
-      }
-    }
-  }
-
-  return bag;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// AUTO-GENERAZIONE (lunedì)
+// AUTO-GENERATION (Monday)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function checkAndAutoGeneratePlan(): Promise<{ generated: boolean; entriesCount: number }> {
   try {
-    // Fuori dal lunedì non si legge né il database né il KV
+    // Outside Monday neither the database nor the KV is read
     const today = new Date();
     const isMonday = today.getDay() === 1;
     if (!isMonday) return { generated: false, entriesCount: 0 };
@@ -898,12 +852,12 @@ export async function checkAndAutoGeneratePlan(): Promise<{ generated: boolean; 
 
     const { days } = getPlannerDays(prefs.calendarMode, 0);
     const weekDates = new Set(days.map(d => d.dateString));
-    // Lettura del piano solo dopo i controlli (lunedì, preferenza, ultima generazione): il generatore
-    // usa l'intero piano per l'anti-ripetizione, quindi qui resta completo
+    // The plan is read only after the checks (Monday, preference, last generation): the generator
+    // uses the whole plan for anti-repetition, so here it stays complete
     const existingPlans = await getMealPlans();
     const weekPlans = existingPlans.filter(p => weekDates.has(p.date));
 
-    // Un pasto può contenere più ricette: si contano i pasti occupati, non le voci
+    // A meal can contain several recipes: occupied meals are counted, not entries
     const maxSlots = days.length * SLOT_ORDER.length;
     const filledSlots = new Set(weekPlans.map(p => `${p.date}-${p.slot}`)).size;
     if (filledSlots >= maxSlots) {
@@ -931,7 +885,7 @@ export async function checkAndAutoGeneratePlan(): Promise<{ generated: boolean; 
 }
 
 /**
- * Genera manualmente un piano per la settimana corrente.
+ * Manually generates a plan for the current week.
  */
 export async function manualGeneratePlan(
   overwrite: boolean = false,
@@ -946,7 +900,7 @@ export async function manualGeneratePlan(
       : weekDays;
     if (days.length === 0) return 0;
 
-    // Il piano completo viene letto qui (non dallo stato della schermata, che mostra una sola settimana)
+    // The full plan is read here (not from the screen state, which shows a single week)
     const existingPlans = await getMealPlans();
 
     const options: AutoPlanOptions = {
@@ -959,7 +913,7 @@ export async function manualGeneratePlan(
 
     const newEntries = generateBalancedWeekPlan(days, existingPlans, options);
     if (newEntries.length > 0 && overwrite) {
-      // Sovrascrittura: rimuove le voci esistenti solo degli slot che verranno riempiti
+      // Overwrite: removes the existing entries only of the slots that will be filled
       const filledSlots = new Set(newEntries.map(e => `${e.date}-${e.slot}`));
       const toRemove = existingPlans.filter(p => filledSlots.has(`${p.date}-${p.slot}`));
       for (const p of toRemove) {
@@ -975,7 +929,7 @@ export async function manualGeneratePlan(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FORMAT PER CONDIVISIONE
+// FORMAT FOR SHARING
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function formatWeekPlanShareText(

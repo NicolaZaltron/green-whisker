@@ -23,7 +23,7 @@ interface SeedJsonEntry {
   purchase_amount?: number | null;
   purchase_unit?: string;
   density_g_per_ml: number | null;
-  nutrients: Record<string, number>;
+  nutrients: Partial<Record<string, number>>;
 }
 
 /** Shape with the new id and aliases fields (v9). */
@@ -57,21 +57,23 @@ export async function seedIngredientsIfEmpty(): Promise<number> {
   return result.inserted;
 }
 
-// v16: valori nutrizionali da revisione esterna (cereali cotti, frutta, verdura, dolci, spezie), tipi e duplicati sistemati.
-// v12: aggiunge il tag gastronomia.
-// v11: rimuove le voci composte o con alternativa e applica i valori nutrizionali.
-// v10: id stabili curati (leggibili), aliases e traduzioni i18n agli ingredienti.
-// Nota: il reseed v11 cancella i pasti pianificati legati agli ingredienti (gli ingredient_id cambiano).
-const SEED_FLAG_KEY_V16 = 'ingredients_seed_v16';
+// v17: revised seed with nutrients per 100 g and per serving, 980 ingredients, provenance and reliability.
+// v16: nutritional values from external review (cooked cereals, fruit, vegetables, sweets, spices), types and duplicates fixed.
+// v12: adds the gastronomia tag.
+// v11: removes composite items or items with an alternative and applies the nutritional values.
+// v10: curated stable ids (readable), aliases and i18n translations for ingredients.
+// Note: the v11 reseed deletes planned meals linked to ingredients (the ingredient_ids change).
+const SEED_FLAG_KEY_V17 = 'ingredients_seed_v17';
 
 /**
- * Reset una tantum (v2): elimina tutti gli ingredienti esistenti e reimporta il catalogo di base.
- * Gli id vengono rigenerati, quindi i collegamenti ricetta-ingrediente vanno rifatti (vedi seedRecipeLinksV2).
- * Eliminare un ingrediente rimuove anche le voci del planner e i collegamenti (accettabile in fase alpha).
+ * One-time reset (v2): deletes all existing ingredients and reimports the base catalog.
+ * Ids are regenerated and the recipe-ingredient links disappear along with the ingredients: they must be recreated
+ * by reimporting the recipe book (or with a future "relink"). This function is no longer followed by a link seed.
+ * Deleting an ingredient also removes the planner entries and links (acceptable in the alpha phase).
  * Returns the number of ingredients inserted, or 0 if the reset was already done.
  */
 export async function seedIngredientsV2(): Promise<number> {
-  if ((await getKV(SEED_FLAG_KEY_V16)) !== null) return 0;
+  if ((await getKV(SEED_FLAG_KEY_V17)) !== null) return 0;
 
   const existing = await listIngredients();
   for (const ingredient of existing) {
@@ -79,6 +81,6 @@ export async function seedIngredientsV2(): Promise<number> {
   }
 
   const result = await upsertIngredientsByName(SEED_ITEMS);
-  await setKV(SEED_FLAG_KEY_V16, '1');
+  await setKV(SEED_FLAG_KEY_V17, '1');
   return result.inserted;
 }

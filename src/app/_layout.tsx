@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
 import { Stack, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../db/database';
 import { loadCatalog } from '../services/recipeCatalog';
 import { seedIngredientsV2 } from '../services/ingredientsService';
-import { seedRecipeLinksV2, seedReadyMealsV2 } from '../services/catalogSeedService';
+import { seedReadyMealsV2 } from '../services/catalogSeedService';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
@@ -19,7 +19,7 @@ import { useTranslation } from 'react-i18next';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 
-// Icone della status bar in base al tema scelto
+// Status bar icons according to the chosen theme
 function ThemedStatusBar() {
   const { isDark } = useTheme();
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
@@ -27,8 +27,8 @@ function ThemedStatusBar() {
 
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
   const { t } = useTranslation();
-  // ErrorBoundary sostituisce il root layout, quindi è fuori da ThemeProvider e useTheme
-  // non è disponibile: usiamo lo schema di sistema con le stesse palette.
+  // ErrorBoundary replaces the root layout, so it is outside ThemeProvider and useTheme
+  // is not available: we use the system scheme with the same palettes.
   const scheme = useColorScheme();
   const colors = scheme === 'dark' ? darkPalette : lightPalette;
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -62,28 +62,23 @@ export default function RootLayout() {
     async function prepare() {
       try {
         await restoreSavedLanguage().catch(e => console.warn('Ripristino della lingua non riuscito', e));
-        // 1. Inizializza SQLite Database (attende la creazione di tabelle e indici)
+        // 1. Initialize SQLite Database (waits for tables and indexes to be created)
         try {
           await initDatabase();
         } catch (dbErr) {
-          // Su native non si continua con dati vuoti: mostriamo l'errore di avvio
+          // On native we do not continue with empty data: we show the startup error
           console.error('Inizializzazione del database fallita:', dbErr);
           setStartupFailed(true);
           return;
         }
 
-        // 2. Carica il catalogo (e l'indice di ricerca) dal database
+        // 2. Load the catalog (and the search index) from the database
         await loadCatalog();
 
         try {
           await seedIngredientsV2();
         } catch (seedErr) {
           console.warn('Seed degli ingredienti non riuscito:', seedErr);
-        }
-        try {
-          await seedRecipeLinksV2();
-        } catch (seedErr) {
-          console.warn('Seed dei collegamenti ricetta-ingrediente non riuscito:', seedErr);
         }
         try {
           await seedReadyMealsV2();

@@ -15,10 +15,10 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { Recipe, IngredientItem } from '../types/recipe';
+import { Recipe, IngredientItem, RecipeSource } from '../types/recipe';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
-  saveMealPlanEntry,
+  saveMealPlanEntryDetailed,
   getRecipeNote,
   saveRecipeNote
 } from '../db/database';
@@ -39,8 +39,15 @@ import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
 
+// Meal proposed when opening the recipe planning
+function recommendedPlanSlot(recipe: Recipe): MealSlot {
+  if (recipe.recommended_slot === 'colazione' || recipe.recommended_slot === 'breakfast') return 'colazione';
+  if (recipe.recommended_slot === 'spuntino' || recipe.recommended_slot === 'snack') return 'spuntino_pomeriggio';
+  return 'pranzo';
+}
+
 interface RecipeModalProps {
-  // Ricetta originale: le varianti vengono mostrate con le schede
+  // Original recipe: variants are shown with the cards
   recipe: Recipe | null;
   variants?: Recipe[];
   visible: boolean;
@@ -48,7 +55,7 @@ interface RecipeModalProps {
   onFavoriteChange?: (isFav: boolean) => void;
   onEdit?: (recipe: Recipe) => void;
   onGenerateVariant?: (source: Recipe, diet: VariantDiet) => void;
-  // Dieta della variante in generazione: mostra lo spinner sul suo pulsante
+  // Diet of the variant being generated: shows the spinner on its button
   generatingDiet?: VariantDiet | null;
   onRegenerateVariant?: (variant: Recipe) => void;
   onDeleteVariant?: (variant: Recipe) => void;
@@ -72,30 +79,33 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const { width } = useResponsiveDimensions();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
-  // La versione scelta vale solo per la ricetta aperta: cambiando ricetta si torna all'originale
+  // The chosen version applies only to the open recipe: changing recipe returns to the original
   const [versionChoice, setVersionChoice] = useState<{ baseId?: string; version: 'original' | VariantDiet }>({ version: 'original' });
   const version = versionChoice.baseId === baseRecipe?.id ? versionChoice.version : 'original';
   const activeVariant = version === 'original' ? undefined : variants.find(v => v.diet === version);
-  // Tutto ciò che segue (ingredienti, planner, spesa, condivisione, note) usa la versione attiva
+  // Everything that follows (ingredients, planner, shopping, sharing, notes) uses the active version
   const recipe = activeVariant ?? baseRecipe;
   const missingDiets = baseRecipe ? availableVariantDiets(baseRecipe, variants) : [];
   const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
-  // Synchronous favorite state from global context: il cuore vale per tutto il gruppo (originale e varianti)
+  // Synchronous favorite state from global context: the heart applies to the whole group (original and variants)
   const favContext = useFavoritesSafe();
   const favorite = baseRecipe ? (favContext?.isFavorite(baseRecipe.id) ?? false) : false;
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [showPlanPicker, setShowPlanPicker] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<MealSlot>('pranzo');
+  // Meals and days chosen for planning: one or more of both
+  const [selectedSlots, setSelectedSlots] = useState<MealSlot[]>(() => [recipe ? recommendedPlanSlot(recipe) : 'pranzo']);
+  // Summary of the plan just saved: replaces the choice panel until closed
+  const [planDone, setPlanDone] = useState<string | null>(null);
 
   // Native driver scroll value for smooth 60fps title fade without JS re-renders
 
   // Sharing & Personal Notes State
   const [showShareModal, setShowShareModal] = useState(false);
-  // Menu "..." con rigenera ed elimina per la variante attiva
+  // "..." menu with regenerate and delete for the active variant
   const [variantMenuOpen, setVariantMenuOpen] = useState(false);
-  // Variante mancante toccata: prima della generazione si chiede conferma
+  // Missing variant tapped: confirmation is asked before generating
   const [pendingVariantDiet, setPendingVariantDiet] = useState<VariantDiet | null>(null);
   const originalDiet = baseRecipe ? (baseRecipe.diet ?? classifyDiet(baseRecipe)) : 'omnivore';
   const originalDietName = originalDiet === 'vegan' || originalDiet === 'vegetarian' ? t(VERSION_LABELS[originalDiet]).toLowerCase() : null;
@@ -107,25 +117,27 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const [savedNoteStatus, setSavedNoteStatus] = useState<string | null>(null);
   const [isEditingNote, setIsEditingNote] = useState(false);
 
-  // Giorni del picker "pianifica": modalità calendario salvata, 'week' finché non è caricata (non blocca la modale)
+  // Days of the "plan" picker: saved calendar mode, 'week' until loaded (does not block the modal)
   const [calendarMode, setCalendarMode] = useState<'week' | 'rolling'>('week');
   const weekDays = useMemo(() => getPlannerDays(calendarMode, 0).days, [calendarMode]);
-  const [selectedDate, setSelectedDate] = useState<string>(
-    () => weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || ''
+  const [selectedDates, setSelectedDates] = useState<string[]>(
+    () => {
+      const today = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString;
+      return today ? [today] : [];
+    }
   );
-
-  // Carica la modalità all'apertura. Oggi è sempre nei giorni di entrambe le modalità (offset 0).
-  useEffect(() => {
-    if (!visible) return;
-    let active = true;
-    getPlannerPreferences().then(p => {
-      if (active) setCalendarMode(p.calendarMode);
-    });
-    return () => { active = false; };
-  }, [visible]);
-
-  // Reset & load favorite status and personal notes
-  useEffect(() => {
+  // Servings, prepare or already ready, and how to prepare multiple meals: restarts from defaults on every opening
+  const [planServings, setPlanServings] = useState(1);
+  // Servings to eat per meal: default from planner settings, used only with "prepare once"
+  const [planEatServings, setPlanEatServings] = useState(1);
+  const [eatDefault, setEatDefault] = useState(1);
+  const [planSource, setPlanSource] = useState<RecipeSource>('prepare');
+  const [planBatch, setPlanBatch] = useState<'each' | 'once'>('each');
+  const [prevVisible, setPrevVisible] = useState(visible);
+  // Recipe change: restarts from the new recipe's values (synchronous, during render)
+  const [prevRecipeId, setPrevRecipeId] = useState(recipe?.id);
+  if (prevRecipeId !== recipe?.id) {
+    setPrevRecipeId(recipe?.id);
     if (recipe) {
       setCurrentServings(recipe.servings || 4);
       setCheckedIngredients({});
@@ -135,21 +147,50 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       setShowShareModal(false);
       setIsEditingNote(false);
       setSavedNoteStatus(null);
-
       const todayStr = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString || '';
-      setSelectedDate(todayStr);
-
-      if (recipe.recommended_slot === 'colazione' || recipe.recommended_slot === 'breakfast') {
-        setSelectedSlot('colazione');
-      } else if (recipe.recommended_slot === 'spuntino' || recipe.recommended_slot === 'snack') {
-        setSelectedSlot('spuntino_pomeriggio');
-      } else {
-        setSelectedSlot('pranzo');
-      }
-
-      getRecipeNote(recipe.id).then(note => setUserNote(note || ''));
+      setSelectedDates(todayStr ? [todayStr] : []);
+      setPlanDone(null);
+      setSelectedSlots([recommendedPlanSlot(recipe)]);
     }
-  }, [recipe?.id]);
+  }
+  if (prevVisible !== visible) {
+    setPrevVisible(visible);
+    if (visible) {
+      const today = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString;
+      setSelectedDates(today ? [today] : []);
+      setSelectedSlots([recipe ? recommendedPlanSlot(recipe) : 'pranzo']);
+      setPlanSource('prepare');
+      setPlanBatch('each');
+      setPlanDone(null);
+      setShowPlanPicker(false);
+    }
+  }
+
+  // Loads the mode on opening. Today is always in the days of both modes (offset 0).
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+    getPlannerPreferences().then(p => {
+      if (active) {
+        setCalendarMode(p.calendarMode);
+        setEatDefault(p.servings);
+      }
+    });
+    return () => { active = false; };
+  }, [visible]);
+
+  // Async loading of the personal note: the effect does not touch state synchronously
+  const recipeId = recipe?.id;
+  useEffect(() => {
+    if (!recipeId) return;
+    let active = true;
+    getRecipeNote(recipeId).then(note => {
+      if (active) setUserNote(note || '');
+    });
+    return () => {
+      active = false;
+    };
+  }, [recipeId]);
 
   if (!recipe || !visible) return null;
 
@@ -157,12 +198,10 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const scale = currentServings / baseServings;
   const scalableIngredients = getScalableIngredients(recipe);
   const hasExternalLink = /^https?:\/\//i.test(recipe.url ?? '');
-  // Badge in base alla dieta della ricetta (non più fisso): onnivora, nessun badge
+  // Badge based on the recipe diet (no longer fixed): omnivore, no badge
   const recipeDiet = recipe.diet ?? classifyDiet(recipe);
   const dietBadge = recipeDiet === 'vegan' ? t('recipeDetail.dietVegan') : recipeDiet === 'vegetarian' ? t('recipeDetail.versionVegetarian') : null;
 
-  const selectedDayObj = weekDays.find(d => d.dateString === selectedDate) || weekDays[0];
-  const selectedDayLabel = selectedDayObj ? `${selectedDayObj.dayName.slice(0, 3)} ${selectedDayObj.dayNumber}` : '';
   const slotNames: Record<MealSlot, string> = {
     colazione: 'recipeDetail.slotBreakfast',
     spuntino_mattina: 'recipeDetail.slotSnack',
@@ -170,7 +209,19 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     spuntino_pomeriggio: 'recipeDetail.slotSnack',
     cena: 'recipeDetail.slotDinner'
   };
-  const selectedSlotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
+  // Number of meals to plan: each chosen meal for each chosen day
+  const planCount = selectedSlots.length * selectedDates.length;
+  // To prepare for several meals chosen at once
+  // "How to prepare" choice useful only when preparing multiple meals
+  const batchApplies = planSource === 'prepare' && planCount > 1;
+  const cookOnce = batchApplies && planBatch === 'once';
+  // Planned servings: those per meal multiplied by the chosen meals
+  const plannedServings = planEatServings * planCount;
+  // Open planning: takes the whole content area, in place of the recipe card
+  const planOpen = showPlanPicker || planDone !== null;
+  const planTitle = (
+    <Text style={styles.planSheetTitle}>{t('recipeDetail.planScreenTitle')}</Text>
+  );
 
   const showToast = (msg: string) => {
     setFeedbackMessage(msg);
@@ -201,32 +252,63 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     setCompletedSteps(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
-  // Nome e quantità separati: il nome va a sinistra, la quantità allineata a destra
+  // Name and quantity separated: name on the left, quantity aligned right
   const formatScaledIngredient = (item: IngredientItem) => {
     const scaled = scaleIngredient(item.amount, item.unit, item.ingredient, item.text, scale);
     return splitShoppingItemDisplay(scaled.formattedText, scaled.name, scaled.scaledAmount, scaled.unit);
   };
 
-  const handleScheduleMeal = async (dateStr: string) => {
+  const toggleSlot = (slot: MealSlot) => {
+    setSelectedSlots(prev => (prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot]));
+  };
+
+  const toggleDate = (dateStr: string) => {
+    setSelectedDates(prev => (prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]));
+  };
+
+  const openPlanPicker = () => {
+    setPlanDone(null);
+    setPlanServings(currentServings);
+    setPlanEatServings(eatDefault);
+    setShowPlanPicker(true);
+  };
+
+  const changePlanServings = (delta: number) => {
+    setPlanServings(current => Math.min(24, Math.max(1, current + delta)));
+  };
+
+  const changePlanEatServings = (delta: number) => {
+    setPlanEatServings(current => Math.min(24, Math.max(1, current + delta)));
+  };
+
+  const handleScheduleMeal = async () => {
+    if (planCount === 0) return;
+    // Meals and days in calendar order, as in the summary
+    const slots = (['colazione', 'spuntino_mattina', 'pranzo', 'spuntino_pomeriggio', 'cena'] as MealSlot[])
+      .filter(s => selectedSlots.includes(s));
+    const days = weekDays.filter(d => selectedDates.includes(d.dateString));
+    const entries = days.flatMap(day => slots.map(slot => ({ date: day.dateString, slot })));
     try {
-      // 1. Salva la ricetta nel Meal Planner
-      await saveMealPlanEntry({
-        date: dateStr,
-        slot: selectedSlot,
+      // Single preparation: the first entry prepares the chosen servings, the following are already ready.
+      // Servings eaten on later days are a user choice: no automatic count
+      await Promise.all(entries.map((entry, index) => saveMealPlanEntryDetailed({
+        date: entry.date,
+        slot: entry.slot,
+        kind: 'recipe',
         recipeId: recipe.id,
-        servings: currentServings
-      });
+        recipeSource: cookOnce && index > 0 ? 'ready' : planSource,
+        // With "prepare once" the first entry has the prepared servings, the others those eaten per meal
+        servings: cookOnce && index > 0 ? planEatServings : planServings,
+      })));
 
       setShowPlanPicker(false);
-      const slotNames: Record<MealSlot, string> = {
-        colazione: 'recipeDetail.slotBreakfast',
-        spuntino_mattina: 'recipeDetail.slotSnack',
-        pranzo: 'recipeDetail.slotLunch',
-        spuntino_pomeriggio: 'recipeDetail.slotSnack',
-        cena: 'recipeDetail.slotDinner'
-      };
-      const slotLabel = t(slotNames[selectedSlot] || 'recipeDetail.slotMeal');
-      showToast(t('recipeDetail.plannedToast', { slot: slotLabel }));
+      const slotLabels = slots.map(slot => t(slotNames[slot]));
+      const dayLabels = days.map(d => `${d.dayName.slice(0, 3)} ${d.dayNumber}`);
+      setPlanDone(t('recipeDetail.plannedSummary', {
+        count: planCount,
+        slots: slotLabels.join(', '),
+        days: dayLabels.join(', ')
+      }));
     } catch (e) {
       console.error('handleScheduleMeal error', e);
       showToast(t('errors.somethingWentWrong'));
@@ -309,14 +391,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
     secMap[sec].push(item);
   });
 
-  // Il JSON si apre dal menu di condivisione: prima si chiude quel pannello, così due modali non si sovrappongono
+  // The JSON opens from the share menu: that panel is closed first, so two modals do not overlap
   const handleShowJson = () => {
     setShowShareModal(false);
     setJsonCopied(false);
     setTimeout(() => setShowJson(true), 300);
   };
 
-  // Chiudi e preferiti accanto al nome, sempre disponibili anche scorrendo
+  // Close and favorites next to the name, always available even when scrolling
   const closeButton = (
     <TouchableOpacity
       style={styles.headerIconBtn}
@@ -350,14 +432,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       <View style={styles.safeArea}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
-          {/* Nome della ricetta sopra la foto, sempre visibile */}
+          {/* Recipe name above the photo, always visible */}
           <View style={styles.recipeHeader}>
             {closeButton}
             <Text style={styles.recipeHeaderTitle} numberOfLines={2}>{recipe.title}</Text>
             {favoriteButton}
           </View>
 
-          {/* Selettore versioni: originale, varianti esistenti e quelle ancora da generare (tratteggiate) */}
+          {/* Version selector: original, existing variants and those still to be generated (dashed) */}
           {recipe && baseRecipe && (variants.length > 0 || missingDiets.length > 0) && (
             <View style={styles.versionBar}>
               <View style={styles.versionRow}>
@@ -413,7 +495,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             </View>
           )}
 
-          {/* Conferma prima di generare una variante: resta in aggiunta alla ricetta originale */}
+          {/* Confirmation before generating a variant: stays in addition to the original recipe */}
           <Modal visible={pendingVariantDiet !== null} animationType="fade" transparent onRequestClose={() => setPendingVariantDiet(null)}>
             <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPendingVariantDiet(null)}>
               <View style={styles.confirmSheet} onStartShouldSetResponder={() => true}>
@@ -445,7 +527,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             </TouchableOpacity>
           </Modal>
 
-          {/* Azioni sulla variante attiva: rigenera ed elimina */}
+          {/* Actions on the active variant: regenerate and delete */}
           {activeVariant && (
             <Modal visible={variantMenuOpen} animationType="fade" transparent onRequestClose={() => setVariantMenuOpen(false)}>
               <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVariantMenuOpen(false)}>
@@ -485,6 +567,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             </View>
           )}
 
+          {!planOpen && (
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
@@ -744,48 +827,120 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
               <View style={{ height: 20 }} />
             </View>
           </ScrollView>
+          )}
 
-          {/* Sticky Meal Plan Drawer (pops up when showPlanPicker is open) */}
-          {showPlanPicker && (
-            <View style={styles.stickyPlanDrawer}>
-              <View style={styles.planDrawerHeader}>
-                <Text style={styles.planDrawerTitle}>{t('recipeDetail.choosePlanTime')}</Text>
+          {/* Full-height planning: after confirmation the panel gives way to the summary, until closed */}
+          {planDone ? (
+            <View style={styles.planScreen}>
+              <View style={styles.planSheet}>
+                <View style={styles.planGrabber} />
+                {planTitle}
+              <View style={styles.planDoneWrap}>
+              <View style={styles.planDoneHeader}>
+                <Ionicons name="checkmark-circle" size={30} color={colors.primary} />
+                <View style={styles.planDoneText}>
+                  <Text style={styles.planDoneTitle}>{t('recipeDetail.plannedTitle')}</Text>
+                  <Text style={styles.planDoneBody}>{planDone}</Text>
+                </View>
               </View>
+              </View>
+              </View>
+            </View>
+          ) : showPlanPicker && (
+            <View style={styles.planScreen}>
+              <View style={styles.planSheet}>
+                <View style={styles.planGrabber} />
+                {planTitle}
+              <ScrollView
+                style={styles.planScroll}
+                contentContainerStyle={styles.planScrollContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+              >
+              <View style={styles.planSection}>
+                <Text style={styles.planQuestion}>{t('mealPicker.recipeSourceQuestion')}</Text>
+                <View style={styles.planChipRow}>
+                  {(['prepare', 'ready'] as RecipeSource[]).map(option => {
+                    const active = planSource === option;
+                    return (
+                      <TouchableOpacity
+                        key={option}
+                        style={[styles.planChip, active && styles.planChipActive]}
+                        onPress={() => setPlanSource(option)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
+                          {t(`mealPicker.recipeSource.${option}`)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.planSection}>
+                <View style={styles.planRow}>
+                  <Text style={styles.planLabel}>
+                    {t(planSource === 'prepare' ? 'mealPicker.servingsToPrepare' : 'mealPicker.servingsToEat')}
+                  </Text>
+                  <View style={styles.scalerControls}>
+                    <TouchableOpacity
+                      style={[styles.scaleBtn, planServings <= 1 && styles.scaleBtnDisabled]}
+                      onPress={() => changePlanServings(-1)}
+                      disabled={planServings <= 1}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="remove" size={16} color={planServings <= 1 ? colors.textMuted : colors.primaryText} />
+                    </TouchableOpacity>
+                    <Text style={styles.scaleNumber}>{planServings}</Text>
+                    <TouchableOpacity
+                      style={styles.scaleBtn}
+                      onPress={() => changePlanServings(1)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="add" size={16} color={colors.primaryText} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.planSection}>
+                <Text style={styles.planQuestion}>{t('recipeDetail.choosePlanTime')}</Text>
 
               <View style={styles.slotToggleRow}>
                 <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlot === 'colazione' && styles.slotToggleActive]}
-                  onPress={() => setSelectedSlot('colazione')}
+                  style={[styles.slotToggle, selectedSlots.includes('colazione') && styles.slotToggleActive]}
+                  onPress={() => toggleSlot('colazione')}
                 >
-                  <Ionicons name="cafe-outline" size={13} color={selectedSlot === 'colazione' ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlot === 'colazione' && styles.slotToggleTextActive]}>
+                  <Ionicons name="cafe-outline" size={13} color={selectedSlots.includes('colazione') ? colors.onPrimary : colors.primaryText} />
+                  <Text style={[styles.slotToggleText, selectedSlots.includes('colazione') && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotBreakfast')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlot === 'pranzo' && styles.slotToggleActive]}
-                  onPress={() => setSelectedSlot('pranzo')}
+                  style={[styles.slotToggle, selectedSlots.includes('pranzo') && styles.slotToggleActive]}
+                  onPress={() => toggleSlot('pranzo')}
                 >
-                  <Ionicons name="sunny-outline" size={13} color={selectedSlot === 'pranzo' ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlot === 'pranzo' && styles.slotToggleTextActive]}>
+                  <Ionicons name="sunny-outline" size={13} color={selectedSlots.includes('pranzo') ? colors.onPrimary : colors.primaryText} />
+                  <Text style={[styles.slotToggleText, selectedSlots.includes('pranzo') && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotLunch')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.slotToggle, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleActive]}
-                  onPress={() => setSelectedSlot('spuntino_pomeriggio')}
+                  style={[styles.slotToggle, (selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) && styles.slotToggleActive]}
+                  onPress={() => toggleSlot('spuntino_pomeriggio')}
                 >
-                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, (selectedSlot === 'spuntino_mattina' || selectedSlot === 'spuntino_pomeriggio') && styles.slotToggleTextActive]}>
+                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) ? colors.onPrimary : colors.primaryText} />
+                  <Text style={[styles.slotToggleText, (selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotSnack')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlot === 'cena' && styles.slotToggleActive]}
-                  onPress={() => setSelectedSlot('cena')}
+                  style={[styles.slotToggle, selectedSlots.includes('cena') && styles.slotToggleActive]}
+                  onPress={() => toggleSlot('cena')}
                 >
-                  <Ionicons name="moon-outline" size={13} color={selectedSlot === 'cena' ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlot === 'cena' && styles.slotToggleTextActive]}>
+                  <Ionicons name="moon-outline" size={13} color={selectedSlots.includes('cena') ? colors.onPrimary : colors.primaryText} />
+                  <Text style={[styles.slotToggleText, selectedSlots.includes('cena') && styles.slotToggleTextActive]}>
                     {t('recipeDetail.slotDinner')}
                   </Text>
                 </TouchableOpacity>
@@ -793,7 +948,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
               <View style={styles.daysRow}>
                 {weekDays.map(d => {
-                  const isSelected = selectedDate === d.dateString;
+                  const isSelected = selectedDates.includes(d.dateString);
                   return (
                     <TouchableOpacity
                       key={d.dateString}
@@ -802,7 +957,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                         d.isToday && styles.dayCardToday,
                         isSelected && styles.dayCardSelected
                       ]}
-                      onPress={() => setSelectedDate(d.dateString)}
+                      onPress={() => toggleDate(d.dateString)}
                       activeOpacity={0.8}
                     >
                       <Text
@@ -827,29 +982,101 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   );
                 })}
               </View>
+              </View>
+
+              <View style={styles.planSection}>
+                {/* Always present, with the same height: when they do not apply they are disabled, so the content does not shift */}
+                <Text style={styles.planQuestion}>{t('recipeDetail.planBatchQuestion')}</Text>
+                <View style={[styles.planChipRow, !batchApplies && styles.planDisabled]}>
+                  {(['each', 'once'] as const).map(option => {
+                    const active = planBatch === option;
+                    return (
+                      <TouchableOpacity
+                        key={option}
+                        style={[styles.planChip, active && styles.planChipActive]}
+                        onPress={() => setPlanBatch(option)}
+                        disabled={!batchApplies}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
+                          {t(option === 'each' ? 'recipeDetail.planBatchEach' : 'recipeDetail.planBatchOnce')}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {cookOnce && (
+                  <View style={styles.planRow}>
+                    <Text style={styles.planLabel}>{t('recipeDetail.planServingsPerMeal')}</Text>
+                    <View style={styles.scalerControls}>
+                      <TouchableOpacity
+                        style={[styles.scaleBtn, planEatServings <= 1 && styles.scaleBtnDisabled]}
+                        onPress={() => changePlanEatServings(-1)}
+                        disabled={planEatServings <= 1}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="remove" size={16} color={planEatServings <= 1 ? colors.textMuted : colors.primaryText} />
+                      </TouchableOpacity>
+                      <Text style={styles.scaleNumber}>{planEatServings}</Text>
+                      <TouchableOpacity
+                        style={styles.scaleBtn}
+                        onPress={() => changePlanEatServings(1)}
+                          activeOpacity={0.7}
+                      >
+                        <Ionicons name="add" size={16} color={colors.primaryText} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                <View style={styles.planNoticeSlot}>
+                  {!batchApplies ? (
+                    <View style={styles.planNotice}>
+                      <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                      <Text style={styles.planNoticeTextMuted}>
+                        {t(planSource === 'prepare' ? 'recipeDetail.planBatchNeedsMeals' : 'recipeDetail.planBatchNeedsPrepare')}
+                      </Text>
+                    </View>
+                  ) : cookOnce && plannedServings > planServings && (
+                    <View style={styles.planNotice}>
+                      <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                      <Text style={styles.planNoticeText}>
+                        {t('recipeDetail.planServingsExceed', { planned: plannedServings, prepared: planServings })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              </ScrollView>
+              </View>
             </View>
           )}
 
-          {/* Barra in basso: pianifica (con la X accanto alla conferma) e sotto le azioni secondarie */}
+          {/* Bottom bar: plan (with the X next to the confirmation) and secondary actions below */}
           <View style={styles.stickyActionBar}>
             <View style={styles.stickyPlanRow}>
               <TouchableOpacity
-                style={styles.stickyPlanBtnPrimary}
+                style={[styles.stickyPlanBtnPrimary, showPlanPicker && planCount === 0 && styles.stickyPlanBtnDisabled]}
                 onPress={() => {
-                  if (showPlanPicker) {
-                    handleScheduleMeal(selectedDate || (weekDays.find(d => d.isToday)?.dateString || weekDays[0].dateString));
+                  if (planDone) {
+                    setPlanDone(null);
+                  } else if (showPlanPicker) {
+                    handleScheduleMeal();
                   } else {
-                    setShowPlanPicker(true);
+                    openPlanPicker();
                   }
                 }}
+                disabled={showPlanPicker && planCount === 0}
                 activeOpacity={0.88}
               >
                 <Text style={styles.stickyPlanBtnText}>
-                  {showPlanPicker
-                    ? t('recipeDetail.confirmInPlan', { day: selectedDayLabel, slot: selectedSlotLabel })
-                    : t('recipeDetail.addToPlan', { servings: currentServings })}
+                  {planDone
+                    ? t('recipeDetail.plannedDone')
+                    : showPlanPicker
+                      ? t('recipeDetail.confirmInPlanCount', { count: planCount })
+                      : t('recipeDetail.addToPlan', { servings: currentServings })}
                 </Text>
-                {!showPlanPicker && (
+                {!showPlanPicker && !planDone && (
                   <Ionicons
                     name="chevron-up"
                     size={18}
@@ -1047,7 +1274,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                   <Ionicons name="chevron-forward" size={18} color={(isDark ? '#90A4AE' : '#607D8B')} />
                 </TouchableOpacity>
 
-                {/* Visualizza JSON */}
+                {/* View JSON */}
                 <TouchableOpacity
                   style={[styles.shareOption, styles.shareOptionNative]}
                   onPress={handleShowJson}
@@ -1076,7 +1303,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   jsonCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, maxHeight: '85%' },
   jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   jsonTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
-  // Area scorrevole con altezza limitata dalla card: il JSON scorre dentro di essa
+  // Scrollable area with height limited by the card: the JSON scrolls inside it
   jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: colors.surfaceAlt, borderRadius: 10 },
   jsonScrollContent: { padding: 10 },
   jsonText: {
@@ -1420,34 +1647,63 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  stickyPlanDrawer: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 6,
-  },
-  planDrawerHeader: {
+  planDoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 14,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  planDrawerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.text,
+  planDoneText: { flex: 1 },
+  planDoneTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  planDoneBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: 2 },
+  stickyPlanBtnDisabled: { opacity: 0.5 },
+  // Planning panel: scrollable if the sections do not fit on the screen
+  planScreen: { flex: 1, backgroundColor: colors.background },
+  // Gray container that comes out of the footer: planning sits inside it, the rest of the screen stays above
+  planSheet: {
+    flex: 1,
+    backgroundColor: colors.surfaceMuted,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
   },
+  planScroll: { flex: 1 },
+  planScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  planSection: { gap: 8, marginBottom: 16 },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  planLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
+  planQuestion: { fontSize: 15, fontWeight: '700', color: colors.text },
+  planChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  planDisabled: { opacity: 0.4 },
+  planNoticeSlot: { minHeight: 34, justifyContent: 'center' },
+  planNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Handle at the top of the card: indicates that planning comes out of the bottom button
+  planDoneWrap: { flex: 1, justifyContent: 'flex-end' },
+  planSheetTitle: { fontSize: 22, fontWeight: '800', color: colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
+  planGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, marginTop: 8 },
+  planNoticeText: { flex: 1, fontSize: 12, lineHeight: 16, color: colors.textSecondary },
+  planNoticeTextMuted: { flex: 1, fontSize: 12, lineHeight: 16, color: colors.textMuted },
+  // Chips with long labels: more padding, centered and wrapped text, no flex squeezing them
+  planChip: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceAlt,
+  },
+  planChipActive: { backgroundColor: colors.primary },
+  planChipText: { fontSize: 14, lineHeight: 18, fontWeight: '600', textAlign: 'center', color: colors.textSecondary },
+  planChipTextActive: { color: colors.onPrimary, fontWeight: '700' },
   slotToggleRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
   },
   slotToggle: {
     flex: 1,
@@ -1455,7 +1711,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: colors.surfaceAlt,
   },

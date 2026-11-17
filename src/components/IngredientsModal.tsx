@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -35,14 +35,14 @@ type Tab = 'ingredients' | 'ready';
 
 interface IngredientForm {
   name: string;
-  // null finché l'utente non sceglie: il salvataggio risponde con invalid_type
+  // null until the user chooses: saving responds with invalid_type
   type: IngredientType | null;
   tags: IngredientTag[];
   edibleAlone: boolean;
-  // Porzione: quantità che una persona mangia come spuntino o pasto semplice (solo se edibleAlone)
+  // Portion: amount one person eats as a snack or simple meal (only if edibleAlone)
   amount: string;
   unit: string;
-  // Quantità da comprare nella lista della spesa
+  // Quantity to buy in the shopping list
   purchaseAmount: string;
   purchaseUnit: string;
   density: string;
@@ -57,7 +57,7 @@ interface ReadyForm {
   count: string;
 }
 
-// Testo di un campo numerico: vuoto o non valido = null (non impostato)
+// Text of a numeric field: empty or invalid = null (not set)
 function parseNumber(text: string): number | null {
   const normalized = text.trim().replace(',', '.');
   if (!normalized) return null;
@@ -109,12 +109,49 @@ function readyToForm(item: ReadyMeal | null): ReadyForm {
   };
 }
 
+// Rows of the ingredients and ready meals list: memoized, so search does not re-render all rows
+const IngredientListRow = memo(function IngredientListRow({ item, onOpen }: { item: Ingredient; onOpen: (target: Ingredient) => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity style={styles.row} onPress={() => onOpen(item)} activeOpacity={0.7}>
+      <View style={styles.rowMain}>
+        <Text style={styles.rowName}>{item.name}</Text>
+        <Text style={styles.rowMeta}>
+          {[t(`ingredients.type.${item.type}`), ...item.tags.map(tag => formatTagLabel(tag, t))].join(' · ')}
+        </Text>
+        {item.edible_alone && <Text style={styles.rowMeta}>{t('ingredients.edibleAlone')}</Text>}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const ReadyListRow = memo(function ReadyListRow({ item, onOpen }: { item: ReadyMeal; onOpen: (target: ReadyMeal) => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity style={styles.row} onPress={() => onOpen(item)} activeOpacity={0.7}>
+      <View style={styles.rowMain}>
+        <Text style={styles.rowName}>{item.name}</Text>
+        <Text style={styles.rowMeta}>
+          {[t(`ingredients.category.${item.category}`), ...item.tags.map(tag => formatTagLabel(tag, t))].join(' · ')}
+        </Text>
+        <Text style={styles.rowMeta}>
+          {item.slots.map(slot => t(`planner.slots.${slot}`)).join(' · ')}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function IngredientsModal({ visible, onClose, onChanged }: IngredientsModalProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  // Elenchi: caricati quando la scheda si apre
+  // Lists: loaded when the tab opens
   const [tab, setTab] = useState<Tab>('ingredients');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [readyMeals, setReadyMeals] = useState<ReadyMeal[]>([]);
@@ -123,7 +160,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const [categoryFilter, setCategoryFilter] = useState<ReadyMealCategory | null>(null);
   const [readyTagFilter, setReadyTagFilter] = useState<string | null>(null);
 
-  // Editor: null = elenco, 'new' = nuovo elemento, altrimenti elemento esistente
+  // Editor: null = list, 'new' = new item, otherwise existing item
   const [ingEditing, setIngEditing] = useState<Ingredient | 'new' | null>(null);
   const [ingForm, setIngForm] = useState<IngredientForm>(ingredientToForm(null));
   const [readyEditing, setReadyEditing] = useState<ReadyMeal | 'new' | null>(null);
@@ -132,7 +169,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const [pendingDelete, setPendingDelete] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Menu a tendina aperto nell'editor: solo uno alla volta
+  // Dropdown open in the editor: only one at a time
   const [unitMenu, setUnitMenu] = useState<'default' | 'purchase' | null>(null);
 
   useEffect(() => {
@@ -165,7 +202,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     );
   }, [ingredients, query, typeFilter]);
 
-  // Tag dei pronti: quelli di INGREDIENT_TAGS nel loro ordine, poi quelli specifici dei pronti
+  // Ready meal tags: those of INGREDIENT_TAGS in their order, then those specific to ready meals
   const readyTags = useMemo(() => {
     const present = new Set(readyMeals.flatMap(meal => meal.tags));
     const known = INGREDIENT_TAGS.filter(tag => present.has(tag));
@@ -208,7 +245,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     resetEditors();
   };
 
-  // Indietro di sistema e X: dentro un editor tornano alla lista, altrimenti chiudono la modale
+  // System back and X: inside an editor they return to the list, otherwise they close the modal
   const handleDismiss = () => {
     if (ingEditing !== null || readyEditing !== null) {
       backToList();
@@ -217,20 +254,20 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     handleClose();
   };
 
-  const openIngredient = (target: Ingredient | 'new') => {
+  const openIngredient = useCallback((target: Ingredient | 'new') => {
     setError('');
     setUnitMenu(null);
     setPendingDelete(false);
     setIngForm(ingredientToForm(target === 'new' ? null : target));
     setIngEditing(target);
-  };
+  }, []);
 
-  const openReady = (target: ReadyMeal | 'new') => {
+  const openReady = useCallback((target: ReadyMeal | 'new') => {
     setError('');
     setPendingDelete(false);
     setReadyForm(readyToForm(target === 'new' ? null : target));
     setReadyEditing(target);
-  };
+  }, []);
 
   const patchIng = (patch: Partial<IngredientForm>) => setIngForm(f => ({ ...f, ...patch }));
   const changeNutrient = (key: Nutrient, text: string) =>
@@ -310,7 +347,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         tags: readyForm.tags,
         slots: ALL_SIMPLE_SLOTS.filter(s => readyForm.slots.includes(s)),
         default_count: count === null ? 1 : Math.max(1, Math.round(count)),
-        // Il form non modifica i valori nutrizionali: si conservano quelli esistenti
+        // The form does not edit nutritional values: the existing ones are kept
         nutrients: readyEditing === 'new' ? {} : readyEditing.nutrients,
       });
       await reload();
@@ -354,7 +391,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     </TouchableOpacity>
   );
 
-  // Menu a tendina per unità (stesso schema della lista della spesa); il valore salvato resta anche se fuori lista
+  // Unit dropdown (same pattern as the shopping list); the saved value stays even if out of list
   const renderUnitDropdown = (menu: 'default' | 'purchase', value: string, onSelect: (unit: string) => void) => {
     const open = unitMenu === menu;
     return (
@@ -399,6 +436,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const searchField = (
     <View style={styles.searchFieldRow}>
       <AppTextField
+        variant="search"
         style={styles.searchFieldInput}
         value={query}
         onChangeText={setQuery}
@@ -480,7 +518,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     </View>
   );
 
-  // Editor ingrediente
+  // Ingredient editor
   if (ingEditing !== null) {
     return (
       <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
@@ -576,7 +614,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     );
   }
 
-  // Editor piatto pronto
+  // Ready meal editor
   if (readyEditing !== null) {
     return (
       <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
@@ -632,7 +670,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     );
   }
 
-  // Elenco ingredienti
+  // Ingredients list
   if (tab === 'ingredients') {
     return (
       <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
@@ -654,17 +692,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
               </ScrollView>
             </View>
           }
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.row} onPress={() => openIngredient(item)} activeOpacity={0.7}>
-              <View style={styles.rowMain}>
-                <Text style={styles.rowName}>{item.name}</Text>
-                <Text style={styles.rowMeta}>
-                  {[t(`ingredients.type.${item.type}`), ...item.tags.map(tag => formatTagLabel(tag, t))].join(' · ')}
-                </Text>
-                {item.edible_alone && <Text style={styles.rowMeta}>{t('ingredients.edibleAlone')}</Text>}
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => <IngredientListRow item={item} onOpen={openIngredient} />}
         />
         <View style={styles.footer}>
           <TouchableOpacity style={styles.primaryBtn} onPress={() => openIngredient('new')} activeOpacity={0.85}>
@@ -675,7 +703,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     );
   }
 
-  // Elenco piatti pronti
+  // Ready meals list
   return (
     <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
       {header}
@@ -703,19 +731,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
             </ScrollView>
           </View>
         }
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.row} onPress={() => openReady(item)} activeOpacity={0.7}>
-            <View style={styles.rowMain}>
-              <Text style={styles.rowName}>{item.name}</Text>
-              <Text style={styles.rowMeta}>
-                {[t(`ingredients.category.${item.category}`), ...item.tags.map(tag => formatTagLabel(tag, t))].join(' · ')}
-              </Text>
-              <Text style={styles.rowMeta}>
-                {item.slots.map(slot => t(`planner.slots.${slot}`)).join(' · ')}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        )}
+        renderItem={({ item }) => <ReadyListRow item={item} onOpen={openReady} />}
       />
       <View style={styles.footer}>
         <TouchableOpacity style={styles.primaryBtn} onPress={() => openReady('new')} activeOpacity={0.85}>

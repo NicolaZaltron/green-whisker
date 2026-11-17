@@ -119,6 +119,11 @@
     "sideDish": "Side Dish",
     "autoBanner": "Weekly plan automatically generated with {{count}} meals!",
     "slotRemovedToast": "Meal removed from plan.",
+    "recipeSource": {
+      "prepare": "To prepare",
+      "ready": "Already ready"
+    },
+    "saveEdit": "Save",
     "sideRemovedToast": "Side dish removed.",
     "weekClearedToast": "Weekly plan cleared.",
     "slots": {
@@ -145,8 +150,8 @@
     },
     "preferencesModal": {
       "title": "Planner Preferences",
-      "servings": "Default servings",
-      "servingsSub": "Used during automatic plan generation",
+      "servings": "Servings to eat per meal",
+      "servingsSub": "How many people usually eat; default for added meals and automatic plan generation",
       "weekend": "Include weekend",
       "weekendSub": "Plan for Saturday & Sunday",
       "quickLunch": "Quick weekday lunch",
@@ -278,7 +283,6 @@
     "slotDinner": "Dinner",
     "slotMeal": "Meal",
     "titleWithServings": "{{title}} ({{servings}} serv.)",
-    "plannedToast": "Planned for {{slot}}!",
     "noteSaved": "Saved",
     "noteSavedToast": "Personal note saved!",
     "openingTelegram": "Opening Telegram...",
@@ -290,7 +294,6 @@
     "saveNote": "Save Note",
     "tipsTitle": "Tips for you",
     "choosePlanTime": "Choose when to cook:",
-    "confirmInPlan": "Confirm in Plan ({{day}} • {{slot}})",
     "addToPlan": "Add to Plan ({{servings}} serv.)",
     "recipeJson": "Recipe JSON",
     "close": "Close",
@@ -306,7 +309,21 @@
     "systemShareSub": "System share menu",
     "copyRecipeTitle": "Copy to Clipboard",
     "copyRecipeSub": "Formatted text with ingredients and amounts",
-    "jsonSub": "Full recipe data"
+    "jsonSub": "Full recipe data",
+    "confirmInPlanCount_one": "Confirm in plan (1 meal)",
+    "confirmInPlanCount_other": "Confirm in plan ({{count}} meals)",
+    "plannedTitle": "Recipe planned",
+    "plannedSummary_one": "1 meal: {{slots}} · {{days}}",
+    "plannedSummary_other": "{{count}} meals: {{slots}} · {{days}}",
+    "plannedDone": "Done",
+    "planBatchQuestion": "How to cook several meals?",
+    "planBatchEach": "Cook each meal separately",
+    "planBatchOnce": "Cook only the first time, then eat at the following meals",
+    "planScreenTitle": "Add to weekly planner",
+    "planBatchNeedsMeals": "Cooking several meals is available only when several meals or several days are selected",
+    "planBatchNeedsPrepare": "Available only if you choose to prepare the recipe",
+    "planServingsPerMeal": "Servings to eat per meal",
+    "planServingsExceed": "Planned servings ({{planned}}) exceed the servings to prepare ({{prepared}}). You can still proceed, but the preparation may not be enough."
   },
   "categories": {
     "MACRO_PRIMI_E_CEREALI": "First Courses & Grains",
@@ -377,7 +394,12 @@
     "theme": "Theme",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_system": "System"
+    "theme_system": "System",
+    "resetData": "Delete all data",
+    "resetDataTitle": "Delete all data?",
+    "resetDataBody": "Recipes, planner, shopping list, preferences and AI keys will be deleted. This cannot be undone.",
+    "resetDataConfirm": "Delete",
+    "resetDataDone": "Data deleted. Close and reopen the app."
   },
   "recipeBook": {
     "title": "Recipe book",
@@ -639,6 +661,7 @@
   },
   "shoppingPlan": {
     "title": "Add from planner",
+    "subtitle": "Added to the shopping list: recipes marked «To prepare», ready meals and single products added to the plan.",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "need": "Needed: {{need}} {{unit}}",
@@ -685,6 +708,13 @@
     "cancel": "Cancel",
     "add": "Add",
     "count": "Quantity",
+    "recipeSourceQuestion": "Do you want to prepare it or eat portions already ready?",
+    "recipeSource": {
+      "prepare": "Prepare",
+      "ready": "Already ready"
+    },
+    "servingsToPrepare": "Servings to prepare",
+    "servingsToEat": "Servings to eat",
     "empty": "No items for this meal",
     "loading": "Loading...",
     "out": "Eating out",

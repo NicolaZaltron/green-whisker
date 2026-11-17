@@ -1,3 +1,5 @@
+Documento storico: il file recipes.catalog.json è stato rimosso; vedi docs/APP_REFERENCE.md
+
 # Checklist di revisione — branch feature/improve-shopping-list-and-planner
 
 Revisione in sola lettura (modello Sonnet). Le affermazioni "verificato" sono state provate dal revisore con test o calcoli; le altre sono da confermare prima di correggere. Ogni voce è pensata per essere eseguita da sola (Haiku).

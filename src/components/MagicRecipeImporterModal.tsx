@@ -22,7 +22,7 @@ import { parseRecipeWithAI } from '../services/aiService';
 import { VariantDiet } from '../services/catalogFormat';
 import { ingredientItemFromText } from '../utils/servingsScaler';
 import { classifyDiet } from '../utils/dietClassifier';
-import { upsertCatalogRecipes } from '../db/database';
+import { saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
 import { refreshCatalog } from '../services/recipeCatalog';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 import { useTranslation } from 'react-i18next';
@@ -30,7 +30,7 @@ import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
 
-// Revisione di una ricetta generata (es. una variante): il form è lo stesso dell'import AI
+// Review of a generated recipe (e.g. a variant): the form is the same as the AI import
 export interface ReviewRequest {
   recipe: Recipe;
   title: string;
@@ -42,11 +42,11 @@ export interface ReviewRequest {
 interface MagicRecipeImporterModalProps {
   visible: boolean;
   onClose: () => void;
-  // Riceve l'originale salvata e le varianti da generare (vuoto se non richieste)
+  // Receives the saved original and the variants to generate (empty if not requested)
   onRecipeSaved: (recipe: Recipe, variantDiets?: VariantDiet[]) => void;
   editingRecipe?: Recipe | null;
   review?: ReviewRequest | null;
-  // Link ricevuto dalla condivisione: precompila il campo testo senza avviare l'estrazione
+  // Link received from sharing: prefills the text field without starting extraction
   initialUrl?: string;
 }
 
@@ -87,7 +87,7 @@ export function MagicRecipeImporterModal({
   // Input states
   const [inputText, setInputText] = useState('');
   const [capturedPages, setCapturedPages] = useState<CapturedPage[]>([]);
-  // Varianti da generare dopo il salvataggio dell'originale: indipendenti tra loro
+  // Variants to generate after saving the original: independent of each other
   const [wantVegetarian, setWantVegetarian] = useState(false);
   const [wantVegan, setWantVegan] = useState(false);
   const wantedVariants: VariantDiet[] = [
@@ -118,12 +118,12 @@ export function MagicRecipeImporterModal({
   const [editDiet, setEditDiet] = useState<RecipeDiet>('omnivore');
   const [retryInstructions, setRetryInstructions] = useState('');
   const [retrying, setRetrying] = useState(false);
-  // true se l'utente ha scelto la dieta a mano: da quel momento non viene più ricalcolata
+  // true if the user chose the diet manually: from then on it is no longer recomputed
   const [dietChosenByHand, setDietChosenByHand] = useState(false);
-  // Ingredienti sostituiti dall'AI (adattamento vegetariano/vegano): solo per la verifica, non vengono salvati
+  // Ingredients replaced by the AI (vegetarian/vegan adaptation): for verification only, they are not saved
   const [substitutions, setSubstitutions] = useState<{ from: string; to: string }[]>([]);
 
-  // Nessuna API: si apre Google Immagini nel browser, l'utente copia l'indirizzo della foto e lo incolla qui
+  // No API: opens Google Images in the browser, the user copies the photo address and pastes it here
   function openGoogleImageSearch() {
     const query = `${editTitle.trim()} ricetta`;
     Linking.openURL(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`);
@@ -337,7 +337,7 @@ export function MagicRecipeImporterModal({
       detailed_ingredients: ings.map(item => ingredientItemFromText(item)),
       instructions: steps,
       tips: tips,
-      // Mantiene i tag della ricetta, sostituendo quello della categoria (es. dopo un cambio di categoria)
+      // Keeps the recipe tags, replacing the category one (e.g. after a category change)
       tags: [...(parsedRecipe?.tags ?? []).filter(tag => tag !== '100% Vegetale' && !tag.startsWith('CAT_')), ...(editDiet === 'vegan' ? ['100% Vegetale'] : []), chosenCat],
       diet: editDiet,
       diet_source: dietChosenByHand ? 'manual' : 'auto',
@@ -355,17 +355,18 @@ export function MagicRecipeImporterModal({
         onClose();
         return;
       }
-      // Una modifica di una ricetta esistente conserva origine e data di creazione
+      // An edit of an existing recipe keeps origin and creation date
       const now = Date.now();
-      await upsertCatalogRecipes([{
+      // Recipe and links in a single transaction
+      await saveCatalogRecipesWithLinks([{
         ...finalRecipe,
         origin: editingRecipe?.origin ?? 'ai',
         modified: !!editingRecipe,
         created_at: editingRecipe?.created_at ?? now,
         updated_at: now,
-      }]);
+      }], 'overwrite', [{ recipeId: finalRecipe.id, items: finalRecipe.detailed_ingredients ?? [] }]);
       await refreshCatalog();
-      // Prima chiudo, poi comunico: così chi riceve può aprire la revisione delle varianti
+      // First close, then notify: so the receiver can open the variants review
       handleReset();
       onClose();
       onRecipeSaved(finalRecipe, editingRecipe ? [] : wantedVariants);
@@ -402,7 +403,7 @@ export function MagicRecipeImporterModal({
     setErrorMsg(null);
   }
 
-  // Modifica o revisione: precompila il form con la ricetta ricevuta (una volta per oggetto)
+  // Edit or review: prefills the form with the received recipe (once per object)
   const formSource = review?.recipe ?? editingRecipe ?? null;
   const [loadedSource, setLoadedSource] = useState<Recipe | null>(null);
   if (formSource && formSource !== loadedSource) {
@@ -410,7 +411,7 @@ export function MagicRecipeImporterModal({
     loadRecipeIntoForm(formSource);
   }
 
-  // Link condiviso: passa alla scheda testo e lo inserisce una volta per valore
+  // Shared link: switches to the text tab and inserts it once per value
   const [appliedInitialUrl, setAppliedInitialUrl] = useState<string | null>(null);
   if (visible && initialUrl && initialUrl !== appliedInitialUrl) {
     setAppliedInitialUrl(initialUrl);
@@ -618,7 +619,7 @@ export function MagicRecipeImporterModal({
                 </View>
               )}
 
-              {/* VARIANTI: scegli quali versioni generare dopo l'originale */}
+              {/* VARIANTS: choose which versions to generate after the original */}
               <View style={styles.dietCard}>
                 <DietSwitchRow
                   icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? colors.onPrimary : colors.primaryText} />}
@@ -682,7 +683,7 @@ export function MagicRecipeImporterModal({
                 <Text style={styles.successBannerText}>{t('recipeImporter.extractSuccess')}</Text>
               </View>
 
-              {/* Titolo */}
+              {/* Title */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.title')}</Text>
                 <AppTextField
@@ -691,7 +692,7 @@ export function MagicRecipeImporterModal({
                 />
               </View>
 
-              {/* Categoria */}
+              {/* Category */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.category')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
@@ -713,7 +714,7 @@ export function MagicRecipeImporterModal({
                 </ScrollView>
               </View>
 
-              {/* Sottocategoria */}
+              {/* Subcategory */}
               {RECIPE_TAXONOMY[editCategory as MacroCategory] && (
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.subcategory')}</Text>
@@ -739,7 +740,7 @@ export function MagicRecipeImporterModal({
                 <SegmentedSelector options={SLOTS.map(s => ({ ...s, label: t(s.label) }))} value={editSlot} onChange={setEditSlot} styles={styles} />
               </View>
 
-              {/* Dieta: calcolata dagli ingredienti, correggibile a mano */}
+              {/* Diet: computed from the ingredients, manually correctable */}
               <View style={styles.fieldGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.diet')}</Text>
@@ -762,7 +763,7 @@ export function MagicRecipeImporterModal({
                 />
               </View>
 
-              {/* Row: Porzioni, Tempo, Difficoltà */}
+              {/* Row: Servings, Time, Difficulty */}
               <View style={styles.rowThree}>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.servings')}</Text>
@@ -791,7 +792,7 @@ export function MagicRecipeImporterModal({
                 </View>
               </View>
 
-              {/* Sostituzioni fatte dall'AI: solo lettura, per controllarle */}
+              {/* Substitutions made by the AI: read-only, for checking them */}
               {substitutions.length > 0 && (
                 <View style={styles.substitutionsCard}>
                   <Text style={styles.substitutionsTitle}>{t('recipeImporter.substitutions')}</Text>
@@ -806,7 +807,7 @@ export function MagicRecipeImporterModal({
                 </View>
               )}
 
-              {/* Immagine URL */}
+              {/* Image URL */}
               <View style={styles.fieldGroup}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                   <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.imageLink')}</Text>
@@ -863,7 +864,7 @@ export function MagicRecipeImporterModal({
                 ) : null}
               </View>
 
-              {/* Ingredienti */}
+              {/* Ingredients */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.ingredients')}</Text>
                 <AppTextField
@@ -874,7 +875,7 @@ export function MagicRecipeImporterModal({
                 />
               </View>
 
-              {/* Istruzioni */}
+              {/* Instructions */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.instructions')}</Text>
                 <AppTextField
@@ -885,7 +886,7 @@ export function MagicRecipeImporterModal({
                 />
               </View>
 
-              {/* Consigli */}
+              {/* Tips */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.tips')}</Text>
                 <AppTextField
@@ -1261,7 +1262,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     fontWeight: '700',
     color: colors.primaryText,
   },
-  // Icona allineata alla prima riga di testo: stessa altezza della riga (lineHeight 17)
+  // Icon aligned with the first line of text: same height as the line (lineHeight 17)
   bannerIconSlot: {
     height: 17,
     justifyContent: 'center',
@@ -1543,7 +1544,7 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
 
 type Styles = ReturnType<typeof makeStyles>;
 
-// Selettore a segmenti: stile unico per slot, difficoltà e dieta
+// Segmented selector: single style for slot, difficulty and diet
 function SegmentedSelector<T extends string>({
   options,
   value,

@@ -1,8 +1,8 @@
 import { normalizeIngredientKey } from './ingredientAggregator';
 
-// Densità approssimate (grammi per millilitro) per convertire volume e peso.
-// Sono valori standard arrotondati: servono per unire le quantità della spesa, non per ricette precise.
-// Gli ingredienti non in tabella restano con le loro unità (nessuna conversione tra peso e volume).
+// Approximate densities (grams per milliliter) to convert volume and weight.
+// They are rounded standard values: they serve to merge shopping quantities, not for precise recipes.
+// Ingredients not in the table keep their units (no conversion between weight and volume).
 export const INGREDIENT_DENSITY: { keyword: string; gPerMl: number }[] = [
   { keyword: 'acqua', gPerMl: 1 },
   { keyword: 'latte', gPerMl: 1.03 },
@@ -37,17 +37,17 @@ export const INGREDIENT_DENSITY: { keyword: string; gPerMl: number }[] = [
   { keyword: 'uvetta', gPerMl: 0.6 },
 ];
 
-// Un pizzico pesa circa mezzo grammo, per qualsiasi ingrediente (approssimazione)
+// A pinch weighs about half a gram, for any ingredient (approximation)
 export const PINCH_GRAMS = 0.5;
 
-// Le chiavi ingrediente sono stemmate ("cacao amaro" -> "caca amar"): anche le parole chiave vanno stemmate
+// Ingredient keys are stemmed ("cacao amaro" -> "caca amar"): the keywords must be stemmed too
 const STEMMED_DENSITY = INGREDIENT_DENSITY
   .map(entry => ({ keyword: normalizeIngredientKey(entry.keyword), gPerMl: entry.gPerMl }))
   .sort((a, b) => b.keyword.length - a.keyword.length);
 
 export function densityFor(ingredientKey: string): number | null {
   const key = ingredientKey.trim().toLowerCase();
-  // Match più lungo prima, così "cereali soffiati" vince su "cereali"
+  // Longest match first, so "cereali soffiati" wins over "cereali"
   for (const entry of STEMMED_DENSITY) {
     if (key.includes(entry.keyword)) return entry.gPerMl;
   }

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { Recipe } from '../types/recipe';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 
-// Anteprima rapida sopra il ricettario: chiudendola la lista e le selezioni dell'export restano invariate
+// Quick preview above the recipe book: closing it leaves the export list and selections unchanged
 export function RecipePreviewCard({ recipe, onClose }: { recipe: Recipe | null; onClose: () => void }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);

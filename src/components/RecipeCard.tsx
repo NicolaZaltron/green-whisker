@@ -18,7 +18,7 @@ export interface PantryMatchInfo {
 interface RecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
-  // Versioni vegetariane/vegane disponibili per questa ricetta
+  // Vegetarian/vegan versions available for this recipe
   variantDiets?: VariantDiet[];
   isFavorite?: boolean;
   onToggleFavorite?: (recipeId: string) => void;
@@ -40,6 +40,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
 }) => {
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+  const imageSource = useMemo(() => ({ uri: recipe.image }), [recipe.image]);
   const { t } = useTranslation();
   // Synchronous O(1) favorite status lookup without mount query cascades
   const favContext = useFavoritesSafe();
@@ -62,7 +63,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
       <View style={styles.imageWrapper}>
         {recipe.image ? (
           <Image
-            source={{ uri: recipe.image }}
+            source={imageSource}
             style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
             contentFit="cover"
             transition={200}
@@ -81,7 +82,7 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
           </Text>
         </View>
 
-        {/* Pulsante Preferiti Rapido */}
+        {/* Quick Favorite Button */}
         <TouchableOpacity
           style={styles.favButton}
           onPress={handleToggleFavorite}

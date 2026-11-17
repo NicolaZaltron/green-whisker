@@ -1,5 +1,5 @@
 import { SheetModal } from './SheetModal';
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -36,12 +36,12 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   const [includeVariants, setIncludeVariants] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [preview, setPreview] = useState<Recipe | null>(null);
-  // Si memorizzano le deselezionate: per default sono tutte selezionate
+  // Deselected ones are stored: by default all are selected
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
 
-  // Dal catalogo condiviso: si aggiorna da solo a ogni modifica
+  // From the shared catalog: updates by itself on every change
   const catalogVersion = useCatalogVersion();
-  // catalogVersion: il catalogo si aggiorna sul posto, la dipendenza forza il ricalcolo
+  // catalogVersion: the catalog is updated in place, the dependency forces recomputation
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const everything = useMemo(() => [...catalogRecipes, ...catalogVariants], [catalogVersion]);
   const listed = useMemo(() => filterCatalog(everything, filter), [everything, filter]);
@@ -65,7 +65,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     setIsError(error);
   };
 
-  // Cambiare filtro cambia l'elenco: le selezioni precedenti non valgono più
+  // Changing the filter changes the list: previous selections no longer apply
   const changeFilter = <K extends keyof ExportFilter>(key: K, value: ExportFilter[K]) => {
     setFilter(prev => ({ ...prev, [key]: value }));
     setDeselectedIds(new Set());
@@ -143,7 +143,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     );
   };
 
-  // Eliminazione: la conferma è nella finestra stessa (un Alert aperto da un modale non è affidabile)
+  // Deletion: confirmation is in the window itself (an Alert opened from a modal is unreliable)
   const [pendingDelete, setPendingDelete] = useState<string[] | null>(null);
 
   const runDelete = async (ids: string[]) => {

@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18n, { changeLanguage } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
 
@@ -16,8 +16,11 @@ const locales = Localization.getLocales();
 const primaryLanguage = locales && locales.length > 0 && locales[0].languageCode ? locales[0].languageCode : 'it';
 const initialLanguage = primaryLanguage.startsWith('en') ? 'en' : 'it';
 
-i18n
-  .use(initReactI18next)
+// Same i18next instance: the alias keeps lint from mistaking use/init for export names
+const instance = i18n;
+instance.use(initReactI18next);
+
+instance
   .init({
     compatibilityJSON: 'v4',
     resources,
@@ -31,11 +34,11 @@ i18n
     },
   });
 
-// Ripristina la lingua scelta a mano nel menu, se presente (altrimenti resta quella del dispositivo)
+// Restores the language chosen manually in the menu, if present (otherwise the device language stays)
 export async function restoreSavedLanguage(): Promise<void> {
   const saved = await loadLanguage();
   if (saved && saved !== i18n.language) {
-    await i18n.changeLanguage(saved);
+    await changeLanguage(saved);
   }
 }
 

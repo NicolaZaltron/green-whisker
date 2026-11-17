@@ -1,4 +1,4 @@
-// Funzioni pure per la richiesta a Gemini: nessun import di React Native o Expo, quindi testabili in Node.
+// Pure functions for the Gemini request: no React Native or Expo imports, so testable in Node.
 
 export interface RecipeImagePart {
   base64: string;
@@ -6,7 +6,7 @@ export interface RecipeImagePart {
   uri?: string;
 }
 
-// Sottoinsieme di ParseRecipeInput (aiService) usato per il payload; catalogNames non compare qui di proposito
+// Subset of ParseRecipeInput (aiService) used for the payload; catalogNames deliberately does not appear here
 export interface RecipePayloadInput {
   text?: string;
   url?: string;
@@ -26,18 +26,18 @@ export interface GeminiRecipePayload {
   };
 }
 
-/** Nomi di prodotto dal seed (solo il campo name). Usata solo per il controllo locale, mai per la richiesta. */
+/** Product names from the seed (name field only). Used only for the local check, never for the request. */
 export function namesFromSeed(seed: readonly { name: string }[]): string[] {
   return seed.map(item => item.name);
 }
 
-/** Nomi e alias dal seed. Usata solo per il controllo locale (matching), mai per la richiesta. */
-export function namesAndAliasesFromSeed(seed: readonly { name: string; aliases?: string[] }[]): {name: string; aliases?: readonly string[]}[] {
-  return seed.map(item => ({name: item.name, aliases: item.aliases}));
+/** Names and aliases from the seed. Used only for the local check (matching), never for the request. */
+export function namesAndAliasesFromSeed(seed: readonly { id?: string; name: string; aliases?: string[] }[]): {id?: string; name: string; aliases?: readonly string[]}[] {
+  return seed.map(item => ({id: item.id, name: item.name, aliases: item.aliases}));
 }
 
 /**
- * Costruisce il payload Gemini. Usa solo testo, immagini e prompt: i catalogNames non vengono letti qui.
+ * Builds the Gemini payload. Uses only text, images and prompt: catalogNames are not read here.
  */
 export function buildRecipeRequestPayload(
   input: RecipePayloadInput,

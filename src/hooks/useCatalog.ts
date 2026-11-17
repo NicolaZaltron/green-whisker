@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { getCatalogVersion, subscribeCatalog } from '../services/recipeCatalog';
 
-/** Cambia a ogni modifica del catalogo: chi lo usa si ridisegna con i dati aggiornati */
+/** Changes on every catalog modification: whoever uses it re-renders with the updated data */
 export function useCatalogVersion(): number {
   return useSyncExternalStore(subscribeCatalog, getCatalogVersion);
 }

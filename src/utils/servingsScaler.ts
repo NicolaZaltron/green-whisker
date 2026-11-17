@@ -42,7 +42,7 @@ const UNIT_PLURALS: Record<string, { singular: string; plural: string }> = {
 };
 
 /**
- * Scala una dose di ingrediente in base al fattore di scala
+ * Scales an ingredient dose according to the scale factor
  */
 export function scaleIngredient(
   amount: number | null | undefined,
@@ -53,7 +53,7 @@ export function scaleIngredient(
 ): ScaledIngredientResult {
   const cleanName = ingredientName || rawText;
 
-  // "q.b." = nessuna quantità: mai un numero inventato
+  // "q.b." = no quantity: never an invented number
   const isQb = /^q\.?\s*b\.?$/i.test((unit || '').trim());
   if (isQb || amount === null || amount === undefined || isNaN(amount) || amount <= 0) {
     return {
@@ -64,7 +64,7 @@ export function scaleIngredient(
     };
   }
 
-  // Se la scala è esattamente 1, mantieni l'originale
+  // If the scale is exactly 1, keep the original
   if (scale === 1) {
     return {
       formattedText: rawText,
@@ -76,17 +76,17 @@ export function scaleIngredient(
 
   const rawScaled = amount * scale;
 
-  // Quantità calcolate sempre senza cifre decimali, mai sotto 1 (es. 150g * 1.5 = 225g, 0.4 -> 1)
+  // Quantities always computed without decimal digits, never below 1 (e.g. 150g * 1.5 = 225g, 0.4 -> 1)
   const scaledQty = Math.max(1, Math.round(rawScaled));
 
-  // Format unit con plurale/singolare intelligente
+  // Unit format with smart plural/singular
   let formattedUnit = (unit || '').trim();
   const lowerUnit = formattedUnit.toLowerCase();
   if (UNIT_PLURALS[lowerUnit]) {
     formattedUnit = scaledQty === 1 ? UNIT_PLURALS[lowerUnit].singular : UNIT_PLURALS[lowerUnit].plural;
   }
 
-  // Rappresentazione testuale elegante (frazioni culinarie per valori comuni)
+  // Elegant textual representation (culinary fractions for common values)
   let qtyStr: string;
   if (scaledQty === 0.5) {
     qtyStr = '1/2';
@@ -113,38 +113,38 @@ export function scaleIngredient(
 }
 
 /**
- * Rimuove 'q.b.', 'quanto basta' e simili dai testi degli ingredienti per la lista della spesa,
- * restituendo il nome pulito dell'alimento (es. "Olio evo", "Sale fino", "Pepe").
+ * Removes 'q.b.', 'quanto basta' and similar from ingredient texts for the shopping list,
+ * returning the clean name of the food (e.g. "Olio evo", "Sale fino", "Pepe").
  */
 export function cleanShoppingIngredientText(text: string, fallbackName?: string): string {
   if (!text) return fallbackName || '';
 
   let cleaned = text;
 
-  // Rimuovi parentesi e commenti
+  // Remove parentheses and comments
   cleaned = cleaned.replace(/\s*\([^)]*\)/g, ' ');
 
-  // Separa parole attaccate da scraping
+  // Split words stuck together by scraping
   cleaned = cleaned.replace(/([a-z]{3,})([A-Z][a-z]+)/g, '$1 $2');
   cleaned = cleaned.replace(/([a-zA-Z]{3,})a\s+(pezzetti|cubetti|fette|fettine|spicchi)\b/gi, '$1 a $2');
 
-  // Rimuove 'q.b.' / 'quanto basta'
+  // Removes 'q.b.' / 'quanto basta'
   cleaned = cleaned.replace(/^(?:q\.?\s*b\.?|quanto basta)\s*(?:di\s+|d')?/i, '').trim();
   cleaned = cleaned.replace(/[,;\s]*\(?(?:q\.?\s*b\.?|quanto basta)\)?\s*$/i, '').trim();
   cleaned = cleaned.replace(/,\s*\(?(?:q\.?\s*b\.?|quanto basta)\)?/i, '').trim();
 
-  // Rimuove prefissi rotti derivanti da vecchie regex ('no raso', 'no di', 'no ', 'o di', 'o ')
+  // Removes broken prefixes from old regexes ('no raso', 'no di', 'no ', 'o di', 'o ')
   cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+)/i, '');
 
-  // Rimuove espressioni di quantità o introduzione da ricetta tipo "abbondante di", "un filo di", "un goccio di"
+  // Removes quantity or recipe-introduction expressions like "abbondante di", "un filo di", "un goccio di"
   cleaned = cleaned.replace(/^(?:abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?|qualche\s+goccia\s*(?:di\s+|d')?|una\s+presa\s*(?:di\s+|d')?|un\s+pizzico\s*(?:di\s+|d')?)/i, '');
 
-  // Rimuove unità da cucina residue
+  // Removes leftover kitchen units
   const KITCHEN_REGEX = /^(?:(?:un|uno|una|mezzo|mezza|due|tre|\d+(?:[.,]\d+)?|\d+\/\d+)\s+)?(?:cucchiaini|cucchiaino|cucchiai|cucchiaio|pizzichi|pizzico|spicchi\s*o|spicchi|spicchio|foglioline|fogliolina|foglie|foglia|ciuffi|ciuffo|rametti|rametto|mazzetti|mazzetto|gambi|gambo|bustine|bustina|fili|filo|gocce|goccia|prese|presa|manciate|manciata|tazze|tazza|tazzine|tazzina|bicchieri|bicchiere|cubetti|cubetto)\s*(?:di|d'|del|della|dei|degli|delle|da)?\s*/i;
   cleaned = cleaned.replace(KITCHEN_REGEX, '');
   cleaned = cleaned.replace(/^(?:no\s+raso\s*(?:di\s+|d')?|no\s+(?:di\s+|d')?|no\s+|o\s+(?:di\s+|d')?|o\s+|abbondante\s*(?:di\s+|d')?|generoso\s*(?:di\s+|d')?|un\s+filo\s*(?:di\s+|d')?|un\s+goccio\s*(?:di\s+|d')?)/i, '');
 
-  // Pulisci aggettivi di taglio
+  // Clean up cut adjectives
   cleaned = cleaned.replace(/\b(a cubetti|a fette|a pezzetti|a fettine|a spicchi|tritat[oaei]|sminuzzat[oaei]|grattugiat[oaei]|raso|colmo)\b/gi, ' ');
   cleaned = cleaned.replace(/[,;:\-\.]+/g, ' ').replace(/\s+/g, ' ').trim();
   cleaned = cleaned.replace(/^(?:di|d'|del|della|dei|degli|delle)\s+/i, '');
@@ -157,8 +157,8 @@ export function cleanShoppingIngredientText(text: string, fallbackName?: string)
 }
 
 /**
- * Divide la dicitura di un ingrediente per la spesa in Nome (a sinistra) e Quantità (a destra).
- * Esempi:
+ * Splits an ingredient's shopping wording into Name (left) and Quantity (right).
+ * Examples:
  * - "260 g Carote" -> { displayName: "Carote", displayQuantity: "260 g" }
  * - "1 spicchio e 1/2 Aglio" -> { displayName: "Aglio", displayQuantity: "1 spicchio e ½" }
  * - "Barbabietola cotta", amount: 60, unit: "g" -> { displayName: "Barbabietola cotta", displayQuantity: "60 g" }
@@ -173,10 +173,10 @@ export function splitShoppingItemDisplay(
   const cleanFallback = (fallbackName || '').trim();
   const rawText = cleanShoppingIngredientText(ingredientText, cleanFallback).trim();
 
-  // Pattern esatto per le sole unità di misura reali (mai parole di cibo come burro, latte, olio)
+  // Exact pattern for real units of measure only (never food words like butter, milk, oil)
   const unitPattern = '(?:g|gr|grammi|grammo|kg|chili|chilo|chilogrammi|ml|millilitri|cl|dl|l|litri|litro|tazzin[oaei]?|tazz[oaei]?|cucchiai[oaei]?|cucchiain[oaei]?|pizzic[oaei]?|spicchi[oaei]?|fogli[oaei]?|fogliolin[oaei]?|rotol[oaei]?|panett[oaei]?|confezion[oaei]?|barattol[oaei]?|vasett[oaei]?|scatolett[oaei]?|lattin[oaei]?|bustin[oaei]?|fett[oaei]?|ciuff[oaei]?|ramett[oaei]?)';
 
-  // 1. Se abbiamo amount numerico valido
+  // 1. If we have a valid numeric amount
   if (amount !== null && amount !== undefined && amount > 0) {
     let qtyStr = '';
     if (amount === 0.5) {
@@ -201,7 +201,7 @@ export function splitShoppingItemDisplay(
 
     let nameToUse = cleanFallback;
     if (!nameToUse || nameToUse.toLowerCase() === rawText.toLowerCase()) {
-      // Rimuovi SOLO numero e unità di misura reale all'inizio
+      // Remove ONLY the number and real unit of measure at the start
       const stripRegex = new RegExp(`^(?:\\d+(?:[.,]\\d+)?|\\d+/\\d+|½|¼|¾)\\s*(?:${unitPattern}\\.?\\s*)?(?:di\\s+|d')?\\s*`, 'i');
       nameToUse = rawText.replace(stripRegex, '').trim();
     }
@@ -214,7 +214,7 @@ export function splitShoppingItemDisplay(
     };
   }
 
-  // 2. Analizza eventuale quantità iniziale nel testo originale
+  // 2. Parse any leading quantity in the original text
   const leadingQtyRegex = new RegExp(`^((?:\\d+(?:[.,]\\d+)?|\\d+/\\d+|½|¼|¾)\\s*(?:${unitPattern}\\.?\\s*(?:e\\s+(?:½|1/2|\\d+)\\s*)?)?)\\s*(?:di\\s+|d')?\\s*(.+)$`, 'i');
   const match = (ingredientText || rawText).trim().match(leadingQtyRegex);
   if (match) {
@@ -227,7 +227,7 @@ export function splitShoppingItemDisplay(
     };
   }
 
-  // 3. Fallback: solo nome
+  // 3. Fallback: name only
   const finalName = cleanShoppingIngredientText(rawText || cleanFallback);
   return {
     displayName: finalName.charAt(0).toUpperCase() + finalName.slice(1),
@@ -235,7 +235,7 @@ export function splitShoppingItemDisplay(
   };
 }
 
-// Unità riconosciute nel testo: quelle con plurale gestito sopra più le unità metriche e poche altre
+// Units recognized in the text: those with plural handled above plus metric units and a few others
 const KNOWN_UNITS = new Set([
   ...Object.keys(UNIT_PLURALS),
   'g', 'gr', 'grammi', 'kg', 'ml', 'millilitri', 'cl', 'l', 'litro', 'litri',
@@ -244,8 +244,8 @@ const KNOWN_UNITS = new Set([
   'pezzo', 'pezzi', 'rametto', 'rametti', 'millilitro',
 ]);
 
-// Quantità: "7", "1,5", "1/2", "1 1/2", parole ("mezzo"/"mezza" = 0.5) e intervalli "a-b".
-// Un intervallo vale la MEDIA dei due estremi (es. "7-8" = 7.5), come nei dati delle ricette.
+// Quantity: "7", "1,5", "1/2", "1 1/2", words ("mezzo"/"mezza" = 0.5) and "a-b" ranges.
+// A range is worth the AVERAGE of the two ends (e.g. "7-8" = 7.5), as in the recipe data.
 const QTY_PATTERN = '(?:mezzo\\b|mezza\\b|\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+(?:[.,]\\d+)?)';
 const QTY_REGEX = new RegExp(`^(${QTY_PATTERN}(?:\\s*-\\s*${QTY_PATTERN})?)(?!\\d|\\/)\\s*(\\S+)?\\s*(.*)$`, 'i');
 
@@ -266,8 +266,8 @@ export function parseQuantity(raw: string): number {
 }
 
 /**
- * Ricava quantità, unità e nome da un testo ingrediente, es. "400 g di ceci" → 400, "g", "ceci".
- * Gestisce anche "Mezzo barattolo X" (0.5), "1 1/2 X" (1.5) e "2-3 bicchieri X" (2.5).
+ * Extracts quantity, unit and name from an ingredient text, e.g. "400 g di ceci" → 400, "g", "ceci".
+ * Also handles "Mezzo barattolo X" (0.5), "1 1/2 X" (1.5) and "2-3 bicchieri X" (2.5).
  */
 export function parseIngredientText(text: string): { amount: number | null; unit: string; ingredient: string } {
   const trimmed = text.trim();
@@ -286,7 +286,7 @@ export function parseIngredientText(text: string): { amount: number | null; unit
 }
 
 /**
- * Ingrediente strutturato a partire dal solo testo, con quantità e unità se riconoscibili
+ * Structured ingredient built from the text alone, with quantity and unit when recognizable
  */
 export function ingredientItemFromText(text: string, section = 'Principale'): IngredientItem {
   const parsed = parseIngredientText(text);
@@ -295,8 +295,8 @@ export function ingredientItemFromText(text: string, section = 'Principale'): In
 }
 
 /**
- * Ingredienti pronti per il ridimensionamento. Le ricette senza quantità strutturate
- * (es. quelle salvate dall'importer AI) le ricavano dal testo.
+ * Ingredients ready for scaling. Recipes without structured quantities
+ * (e.g. those saved by the AI importer) derive them from the text.
  */
 export function getScalableIngredients(recipe: Recipe): IngredientItem[] {
   if (!recipe.detailed_ingredients?.length) {

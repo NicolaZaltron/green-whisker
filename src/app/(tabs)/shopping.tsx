@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, memo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -61,24 +61,24 @@ interface DepartmentSection {
 interface CatalogSuggestion {
   name: string;
   kind: 'ingredient' | 'ready';
-  // Reparto in cui finirebbe l'aggiunta: stessa classificazione usata da addItemByName
+  // Department the item would end up in: same classification used by addItemByName
   department: ShoppingDepartment;
   unit: string;
   defaultAmount: number;
 }
 
-// Modale quantità: aggiunta di un suggerimento oppure modifica di un elemento già in lista
+// Quantity modal: adding a suggestion or editing an item already in the list
 type QuantityTarget =
   | { mode: 'add'; name: string; unit: string }
   | { mode: 'edit'; item: ShoppingItem };
 
-// Testo libero della quantità: vuoto o non numerico vuol dire senza quantità
+// Free text quantity: empty or non-numeric means no quantity
 const parseQuantityText = (text: string): number | null => {
   const parsed = parseFloat(text.replace(',', '.'));
   return text.trim() === '' || Number.isNaN(parsed) || parsed < 0 ? null : parsed;
 };
 
-// Quantità rapide mostrate come pillole nella richiesta di quantità
+// Quick quantities shown as pills in the quantity prompt
 const QUICK_QUANTITIES: readonly { amount: number; unit: string }[] = [
   { amount: 500, unit: 'g' },
   { amount: 1, unit: 'kg' },
@@ -90,10 +90,10 @@ const QUICK_QUANTITIES: readonly { amount: number; unit: string }[] = [
   { amount: 1, unit: 'vasetto' },
 ];
 
-// Numero massimo di suggerimenti mostrati sotto la barra di testo
+// Maximum number of suggestions shown below the text bar
 const MAX_SUGGESTIONS = 8;
 
-// Confronta il contenuto visibile delle liste (id, stato, quantità, testo, reparto)
+// Compares the visible content of the lists (id, state, quantity, text, department)
 const sameShoppingList = (a: ShoppingItem[], b: ShoppingItem[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -114,6 +114,73 @@ const sameShoppingList = (a: ShoppingItem[], b: ShoppingItem[]): boolean => {
 };
 
 
+// Memoized shopping row: with unchanged props it does not re-render when another row changes
+const ShoppingItemRow = memo(function ShoppingItemRow({
+  item,
+  displayName,
+  displayQuantity,
+  onToggle,
+  onEditQuantity,
+  onDelete,
+}: {
+  item: ShoppingItem;
+  displayName: string;
+  displayQuantity: string;
+  onToggle: (id: string) => void;
+  onEditQuantity: (item: ShoppingItem) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  // Quantity with the unit pluralized according to the item quantity; without a unit the computed text stays
+  const itemQuantity = item.amount != null && item.unit
+    ? `${Number.isInteger(item.amount) ? item.amount : item.amount.toFixed(1).replace('.0', '')} ${unitLabel(item.unit, t, item.amount)}`
+    : displayQuantity;
+
+  return (
+    <View style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
+      <TouchableOpacity
+        style={styles.checkArea}
+        onPress={() => onToggle(item.id)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
+          {item.checked && <Ionicons name="checkmark" size={13} color={colors.onPrimary} />}
+        </View>
+        <View style={styles.itemRowContent}>
+          <Text
+            style={[styles.itemName, item.checked && styles.itemNameChecked]}
+            numberOfLines={2}
+          >
+            {displayName}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.qtyEditBtn}
+        onPress={() => onEditQuantity(item)}
+        activeOpacity={0.7}
+        accessibilityLabel={t('shopping.quantityEditTitle')}
+      >
+        <Text style={[styles.qtyEditText, item.checked && styles.itemQtyChecked]}>
+          {itemQuantity || t('shopping.quantityEmpty')}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.deleteBtn}
+        onPress={() => onDelete(item.id)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="close" size={16} color={colors.textMuted} />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 export default function ShoppingScreen() {
   const { t } = useTranslation();
   const { colors, isDark } = useTheme();
@@ -128,9 +195,9 @@ export default function ShoppingScreen() {
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<ShoppingDepartment | 'ALL'>('ALL');
   const [manualDeptOverride, setManualDeptOverride] = useState<ShoppingDepartment | null>(null);
   const [showDeptPickerModal, setShowDeptPickerModal] = useState(false);
-  // Azione in attesa di conferma nella modale descrittiva
+  // Action awaiting confirmation in the descriptive modal
   const [pendingAction, setPendingAction] = useState<'clearCompleted' | 'clearAll' | null>(null);
-  // Modale per scegliere cosa aggiungere alla lista dal planner
+  // Modal to choose what to add to the list from the planner
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({});
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
@@ -150,14 +217,15 @@ export default function ShoppingScreen() {
       await consolidateShoppingList();
     }
     const list = await getShoppingItems();
-    // Aggiorna solo se il contenuto è cambiato: altrimenti resta il riferimento precedente
+    // Updates only if the content changed: otherwise the previous reference stays
     setItems(prev => (sameShoppingList(prev, list) ? prev : list));
   }, []);
 
-  // Chiave del catalogo già caricato: versione della cache ingredienti e nomi dei piatti pronti
+
+  // Key of the already loaded catalog: ingredients cache version and ready meal names
   const catalogKeyRef = useRef<{ version: number; readyKey: string } | null>(null);
 
-  // Ingredienti e piatti pronti, senza duplicati: gli ingredienti hanno la precedenza
+  // Ingredients and ready meals, without duplicates: ingredients take precedence
   const loadCatalog = async () => {
     const version = getIngredientsCacheVersion();
     const readyMeals = await listReadyMeals();
@@ -172,7 +240,7 @@ export default function ShoppingScreen() {
         name: ingredient.name,
         kind: 'ingredient',
         department: classifyShoppingDepartment(ingredient.name),
-        // Suggerimento per la lista della spesa: quantità e unità da comprare, con ripiego sulla porzione
+        // Suggestion for the shopping list: quantity and unit to buy, falling back to the portion
         unit: toSelectableUnit(ingredient.purchase_unit || ingredient.default_unit),
         defaultAmount: ingredient.purchase_amount ?? 1,
       });
@@ -197,7 +265,7 @@ export default function ShoppingScreen() {
     showToast(t('shopping.updatedToast'));
   };
 
-  // Riconsolida solo alla prima apertura; ai ritorni sulla schermata legge soltanto la lista
+  // Reconsolidates only on first open; on returns to the screen it just reads the list
   const consolidatedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -206,8 +274,8 @@ export default function ShoppingScreen() {
         return;
       }
       consolidatedRef.current = true;
-      // Il consolidamento parte in idle, dopo la transizione della tab (InteractionManager è rimosso in RN 0.88).
-      // Nessun cancel: il consolidamento non si perde se si lascia la schermata subito
+      // Consolidation starts in idle, after the tab transition (InteractionManager is removed in RN 0.88).
+      // No cancel: consolidation is not lost if the screen is left right away
       scheduleIdle(() => {
         loadItems(true);
       });
@@ -224,7 +292,7 @@ export default function ShoppingScreen() {
     }, 2800);
   };
 
-  // Reparto rilevato in tempo reale per l'input manuale
+  // Department detected in real time for manual input
   const detectedDept: ShoppingDepartment = useMemo(() => {
     if (manualDeptOverride) return manualDeptOverride;
     if (!newItemText.trim()) return 'CAT_SHOPPING_VARIE';
@@ -234,7 +302,7 @@ export default function ShoppingScreen() {
   const completedCount = useMemo(() => items.filter(i => i.checked).length, [items]);
   const detectedColors = departmentColors(detectedDept, isDark);
 
-  // Nome e quantità visualizzati calcolati una sola volta per lista (non a ogni render o confronto)
+  // Displayed name and quantity computed once per list (not on every render or comparison)
   const displayById = useMemo(() => {
     const map = new Map<string, { displayName: string; displayQuantity: string }>();
     for (const item of items) {
@@ -243,8 +311,8 @@ export default function ShoppingScreen() {
     return map;
   }, [items]);
 
-  // Raggruppamento per i 15 reparti: liste per reparto calcolate (e ordinate) solo quando cambiano gli articoli;
-  // collassare o espandere un reparto non ricalcola né riordina nulla (vedi groupedSections)
+  // Grouping by the 15 departments: per-department lists computed (and sorted) only when items change;
+  // collapsing or expanding a department does not recompute or reorder anything (see groupedSections)
   const itemsByDept = useMemo(() => {
     const map = new Map<ShoppingDepartment, ShoppingItem[]>();
     for (const item of items) {
@@ -259,7 +327,7 @@ export default function ShoppingScreen() {
       else map.set(dept, [entry]);
     }
     for (const deptItems of map.values()) {
-      // Ordinamento alfabetico all'interno di ogni categoria
+      // Alphabetical sorting within each category
       deptItems.sort((a, b) => {
         const nameA = displayById.get(a.id)?.displayName ?? a.name;
         const nameB = displayById.get(b.id)?.displayName ?? b.name;
@@ -287,7 +355,7 @@ export default function ShoppingScreen() {
     return sections;
   }, [itemsByDept, collapsedDepts]);
 
-  // Sezioni filtrate in base alla pillola selezionata
+  // Sections filtered by the selected pill
   const displayedSections = useMemo(() => {
     if (selectedDeptFilter === 'ALL') {
       return groupedSections;
@@ -295,17 +363,17 @@ export default function ShoppingScreen() {
     return groupedSections.filter(s => s.department === selectedDeptFilter);
   }, [groupedSections, selectedDeptFilter]);
 
-  // Statistiche reparti attivi
+  // Active department statistics
   const activeDepartmentsCount = groupedSections.length;
 
   const handleToggle = useCallback(async (id: string) => {
-    // Aggiornamento ottimistico immediato a 60fps
+    // Immediate optimistic update at 60fps
     setItems(prev => prev.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
     await toggleShoppingItem(id);
   }, []);
 
   const handleDelete = useCallback(async (id: string) => {
-    // Aggiornamento ottimistico immediato
+    // Immediate optimistic update
     setItems(prev => prev.filter(item => item.id !== id));
     await deleteShoppingItem(id);
   }, []);
@@ -346,7 +414,7 @@ export default function ShoppingScreen() {
     showToast(t('shopping.addedToDept', { dept: chosenDept }));
   };
 
-  // Un nome digitato apre la richiesta di quantità (predefinito 1, nessuna unità)
+  // A typed name opens the quantity prompt (default 1, no unit)
   const handleAddManual = () => {
     const trimmed = newItemText.trim();
     if (!trimmed) return;
@@ -356,7 +424,7 @@ export default function ShoppingScreen() {
     setQuantityTarget({ mode: 'add', name: trimmed, unit: '' });
   };
 
-  // Un suggerimento apre la richiesta di quantità (predefinito 1)
+  // A suggestion opens the quantity prompt (default 1)
   const openQuantityAdd = (entry: CatalogSuggestion) => {
     setQtyAmountText(String(entry.defaultAmount));
     setQtyUnitText(toSelectableUnit(entry.unit));
@@ -385,14 +453,14 @@ export default function ShoppingScreen() {
     loadItems();
   };
 
-  // Una pillola aggiunge subito il prodotto con quantità e unità scelte
+  // A pill immediately adds the product with the chosen quantity and unit
   const addWithQuickQuantity = async (name: string, amount: number, unit: string) => {
     setQuantityTarget(null);
     setUnitMenuOpen(false);
     await addItemByName(name, amount, unit);
   };
 
-  // Suggerimenti filtrati sui caratteri digitati: prima quelli che iniziano con la query, poi quelli che la contengono
+  // Suggestions filtered on the typed characters: first those starting with the query, then those containing it
   const suggestions = useMemo(() => {
     const query = newItemText.trim().toLowerCase();
     if (!query) return [];
@@ -427,7 +495,7 @@ export default function ShoppingScreen() {
     }
   };
 
-  // Le azioni distruttive o di massa si aprono prima in una modale descrittiva
+  // Destructive or bulk actions first open in a descriptive modal
   const requestClearCompleted = () => {
     if (completedCount > 0) setPendingAction('clearCompleted');
   };
@@ -442,56 +510,20 @@ export default function ShoppingScreen() {
     if (action === 'clearAll') await performClearAll();
   };
 
-  // Riga della lista: callback stabili e testi già calcolati, così un tocco non ridisegna tutte le righe
+  // List row: stable callbacks and precomputed texts, so a tap does not re-render all rows
   const renderShoppingItem = useCallback(({ item }: { item: ShoppingItem }) => {
     const { displayName, displayQuantity } = displayById.get(item.id) ?? { displayName: item.name, displayQuantity: '' };
-    // Quantità con unità al plurale in base alla quantità dell'articolo; senza unità resta il testo calcolato
-    const itemQuantity = item.amount != null && item.unit
-      ? `${Number.isInteger(item.amount) ? item.amount : item.amount.toFixed(1).replace('.0', '')} ${unitLabel(item.unit, t, item.amount)}`
-      : displayQuantity;
-
     return (
-      <View style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
-        <TouchableOpacity
-          style={styles.checkArea}
-          onPress={() => handleToggle(item.id)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-            {item.checked && <Ionicons name="checkmark" size={13} color={colors.onPrimary} />}
-          </View>
-          <View style={styles.itemRowContent}>
-            <Text
-              style={[styles.itemName, item.checked && styles.itemNameChecked]}
-              numberOfLines={2}
-            >
-              {displayName}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.qtyEditBtn}
-          onPress={() => openQuantityEdit(item)}
-          activeOpacity={0.7}
-          accessibilityLabel={t('shopping.quantityEditTitle')}
-        >
-          <Text style={[styles.qtyEditText, item.checked && styles.itemQtyChecked]}>
-            {itemQuantity || t('shopping.quantityEmpty')}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.deleteBtn}
-          onPress={() => handleDelete(item.id)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="close" size={16} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+      <ShoppingItemRow
+        item={item}
+        displayName={displayName}
+        displayQuantity={displayQuantity}
+        onToggle={handleToggle}
+        onEditQuantity={openQuantityEdit}
+        onDelete={handleDelete}
+      />
     );
-  }, [displayById, colors, styles, t, handleToggle, openQuantityEdit, handleDelete]);
+  }, [displayById, handleToggle, openQuantityEdit, handleDelete]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -548,12 +580,13 @@ export default function ShoppingScreen() {
           <View style={styles.inputContainer}>
             <View style={styles.inputRow}>
               <AppTextField
+                variant="search"
                 style={styles.flexField}
                 placeholder={t('shopping.addCustomPlaceholder')}
                 value={newItemText}
                 onChangeText={text => {
                   setNewItemText(text);
-                  // Resetta l'override manuale se si svuota il testo
+                  // Resets the manual override if the text is cleared
                   if (!text.trim()) setManualDeptOverride(null);
                 }}
                 onFocus={loadCatalog}
@@ -570,7 +603,7 @@ export default function ShoppingScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Suggerimenti da ingredienti e piatti pronti, mentre si digita */}
+            {/* Suggestions from ingredients and ready meals, while typing */}
             {suggestions.length > 0 && (
               <View style={styles.suggestionsList}>
                 {suggestions.map(entry => (
@@ -774,7 +807,7 @@ export default function ShoppingScreen() {
                   : t('shopping.emptySub')}
               </Text>
               <TouchableOpacity
-                style={styles.exploreBtn}
+                style={[styles.exploreBtn, styles.exploreBtnWide]}
                 onPress={() => router.push('/(tabs)')}
                 activeOpacity={0.8}
               >
@@ -783,7 +816,7 @@ export default function ShoppingScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.exploreBtn, { backgroundColor: colors.primarySoft, marginTop: 10, shadowOpacity: 0 }]}
+                style={[styles.exploreBtn, styles.exploreBtnWide, { backgroundColor: colors.primarySoft, marginTop: 10, shadowOpacity: 0 }]}
                 onPress={() => setShowPlanModal(true)}
                 activeOpacity={0.8}
               >
@@ -796,7 +829,7 @@ export default function ShoppingScreen() {
           }
         />
 
-        {/* Modal per selezione manuale del reparto */}
+        {/* Modal for manual department selection */}
         <Modal
           visible={showDeptPickerModal}
           transparent
@@ -937,7 +970,7 @@ export default function ShoppingScreen() {
               <Ionicons name={unitMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity style={[styles.confirmOkBtn, styles.qtyConfirmBtn]} onPress={confirmQuantity} activeOpacity={0.85}>
-              <Text style={styles.confirmOkText}>
+              <Text style={[styles.confirmOkText, styles.qtyConfirmText]}>
                 {quantityTarget?.mode === 'add' ? t('shopping.quantityAdd') : t('shopping.quantitySave')}
               </Text>
             </TouchableOpacity>
@@ -1005,7 +1038,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 1,
     marginBottom: 8,
-    // Allineato al testo del titolo di ScreenHeader
+    // Aligned with the ScreenHeader title text
     marginHorizontal: 16,
   },
   inputRow: {
@@ -1278,7 +1311,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   quickPillText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   qtyInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
-  qtyConfirmBtn: { height: 44, justifyContent: 'center', alignItems: 'center' },
+  // Fixed height: no vertical padding from the base button, otherwise the text drops relative to the center
+  qtyConfirmBtn: { height: 44, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' },
+  qtyConfirmText: { lineHeight: 18, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
   qtyAmountInput: { width: 96 },
   qtyUnitInput: { flex: 1, height: 44 },
   qtyUnitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
@@ -1330,10 +1365,18 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
+  // Same width and height for both empty-state buttons
+  exploreBtnWide: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
   exploreBtnText: {
     color: colors.onPrimary,
     fontSize: 14,
     fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,

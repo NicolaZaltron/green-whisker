@@ -16,9 +16,12 @@ import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
   searchPantryRecipes,
   getIngredientSuggestions,
+  buildIngredientVocabulary,
   POPULAR_PANTRY_ITEMS,
+  IngredientVocabularyItem,
   PantryMatchResult
 } from '../services/pantryService';
+import { listIngredients } from '../db/ingredientsDb';
 import { addShoppingItems } from '../db/database';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
@@ -40,10 +43,21 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
   const [activeFilter, setActiveFilter] = useState<'all' | 'ready' | 'almost'>('all');
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  // Suggestion vocabulary: app ingredient names plus common ones
+  const [vocabulary, setVocabulary] = useState<IngredientVocabularyItem[]>([]);
+  useEffect(() => {
+    let active = true;
+    listIngredients().then(list => {
+      const built = buildIngredientVocabulary(list.map(item => item.name));
+      if (active) setVocabulary(built);
+    });
+    return () => { active = false; };
+  }, []);
+
   // Suggestions for autocomplete while typing
   const suggestions = useMemo(() => {
-    return getIngredientSuggestions(inputText, selectedIngredients);
-  }, [inputText, selectedIngredients]);
+    return getIngredientSuggestions(inputText, selectedIngredients, vocabulary);
+  }, [inputText, selectedIngredients, vocabulary]);
 
   // Quick suggestions that are not already selected
   const quickChips = useMemo(() => {
@@ -102,7 +116,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
     setInputText('');
   };
 
-  const handleAddMissingToShopping = async (missing: string[], recipeTitle: string) => {
+  const handleAddMissingToShopping = useCallback(async (missing: string[], recipeTitle: string) => {
     if (missing.length === 0) return;
 
     await addShoppingItems(
@@ -124,7 +138,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
     toastTimeoutRef.current = setTimeout(() => {
       setFeedbackToast(null);
     }, 3200);
-  };
+  }, [t, onToastMessage]);
 
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -151,12 +165,12 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             recipe={item.recipe}
             onPress={() => onSelectRecipe(item.recipe)}
             pantryMatch={pantryMatch}
-            onAddMissingToShopping={(missing, title) => handleAddMissingToShopping(missing, title)}
+            onAddMissingToShopping={handleAddMissingToShopping}
           />
         </View>
       );
     },
-    [numColumns, onSelectRecipe]
+    [numColumns, onSelectRecipe, handleAddMissingToShopping]
   );
 
   // Header element containing search inputs, autocomplete, chips, and filter tabs
@@ -177,6 +191,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       <View style={styles.inputCard}>
         <View style={styles.inputRow}>
           <AppTextField
+            variant="search"
             style={styles.textInput}
             leftIcon={<Ionicons name="add-circle-outline" size={20} color={colors.textMuted} />}
             placeholder={t('pantry.inputPlaceholder')}

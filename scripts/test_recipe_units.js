@@ -1,6 +1,6 @@
 /* global __dirname, require, console */
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_recipe_units.js
-// Verifica unità, nomi e quantità sui dati reali (assets/ricette.json, sola lettura).
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_recipe_units.js
+// Checks units, names and quantities on the real data (assets/ricette.json, read-only).
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -22,7 +22,7 @@ const { scaleIngredient, parseIngredientText } = require(path.join(outDir, 'util
 let passed = 0;
 const check = (label, fn) => { fn(); passed++; console.log('ok  ', label); };
 
-// Casi mirati
+// Targeted cases
 check('Mezzo barattolo', () => {
   assert.deepStrictEqual(parseIngredientText('Mezzo barattolo Marmellata di pere'), { amount: 0.5, unit: 'barattolo', ingredient: 'Marmellata di pere' });
 });
@@ -48,7 +48,7 @@ check('q.b. senza numero', () => {
   assert.strictEqual(scaleIngredient(3, 'q.b.', 'Sale', 'q.b. Sale', 2).scaledAmount, null);
 });
 
-// Dati reali
+// Real data
 const recipes = JSON.parse(fs.readFileSync(path.join(root, 'assets/ricette.json'), 'utf8'));
 const DESCRIPTORS = /\b(a temperatura ambiente|temperatura ambiente|tiepid[oa]|fredd[oa]|a piacere|q\.b\.?|anche dealcolato|grattugiat[oa]|tritat[oa])(?![a-z])/i;
 const RAW_UNITS = new Set(['q.b.', '', 'cucchiai', 'cucchiaini', 'grammi', 'millilitri', 'pizzichi', 'spicchi', 'panetti', 'panetto', 'fette', 'rametti', 'rametto', 'foglie', 'foglia', 'rotoli', 'vasetti', 'vasetto', 'barattoli', 'barattolo', 'bustine', 'bustina', 'bicchieri', 'gocce', 'coste', 'pezzi', 'mazzetto', 'ciuffo', 'confezione', 'litri', 'litro', 'l', 'kg', 'cm', 'fetta']);

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -10,12 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
-import type { Recipe, MealPlanEntry } from '../../types/recipe';
+import type { Recipe, MealPlanEntry, RecipeSource } from '../../types/recipe';
 import type { Ingredient, ReadyMeal } from '../../types/catalog';
+import type { MealPlanDetailInput } from '../../db/database';
 import { unitLabel } from '../../constants/simpleTags';
 import { ingredientDisplayName } from '../../utils/ingredientNames';
+import { RecipeServingsStep } from './RecipeServingsStep';
 
-// Voce pianificata con i dati già risolti (ricetta, ingrediente, piatto pronto)
+// Planned entry with data already resolved (recipe, ingredient, ready meal)
 export interface DayMealItem {
   entry: MealPlanEntry;
   recipe: Recipe | null;
@@ -23,12 +25,12 @@ export interface DayMealItem {
   ready: ReadyMeal | null;
 }
 
-// Le ricette non più nel catalogo restano nascoste; i piatti semplici mancanti mostrano un segnaposto
+// Recipes no longer in the catalog stay hidden; missing simple dishes show a placeholder
 export function isVisiblePlannedItem({ entry, recipe }: DayMealItem): boolean {
   return recipe !== null || entry.kind === 'ingredient' || entry.kind === 'ready' || entry.kind === 'out' || !!entry.ingredient_id || !!entry.ready_meal_id;
 }
 
-// Nome della voce: titolo ricetta, nome ingrediente tradotto, nome piatto pronto o etichetta fuori casa
+// Entry name: recipe title, translated ingredient name, ready meal name or out-of-home label
 export function plannedItemLabel(
   { entry, recipe, ingredient, ready }: DayMealItem,
   t: (key: string, options?: Record<string, unknown>) => string,
@@ -38,18 +40,21 @@ export function plannedItemLabel(
   return ready?.name ?? (entry.kind === 'out' ? entry.label ?? null : null);
 }
 
-// Scheda di una voce pianificata: ricetta (MealRow) oppure ingrediente, piatto pronto o fuori casa (FoodRow)
-// onDelete e onView ricevono dal figlio id/ricetta: il padre passa funzioni stabili e la memo funziona
+// Card of a planned entry: recipe (MealRow) or ingredient, ready meal or out of home (FoodRow)
+// onDelete and onView receive id/recipe from the child: the parent passes stable functions and memo works
 export const PlannedItemCard = React.memo(function PlannedItemCard({
   item,
   color,
   onView,
   onDelete,
+  onUpdate,
 }: {
   item: DayMealItem;
   color: string;
   onView?: (recipe: Recipe) => void;
   onDelete: (entryId: string) => void;
+  // Planner only: without this function the card is not editable (e.g. in the picker)
+  onUpdate?: (entryId: string, input: MealPlanDetailInput) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -61,6 +66,25 @@ export const PlannedItemCard = React.memo(function PlannedItemCard({
   const handleView = useCallback(() => {
     if (recipe && onView) onView(recipe);
   }, [onView, recipe]);
+
+  // In-place edit, with the same step used when adding
+  const [editing, setEditing] = useState(false);
+  const [editServings, setEditServings] = useState(entry.servings);
+  const [editSource, setEditSource] = useState<RecipeSource>(entry.recipe_source ?? 'prepare');
+  const handleToggleEdit = useCallback(() => {
+    setEditServings(entry.servings);
+    setEditSource(entry.recipe_source ?? 'prepare');
+    setEditing(open => !open);
+  }, [entry.servings, entry.recipe_source]);
+  const changeEditServings = useCallback((delta: number) => {
+    setEditServings(current => Math.min(24, Math.max(1, current + delta)));
+  }, []);
+  const handleCancelEdit = useCallback(() => setEditing(false), []);
+  const handleSaveEdit = useCallback(() => {
+    if (!recipe || !onUpdate) return;
+    onUpdate(entryId, { kind: 'recipe', recipeId: recipe.id, servings: editServings, recipeSource: editSource });
+    setEditing(false);
+  }, [recipe, onUpdate, entryId, editServings, editSource]);
 
   if (!recipe) {
     return (
@@ -86,6 +110,7 @@ export const PlannedItemCard = React.memo(function PlannedItemCard({
     <MealRow
       recipe={recipe}
       servings={entry.servings}
+      source={entry.recipe_source ?? 'prepare'}
       categoryLabel={
         <Text style={[styles.mealCategory, { color }]}>
           {t('categories.' + recipe.category, { defaultValue: recipe.category })}
@@ -94,12 +119,25 @@ export const PlannedItemCard = React.memo(function PlannedItemCard({
       placeholderIcon="restaurant-outline"
       placeholderColor={colors.textMuted}
       onView={onView ? handleView : undefined}
+      onEdit={onUpdate ? handleToggleEdit : undefined}
       onDelete={handleDelete}
+      editing={editing}
+      editStep={editing ? (
+        <RecipeServingsStep
+          servings={editServings}
+          onChangeServings={changeEditServings}
+          source={editSource}
+          onChangeSource={setEditSource}
+          onCancel={handleCancelEdit}
+          onConfirm={handleSaveEdit}
+          confirmLabel={t('planner.saveEdit')}
+        />
+      ) : null}
     />
   );
 });
 
-// Riga di un ingrediente o piatto pronto pianificato
+// Row of a planned ingredient or ready meal
 export function FoodRow({
   name,
   meta,
@@ -135,66 +173,94 @@ export function FoodRow({
   );
 }
 
-// Riga di una ricetta pianificata
+// Row of a planned recipe, with the prepared / already ready badge and, when editing, the step below
 export function MealRow({
   recipe,
   servings,
+  source,
   categoryLabel,
   placeholderIcon,
   placeholderColor,
   onView,
+  onEdit,
   onDelete,
+  editing,
+  editStep,
 }: {
   recipe: Recipe;
   servings: number;
+  source: RecipeSource;
   categoryLabel: React.ReactNode;
   placeholderIcon: React.ComponentProps<typeof Ionicons>['name'];
   placeholderColor: string;
   onView?: () => void;
+  onEdit?: () => void;
   onDelete: () => void;
+  editing: boolean;
+  editStep: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const prepare = source === 'prepare';
+  const imageSource = useMemo(() => ({ uri: recipe.image }), [recipe.image]);
 
   return (
-    <View style={styles.mealCard}>
-      {recipe.image ? (
-        <Image
-          source={{ uri: recipe.image }}
-          style={[styles.mealImage, styles.mealImagePlaceholder]}
-          contentFit="cover"
-          cachePolicy="disk"
-          recyclingKey={recipe.id}
-          transition={0}
-        />
-      ) : (
-        <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-          <Ionicons name={placeholderIcon} size={24} color={placeholderColor} />
-        </View>
-      )}
-      <View style={styles.mealInfo}>
-        {categoryLabel}
-        <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
-        <View style={styles.mealMeta}>
-          <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
-          <Text style={styles.mealMetaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
-          <Text style={styles.mealMetaDivider}>·</Text>
-          <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
-          <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
-        </View>
-      </View>
-
-      <View style={styles.mealActions}>
-        {onView && (
-          <TouchableOpacity style={styles.viewMealBtn} onPress={onView} activeOpacity={0.7}>
-            <Ionicons name="book-outline" size={17} color={colors.primaryText} />
-          </TouchableOpacity>
+    <View>
+      <TouchableOpacity
+        style={[styles.mealCard, editing && styles.mealCardEditing]}
+        onPress={onEdit}
+        disabled={!onEdit}
+        activeOpacity={0.7}
+      >
+        {recipe.image ? (
+          <Image
+            source={imageSource}
+            style={[styles.mealImage, styles.mealImagePlaceholder]}
+            contentFit="cover"
+            cachePolicy="disk"
+            recyclingKey={recipe.id}
+            transition={0}
+          />
+        ) : (
+          <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+            <Ionicons name={placeholderIcon} size={24} color={placeholderColor} />
+          </View>
         )}
-        <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={17} color={colors.danger} />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.mealInfo}>
+          {categoryLabel}
+          <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
+          <View style={styles.mealMeta}>
+            <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+            <Text style={styles.mealMetaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
+            <Text style={styles.mealMetaDivider}>·</Text>
+            <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+            <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
+          </View>
+          <View style={[styles.sourceBadge, { backgroundColor: prepare ? colors.primarySoft : colors.surfaceMuted }]}>
+            <Ionicons
+              name={prepare ? 'flame-outline' : 'bag-check-outline'}
+              size={11}
+              color={prepare ? colors.primaryText : colors.textSecondary}
+            />
+            <Text style={[styles.sourceBadgeText, { color: prepare ? colors.primaryText : colors.textSecondary }]}>
+              {t(`planner.recipeSource.${source}`)}
+            </Text>
+          </View>
+        </View>
+  
+        <View style={styles.mealActions}>
+          {onView && (
+            <TouchableOpacity style={styles.viewMealBtn} onPress={onView} activeOpacity={0.7}>
+              <Ionicons name="book-outline" size={17} color={colors.primaryText} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
+            <Ionicons name="trash-outline" size={17} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+      {editStep}
     </View>
   );
 }
@@ -216,6 +282,27 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   mealMetaText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
   mealMetaDivider: { fontSize: 11, color: colors.textMuted, marginHorizontal: 4 },
+  mealCardEditing: {
+    marginBottom: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    borderColor: colors.borderStrong,
+    // No shadow on the bottom edge: attached to the step below it must not leave a gray line
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  sourceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  sourceBadgeText: { fontSize: 10, fontWeight: '700' },
   mealActions: { flexDirection: 'row', gap: 6 },
   viewMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   deleteMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' },

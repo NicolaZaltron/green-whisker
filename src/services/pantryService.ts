@@ -1,5 +1,5 @@
 import { Recipe } from '../types/recipe';
-import { catalogRecipes, getCatalogVersion } from './recipeCatalog';
+import { catalogRecipes } from './recipeCatalog';
 
 export interface PantryMatchResult {
   recipe: Recipe;
@@ -38,7 +38,7 @@ export const POPULAR_PANTRY_ITEMS = [
   'Mandorle'
 ];
 
-// Condimenti base che normalmente chiunque ha a casa
+// Base condiments that normally everyone has at home
 export const DEFAULT_STAPLES = ['sale', 'pepe', 'olio', 'acqua'];
 
 function normalize(str: string): string {
@@ -51,80 +51,47 @@ function normalize(str: string): string {
     .trim();
 }
 
-interface NormalizedIngredientItem {
+// A single collator for the vocabulary: localeCompare recreates the comparison rules on every call (slow on Hermes)
+const COLLATOR = new Intl.Collator('it');
+
+export interface IngredientVocabularyItem {
   original: string;
   normalized: string;
 }
 
-let cachedNormalizedIngredients: NormalizedIngredientItem[] | null = null;
-let cachedCatalogVersion = -1;
-
 /**
- * Lazily extracts and caches unique ingredient terms to avoid blocking JS thread during app boot.
+ * Suggestion vocabulary: the list of common ingredients plus the app's ingredient names.
+ * Built once by the screen, so typing does not reread the catalog.
  */
-function getNormalizedIngredients(): NormalizedIngredientItem[] {
-  // La cache si rigenera quando il catalogo cambia
-  if (cachedNormalizedIngredients !== null && cachedCatalogVersion === getCatalogVersion()) {
-    return cachedNormalizedIngredients;
-  }
-  cachedCatalogVersion = getCatalogVersion();
-
+export function buildIngredientVocabulary(ingredientNames: string[]): IngredientVocabularyItem[] {
   const set = new Set<string>();
-  const stopWords = new Set([
-    'q.b.', 'qb', 'g', 'grammi', 'kg', 'ml', 'cl', 'l', 'litri',
-    'cucchiai', 'cucchiaio', 'cucchiaini', 'cucchiaino', 'pizzico',
-    'fette', 'fetta', 'bicchiere', 'bicchieri', 'spicchio', 'spicchi',
-    'vasetto', 'vasetti', 'bustina', 'bustine', 'rotolo', 'rotoli',
-    'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'il', 'lo',
-    'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'del', 'della', 'dello',
-    'dei', 'degli', 'delle', 'al', 'allo', 'alla', 'ai', 'agli', 'alle',
-    'e', 'o', 'raso', 'abbondante', 'facoltativo', 'opzionale', 'circa'
-  ]);
-
   POPULAR_PANTRY_ITEMS.forEach(item => set.add(item));
+  ingredientNames.forEach(name => {
+    const clean = name.trim();
+    if (clean) set.add(clean);
+  });
 
-  for (const recipe of catalogRecipes) {
-    const ingList = recipe.ingredients || [];
-    if (ingList.length === 0) continue;
-    for (const raw of ingList) {
-      const words = raw
-        .toLowerCase()
-        .replace(/[^a-zàèéìòù\s]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !stopWords.has(w));
-
-      if (words.length > 0) {
-        words.forEach(w => {
-          if (w.length >= 3) {
-            set.add(w.charAt(0).toUpperCase() + w.slice(1));
-          }
-        });
-      }
-    }
-  }
-
-  const sorted = Array.from(set).sort((a, b) => a.localeCompare('it'));
-  cachedNormalizedIngredients = sorted.map(item => ({
-    original: item,
-    normalized: normalize(item)
-  }));
-
-  return cachedNormalizedIngredients;
+  return Array.from(set)
+    .sort(COLLATOR.compare)
+    .map(item => ({ original: item, normalized: normalize(item) }));
 }
 
 /**
  * Returns ingredient autocomplete suggestions based on typed query with pre-normalized matching and early exit.
  */
-export function getIngredientSuggestions(query: string, alreadySelected: string[] = []): string[] {
+export function getIngredientSuggestions(
+  query: string,
+  alreadySelected: string[],
+  vocabulary: IngredientVocabularyItem[],
+): string[] {
   const trimmed = normalize(query);
   if (!trimmed) return [];
 
   const selectedNorm = new Set(alreadySelected.map(normalize));
-  const items = getNormalizedIngredients();
   const suggestions: string[] = [];
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (let i = 0; i < vocabulary.length; i++) {
+    const item = vocabulary[i];
     if (!selectedNorm.has(item.normalized) && item.normalized.includes(trimmed)) {
       suggestions.push(item.original);
       if (suggestions.length >= 8) {
@@ -137,8 +104,8 @@ export function getIngredientSuggestions(query: string, alreadySelected: string[
 }
 
 /**
- * Algoritmo di matching Svuotafrigo:
- * Trova e ordina le ricette in base agli ingredienti posseduti.
+ * Fridge cleanout matching algorithm:
+ * Finds and sorts recipes based on the ingredients owned.
  */
 export function searchPantryRecipes(
   userPantry: string[],
@@ -171,9 +138,9 @@ export function searchPantryRecipes(
 
       requiredCount++;
 
-      // Verifica se l'ingrediente della ricetta contiene uno degli ingredienti del pantry o viceversa
+      // Checks whether the recipe ingredient contains one of the pantry ingredients or vice versa
       const isPresent = normalizedPantry.some(p => {
-        // Corrispondenza per parola o sottostringa
+        // Match by word or substring
         return normIng.includes(p) || p.split(' ').some(w => w.length > 2 && normIng.includes(w));
       });
 
@@ -185,7 +152,7 @@ export function searchPantryRecipes(
       }
     }
 
-    // Se l'utente ha almeno 1 ingrediente chiave di questa ricetta
+    // If the user has at least 1 key ingredient of this recipe
     if (matchedCount > 0 && requiredCount > 0) {
       const percentage = Math.round((matchedCount / requiredCount) * 100);
       results.push({
@@ -200,10 +167,10 @@ export function searchPantryRecipes(
     }
   }
 
-  // Ordinamento:
-  // 1. Meno ingredienti mancanti (0 mancanti = subito realizzabili in cima)
-  // 2. Percentuale di copertura più alta
-  // 3. Maggior numero di ingredienti combacianti
+  // Sorting:
+  // 1. Fewest missing ingredients (0 missing = immediately doable at the top)
+  // 2. Highest coverage percentage
+  // 3. Greatest number of matching ingredients
   results.sort((a, b) => {
     if (a.missingCount !== b.missingCount) return a.missingCount - b.missingCount;
     if (b.percentage !== a.percentage) return b.percentage - a.percentage;

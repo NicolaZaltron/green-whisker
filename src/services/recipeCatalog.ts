@@ -1,26 +1,26 @@
 import { Recipe } from '../types/recipe';
 import { getCatalogRecipes, getKV, initCatalog, setKV, upsertCatalogRecipes } from '../db/database';
 import { normalizeImported } from './catalogFormat';
-
-// Ricalcolo una tantum di dieta e tag sulle ricette già presenti (le versioni precedenti non lo facevano)
-const DIET_RULES_KEY = 'catalog_diet_rules_v3';
 import { initializeSearchIndex } from './searchService';
 
-// Stessi array per tutte le schermate: si aggiornano sul posto, quindi chi li ha importati vede i cambiamenti.
-export const catalogRecipes: Recipe[] = []; // ricette originali: ricerca, planner, spesa, preferiti
-export const catalogVariants: Recipe[] = []; // varianti: visibili solo nella scheda della ricetta
+// One-time recomputation of diet and tags on the recipes already present (previous versions did not do it)
+const DIET_RULES_KEY = 'catalog_diet_rules_v3';
 
-// Indice per id su originali e varianti, ricostruito a ogni cambio di catalogo (vedi setCatalog)
+// Same arrays for all screens: they are updated in place, so whoever imported them sees the changes.
+export const catalogRecipes: Recipe[] = []; // original recipes: search, planner, shopping, favorites
+export const catalogVariants: Recipe[] = []; // variants: visible only in the recipe card
+
+// Index by id over originals and variants, rebuilt on every catalog change (see setCatalog)
 const recipeById = new Map<string, Recipe>();
 
 function rebuildRecipeIndex(): void {
   recipeById.clear();
-  // Stesso ordine della vecchia mappa per schermata: le varianti sovrascrivono l'id, se duplicato
+  // Same order as the old per-screen map: variants overwrite the id, if duplicated
   catalogRecipes.forEach(r => recipeById.set(r.id, r));
   catalogVariants.forEach(r => recipeById.set(r.id, r));
 }
 
-/** Ricetta (originale o variante) per id, O(1). */
+/** Recipe (original or variant) by id, O(1). */
 export function getRecipeById(id: string): Recipe | undefined {
   return recipeById.get(id);
 }
@@ -40,7 +40,7 @@ export function subscribeCatalog(listener: () => void): () => void {
 }
 
 function setCatalog(all: Recipe[]): void {
-  // Una variante senza originale nel catalogo viene mostrata come ricetta normale, finché l'originale non arriva
+  // A variant without an original in the catalog is shown as a normal recipe, until the original arrives
   const originalIds = new Set(all.filter(r => !r.variant_of).map(r => r.id));
   catalogRecipes.splice(0, catalogRecipes.length, ...all.filter(r => !r.variant_of || !originalIds.has(r.variant_of)));
   catalogVariants.splice(0, catalogVariants.length, ...all.filter(r => r.variant_of && originalIds.has(r.variant_of)));
@@ -50,16 +50,22 @@ function setCatalog(all: Recipe[]): void {
   listeners.forEach(listener => listener());
 }
 
-/** Carica il catalogo dal database (con la migrazione una tantum). Chiamare dopo initDatabase. */
+/** Loads the catalog from the database (with the one-time migration). Call after initDatabase. */
 export async function loadCatalog(): Promise<void> {
-  await initCatalog();
-  if ((await getKV(DIET_RULES_KEY)) !== '1') {
-    const now = Date.now();
-    await upsertCatalogRecipes((await getCatalogRecipes()).map(r => normalizeImported(r, now)), 'overwrite');
-    await setKV(DIET_RULES_KEY, '1');
+  // If a migration fails (upsertCatalogRecipes rethrows) startup is not blocked:
+  // the flag is not set, so the migration repeats at the next load
+  try {
+    await initCatalog();
+    if ((await getKV(DIET_RULES_KEY)) !== '1') {
+      const now = Date.now();
+      await upsertCatalogRecipes((await getCatalogRecipes()).map(r => normalizeImported(r, now)), 'overwrite');
+      await setKV(DIET_RULES_KEY, '1');
+    }
+  } catch (e) {
+    console.warn('Catalog migration failed, it will be retried:', e);
   }
   setCatalog(await getCatalogRecipes());
 }
 
-/** Da chiamare dopo ogni modifica al database: ricarica il catalogo condiviso */
+/** To be called after every database modification: reloads the shared catalog */
 export const refreshCatalog = loadCatalog;

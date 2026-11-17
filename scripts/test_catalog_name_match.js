@@ -1,4 +1,4 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_catalog_name_match.js
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_catalog_name_match.js
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -52,7 +52,7 @@ check('Quinoa tricolore non in catalogo: nome invariato, matched false', () => {
   assert.deepEqual(matchCatalogName('Quinoa tricolore', toEntries(['Mandorle', 'Uova'])), { name: 'Quinoa tricolore', matched: false });
 });
 
-// Test matching via aliases (nuovo: gli alias sono indicizzati per il matching)
+// Test matching via aliases (new: aliases are indexed for matching)
 check('match tramite alias: "orange" -> "Arancia"', () => {
   const entries = [
     {name: 'Arancia', aliases: ['arancia', 'arance', 'orange', 'oranges']},

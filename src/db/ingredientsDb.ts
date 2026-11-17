@@ -17,8 +17,8 @@ const TYPE_SET = new Set<string>(INGREDIENT_TYPES);
 const TAG_SET = new Set<string>(INGREDIENT_TAGS);
 const NUTRIENT_SET = new Set<string>(NUTRIENTS);
 
-// Cache in memoria di listIngredients (planner e suggerimenti spesa). Invalidata da ogni scrittura
-// su ingredients e ingredient_nutrients. La versione evita di salvare una lettura iniziata prima di una scrittura.
+// In-memory cache of listIngredients (planner and shopping suggestions). Invalidated by every write
+// to ingredients and ingredient_nutrients. The version avoids saving a read that started before a write.
 let ingredientsCache: Ingredient[] | null = null;
 let ingredientsCacheVersion = 0;
 
@@ -27,7 +27,7 @@ function invalidateIngredientsCache(): void {
   ingredientsCacheVersion++;
 }
 
-/** Cambia a ogni invalidazione della cache: permette ai chiamanti di sapere se gli ingredienti sono cambiati. */
+/** Changes on every cache invalidation: lets callers know whether the ingredients changed. */
 export function getIngredientsCacheVersion(): number {
   return ingredientsCacheVersion;
 }
@@ -132,13 +132,16 @@ function rowToIngredient(row: any, nutrients: Nutrients): Ingredient {
   };
 }
 
+// A single multi-row INSERT per ingredient: 16 nutrients do not become 16 round trips to SQLite
 async function insertNutrientRows(db: any, id: string, nutrients: Nutrients): Promise<void> {
-  for (const [nutrient, value] of Object.entries(nutrients)) {
-    await db.runAsync(
-      'INSERT INTO ingredient_nutrients (ingredient_id, nutrient, value) VALUES (?, ?, ?)',
-      [id, nutrient, value],
-    );
-  }
+  const entries = Object.entries(nutrients);
+  if (entries.length === 0) return;
+  const placeholders = entries.map(() => '(?, ?, ?)').join(', ');
+  const params = entries.flatMap(([nutrient, value]) => [id, nutrient, value]);
+  await db.runAsync(
+    `INSERT INTO ingredient_nutrients (ingredient_id, nutrient, value) VALUES ${placeholders}`,
+    params,
+  );
 }
 
 async function replaceNutrientRows(db: any, id: string, nutrients: Nutrients): Promise<void> {

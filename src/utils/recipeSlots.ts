@@ -4,7 +4,7 @@ const BREAKFAST_SLOTS = ['colazione'];
 const SNACK_SLOTS = ['spuntino_mattina', 'spuntino_pomeriggio'];
 const MEAL_SLOTS = ['pranzo', 'cena'];
 
-// Slot del planner compatibili con ciascun recommended_slot
+// Planner slots compatible with each recommended_slot
 const SLOTS_BY_RECOMMENDED: Partial<Record<RecommendedSlot, string[]>> = {
   colazione: BREAKFAST_SLOTS,
   breakfast: BREAKFAST_SLOTS,
@@ -15,8 +15,8 @@ const SLOTS_BY_RECOMMENDED: Partial<Record<RecommendedSlot, string[]>> = {
 };
 
 /**
- * Ricetta compatibile con uno slot del planner.
- * Senza recommended_slot (o con valore sconosciuto): tutti gli slot tranne colazione e spuntini.
+ * Recipe compatible with a planner slot.
+ * Without recommended_slot (or with an unknown value): all slots except breakfast and snacks.
  */
 export function isRecipeForSlot(recipe: Recipe, slot: string): boolean {
   const recommended = recipe.recommended_slot;

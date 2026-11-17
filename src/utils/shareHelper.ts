@@ -159,7 +159,7 @@ export async function copyRecipeToClipboard(text: string): Promise<boolean> {
 }
 
 /**
- * Formatta la lista della spesa raggruppata per reparti
+ * Formats the shopping list grouped by departments
  */
 export function formatShoppingListShareText(items: ShoppingItem[]): string {
   if (!items || items.length === 0) return `🛒 ${i18n.t('share.emptyList')}`;

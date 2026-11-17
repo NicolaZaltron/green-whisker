@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
-import type { Recipe } from '../../types/recipe';
+import type { Recipe, RecipeSource } from '../../types/recipe';
 import { INGREDIENT_TAGS, type Ingredient, type ReadyMeal } from '../../types/catalog';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
@@ -28,20 +28,23 @@ import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits'
 import { getSortedPickerRecipes, uniquePickerRecipes } from '../../services/pickerRecipes';
 import { SLOT_COLORS, type MealSlot } from '../../services/plannerService';
 import { PlannedItemCard, plannedItemLabel, type DayMealItem } from './PlannedItemCards';
+import { RecipeServingsStep } from './RecipeServingsStep';
 import { ingredientDisplayName } from '../../utils/ingredientNames';
 
 export interface MealPickerModalProps {
   visible: boolean;
   targetSlot: string;
   targetDate: string;
-  // Pasti già pianificati nello slot (giorno selezionato), mostrati come schede di sola lettura
+  // Meals already planned in the slot (selected day), shown as read-only cards
   plannedForSlot: DayMealItem[];
   allRecipes: Recipe[];
-  // Id delle ricette preferite: mostrate con il cuore e messe prima nei risultati di ricerca
+  // Ids of favorite recipes: shown with the heart and placed first in search results
   favoriteIds?: ReadonlySet<string>;
   ingredients: Ingredient[];
   readyMeals: ReadyMeal[];
-  onSelectRecipe: (recipe: Recipe) => void;
+  // Default servings to eat (planner setting): when preparing, the default is the recipe's
+  eatServings: number;
+  onSelectRecipe: (recipe: Recipe, servings: number, source: RecipeSource) => void;
   onSelectIngredient: (ingredient: Ingredient, amount: number | null, unit: string) => void;
   onSelectReadyMeal: (meal: ReadyMeal, count: number) => void;
   onSelectOutOfHome: (label: string) => void;
@@ -49,18 +52,19 @@ export interface MealPickerModalProps {
   onClose: () => void;
 }
 
-// Insieme vuoto stabile: un default nuovo a ogni render invaliderebbe le liste memorizzate
+// Stable empty set: a new default on every render would invalidate memoized lists
 const EMPTY_FAVORITE_IDS: ReadonlySet<string> = new Set<string>();
 
-// Schede pianificate in sola lettura nel picker: niente swap né eliminazione da qui
+// Read-only planned cards in the picker: no swap or deletion from here
 
 type MealTab = 'all' | 'recipes' | 'ingredients' | 'ready' | 'out';
 const TABS: MealTab[] = ['all', 'ingredients', 'recipes', 'ready', 'out'];
 
-// null = Tutti (nessun filtro per tag)
+// null = All (no tag filter)
 type TagFilter = string | null;
 
 type PendingItem =
+  | { kind: 'recipe'; recipe: Recipe }
   | { kind: 'ingredient'; ingredient: Ingredient }
   | { kind: 'ready'; meal: ReadyMeal };
 
@@ -70,12 +74,146 @@ type PickerRow =
   | { kind: 'ready'; key: string; meal: ReadyMeal }
   | { kind: 'out'; key: string; label: string };
 
-// Funzione stabile per FlatList: una nuova a ogni render farebbe ricalcolare le chiavi
+// Stable function for FlatList: a new one on every render would recompute the keys
 const keyExtractor = (row: PickerRow) => row.key;
 
+// Picker rows for ingredients, out of home and ready meals: memoized like the recipes
+const PickerIngredientRow = React.memo(function PickerIngredientRow({ ingredient, onStart }: { ingredient: Ingredient; onStart: (ingredient: Ingredient) => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const quantity = ingredient.default_amount != null
+    ? `${ingredient.default_amount} ${unitLabel(ingredient.default_unit, t, ingredient.default_amount ?? 1)}`.trim()
+    : '';
+  return (
+    <TouchableOpacity style={styles.pickerItem} onPress={() => onStart(ingredient)} activeOpacity={0.7}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pickerItemTitle} numberOfLines={2}>{ingredientDisplayName(ingredient, t)}</Text>
+        <Text style={styles.pickerItemMeta} numberOfLines={1}>
+          {t(`mealPicker.type.${ingredient.type}`)}
+          {quantity ? ` • ${quantity}` : ''}
+        </Text>
+      </View>
+      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+    </TouchableOpacity>
+  );
+});
+
+const PickerOutRow = React.memo(function PickerOutRow({ label, onSelect }: { label: string; onSelect: (label: string) => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity style={styles.pickerItem} onPress={() => onSelect(label)} activeOpacity={0.7}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pickerItemTitle} numberOfLines={2}>{label}</Text>
+      </View>
+      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+    </TouchableOpacity>
+  );
+});
+
+const PickerReadyRow = React.memo(function PickerReadyRow({ meal, onStart }: { meal: ReadyMeal; onStart: (meal: ReadyMeal) => void }) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <TouchableOpacity style={styles.pickerItem} onPress={() => onStart(meal)} activeOpacity={0.7}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pickerItemCat}>
+          {t(`mealPicker.category.${meal.category}`)}
+        </Text>
+        <Text style={styles.pickerItemTitle} numberOfLines={2}>{meal.name}</Text>
+        {meal.tags.length > 0 && (
+          <Text style={styles.pickerItemMeta} numberOfLines={1}>
+            {(meal.tags as string[]).map(tag => formatTagLabel(tag, t)).join(' • ')}
+          </Text>
+        )}
+      </View>
+      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+    </TouchableOpacity>
+  );
+});
+
+// Row of a recipe in the picker. Memoized: with unchanged props it does not re-render when
+// another row's step (source, servings) changes, so the tap does not reload all images
+const PickerRecipeRow = React.memo(function PickerRecipeRow({
+  recipe,
+  isFavorite,
+  expanded,
+  step,
+  onStart,
+  onCollapse,
+}: {
+  recipe: Recipe;
+  isFavorite: boolean;
+  expanded: boolean;
+  step: React.ReactNode;
+  onStart: (recipe: Recipe) => void;
+  onCollapse: () => void;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const minutes = recipe.times?.total_minutes ?? 0;
+  const servings = recipe.servings ?? 0;
+  const imageSource = useMemo(() => ({ uri: recipe.image }), [recipe.image]);
+  return (
+    <View>
+      <TouchableOpacity
+        style={[styles.pickerItem, expanded && styles.pickerItemExpanded]}
+        onPress={() => (expanded ? onCollapse() : onStart(recipe))}
+        activeOpacity={0.7}
+      >
+        {recipe.image ? (
+          <Image
+            source={imageSource}
+            style={[styles.recipeThumb, { backgroundColor: colors.surfaceMuted }]}
+            contentFit="cover"
+            cachePolicy="disk"
+            recyclingKey={recipe.id}
+            transition={0}
+          />
+        ) : (
+          <View style={[styles.recipeThumb, styles.recipeThumbPlaceholder]}>
+            <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.pickerItemTitle, { flexShrink: 1 }]} numberOfLines={2}>{recipe.title}</Text>
+          {(minutes > 0 || servings > 0 || isFavorite) && (
+            <View style={styles.recipeMeta}>
+              {minutes > 0 && (
+                <>
+                  <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+                  <Text style={styles.pickerItemMeta}>{t('common.minutes', { count: minutes })}</Text>
+                </>
+              )}
+              {minutes > 0 && servings > 0 && (
+                <Text style={styles.recipeMetaDivider}>·</Text>
+              )}
+              {servings > 0 && (
+                <>
+                  <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+                  <Text style={styles.pickerItemMeta}>{t('common.servings', { count: servings })}</Text>
+                </>
+              )}
+              {isFavorite && (
+                <Ionicons name="heart" size={14} color={colors.primary} style={{ marginLeft: 6 }} />
+              )}
+            </View>
+          )}
+        </View>
+        <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+      </TouchableOpacity>
+      {step}
+    </View>
+  );
+});
+
+
 /**
- * Modal unico per aggiungere un pasto a uno slot del planner:
- * ricette, ingredienti crudi (con quantità), prodotti pronti (con numero di porzioni) e pasti fuori casa.
+ * Single modal to add a meal to a planner slot:
+ * recipes, raw ingredients (with quantity), ready products (with number of servings) and out-of-home meals.
  */
 const MealPickerModal: React.FC<MealPickerModalProps> = ({
   visible,
@@ -86,6 +224,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   favoriteIds = EMPTY_FAVORITE_IDS,
   ingredients,
   readyMeals,
+  eatServings,
   onSelectRecipe,
   onSelectIngredient,
   onSelectReadyMeal,
@@ -94,43 +233,45 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   onClose,
 }) => {
   const { t, i18n } = useTranslation();
-  // Collator della lingua dell'app: ordinamenti alfabetici coerenti con quella mostrata, creato una volta per lingua
+  // Collator for the app language: alphabetical sorting consistent with the displayed one, created once per language
   const collator = useMemo(() => new Intl.Collator(i18n.language, { sensitivity: 'base' }), [i18n.language]);
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  // Colore dello slot, come nelle schede del planner
+  // Slot color, as in the planner cards
   const slotColors = SLOT_COLORS[targetSlot as MealSlot];
   const slotAccent = slotColors ? (isDark ? slotColors.darkColor : slotColors.color) : colors.primaryText;
 
   const [tab, setTab] = useState<MealTab>('all');
   const [query, setQuery] = useState('');
-  // Il campo di testo usa query (immediata); le liste usano deferredQuery, così la digitazione non aspetta il filtro
+  // The text field uses query (immediate); the lists use deferredQuery, so typing does not wait for the filter
   const deferredQuery = useDeferredValue(query);
   const [tagFilter, setTagFilter] = useState<TagFilter>(null);
-  // Scheda Ricette: di default solo quelle compatibili con lo slot, "Tutte" le mostra tutte
+  // Recipes tab: by default only those compatible with the slot, "All" shows them all
   const [showAllRecipes, setShowAllRecipes] = useState(false);
-  // Scheda Pronti: stesso comportamento; di default solo quelli previsti per lo slot
+  // Ready tab: same behavior; by default only those intended for the slot
   const [showAllReady, setShowAllReady] = useState(false);
   const [pending, setPending] = useState<PendingItem | null>(null);
   const [amountText, setAmountText] = useState('');
   const [unitText, setUnitText] = useState('');
   const [unitMenuOpen, setUnitMenuOpen] = useState(false);
   const [countText, setCountText] = useState('1');
-  // Ultimo pasto aggiunto: la modale resta aperta per aggiungere altro allo stesso slot
+  const [recipeServings, setRecipeServings] = useState(eatServings);
+  const [recipeSource, setRecipeSource] = useState<RecipeSource>('prepare');
+  // Last meal added: the modal stays open to add more to the same slot
   const [added, setAdded] = useState<string | null>(null);
-  // Nome dell'ultima aggiunta mostrato nell'avviso: resta valorizzato durante la dissolvenza di chiusura
+  // Name of the last addition shown in the notice: stays set during the closing fade
   const [alertName, setAlertName] = useState('');
   if (added !== null && added !== alertName) setAlertName(added);
-  // Reset alla cambio di slot (la modale resta montata e cambia solo targetSlot)
+  // Reset on slot change (the modal stays mounted and only targetSlot changes)
   const [prevTargetSlot, setPrevTargetSlot] = useState(targetSlot);
   if (prevTargetSlot !== targetSlot) {
     setPrevTargetSlot(targetSlot);
     setShowAllRecipes(false);
   }
 
-  // Righe della lista calcolate solo a modale aperta e dopo il primo frame: così l'apertura è immediata
-  // e lo spinner resta visibile mentre si prepara la lista. Resta true tra un'apertura e l'altra
-  // finché la sorgente dati (ricette, preferiti, ingredienti, pronti) non cambia.
+  // List rows computed only when the modal is open and after the first frame: so opening is immediate
+  // and the spinner stays visible while the list is prepared. Stays true between openings
+  // until the data source (recipes, favorites, ingredients, ready meals) changes.
   const [listReady, setListReady] = useState(false);
   const preparedSourceRef = useRef<{
     allRecipes: Recipe[];
@@ -175,7 +316,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setAdded(null);
   }, []);
 
-  // Dopo un'aggiunta si chiudono solo i passi in corso: scheda, ricerca e filtri restano
+  // After an addition only the steps in progress are closed: tab, search and filters remain
   const finishAdd = useCallback((name: string) => {
     setPending(null);
     setAmountText('');
@@ -195,10 +336,10 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setPending(null);
   };
 
-  // Ricette: senza duplicati, ordinate (preferite prima) e filtrate per ricerca.
-  // Non dipende da tab/slot: il calcolo più costoso non si ripete a ogni cambio di scheda
-  // Query vuota: preferite prima, poi le altre (alfabetico), memorizzate in getSortedPickerRecipes;
-  // con ricerca: preferite prima tra i match
+  // Recipes: without duplicates, sorted (favorites first) and filtered by search.
+  // Does not depend on tab/slot: the most expensive computation is not repeated on every tab change
+  // Empty query: favorites first, then the others (alphabetical), memoized in getSortedPickerRecipes;
+  // with search: favorites first among matches
   const sortedRecipes = useMemo(() => {
     if (!listReady) return [];
     const q = deferredQuery.toLowerCase().trim();
@@ -212,7 +353,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     });
   }, [allRecipes, deferredQuery, favoriteIds, listReady, collator]);
 
-  // Solo il filtro per slot (scheda Ricette, "Suggerite"); il filtro preserva l'ordine di sortedRecipes
+  // Only the slot filter (Recipes tab, "Suggested"); the filter preserves the order of sortedRecipes
   const visibleRecipes = useMemo(
     () =>
       tab === 'recipes' && !showAllRecipes
@@ -221,7 +362,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     [sortedRecipes, targetSlot, showAllRecipes, tab]
   );
 
-  // Ingredienti: solo quelli mangiabili così come sono
+  // Ingredients: only those edible as they are
   const edibleIngredients = useMemo(
     () => ingredients.filter(i => i.edible_alone === true),
     [ingredients]
@@ -241,7 +382,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
       .sort((a, b) => collator.compare(a.name, b.name));
   }, [edibleIngredients, deferredQuery, tagFilter, listReady, collator]);
 
-  // Pronti: di default solo quelli previsti per questo slot, "Tutti" li mostra tutti
+  // Ready: by default only those intended for this slot, "All" shows them all
   const slotReadyMeals = useMemo(
     () => (showAllReady ? readyMeals : readyMeals.filter(m => m.slots.includes(targetSlot))),
     [readyMeals, targetSlot, showAllReady]
@@ -265,11 +406,14 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   const tagOptions: string[] =
     tab === 'ingredients' ? ingredientTagOptions : tab === 'ready' ? readyTagOptions : [];
 
-  // Fuori casa: opzioni fisse, scollegate da ingredienti, lista della spesa e pronti
+  // Out of home: fixed options, unlinked from ingredients, shopping list and ready meals
   const outOfHomeList = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
     return OUT_OF_HOME_OPTIONS.filter(option => !q || option.toLowerCase().includes(q));
   }, [deferredQuery]);
+
+  // Recipe with the servings step open: its row expands in place
+  const expandedRecipeId = pending?.kind === 'recipe' ? pending.recipe.id : null;
 
   const rows = useMemo<PickerRow[]>(() => {
     if (!listReady) return [];
@@ -290,7 +434,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     if (tab === 'ingredients') return ingredientRows();
     if (tab === 'out') return outRows();
     if (tab === 'ready') return readyRows();
-    // Tutti con ricerca: ordinamento per pertinenza (inizio query prima, poi contenuti)
+    // All with search: sorted by relevance (query start first, then contains)
     if (deferredQuery.trim()) {
       const allRows = [...recipeRows(), ...ingredientRows(), ...readyRows(), ...outRows()];
       return rankPickerMatches(
@@ -308,14 +452,27 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
         collator
       ).map(item => item.value);
     }
-    // Tutti: ricette, ingredienti, pronti, fuori casa
+    // All: recipes, ingredients, ready meals, out of home
     return [...recipeRows(), ...ingredientRows(), ...readyRows(), ...outRows()];
   }, [tab, deferredQuery, visibleRecipes, ingredientList, readyList, outOfHomeList, favoriteIds, listReady, t, collator]);
 
-  const handleSelectRecipe = useCallback((recipe: Recipe) => {
-    finishAdd(recipe.title);
-    onSelectRecipe(recipe);
-  }, [finishAdd, onSelectRecipe]);
+  // To prepare: recipe servings. Already ready: planner servings to eat
+  const handleStartRecipe = useCallback((recipe: Recipe) => {
+    setPending({ kind: 'recipe', recipe });
+    setRecipeServings(recipe.servings || eatServings);
+    setRecipeSource('prepare');
+  }, [eatServings]);
+
+  // Changing the choice resets the value to the default of that choice
+  const handleChangeRecipeSource = useCallback((source: RecipeSource) => {
+    const recipe = pending?.kind === 'recipe' ? pending.recipe : null;
+    setRecipeSource(source);
+    setRecipeServings(source === 'prepare' && recipe ? recipe.servings || eatServings : eatServings);
+  }, [pending, eatServings]);
+
+  const changeRecipeServings = useCallback((delta: number) => {
+    setRecipeServings(current => Math.min(24, Math.max(1, current + delta)));
+  }, []);
 
   const handleSelectOutOfHome = useCallback((label: string) => {
     finishAdd(label);
@@ -325,7 +482,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   const handleStartIngredient = useCallback((ingredient: Ingredient) => {
     setPending({ kind: 'ingredient', ingredient });
     setAmountText(ingredient.default_amount != null ? String(ingredient.default_amount) : '');
-    // Unità della porzione (default_unit) per coerenza con la quantità; purchase_unit solo come ripiego
+    // Portion unit (default_unit) for consistency with the quantity; purchase_unit only as a fallback
     setUnitText(toSelectableUnit(ingredient.default_unit) || toSelectableUnit(ingredient.purchase_unit));
     setUnitMenuOpen(false);
   }, []);
@@ -335,17 +492,23 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setCountText('1');
   }, []);
 
-  // Eliminazione di una voce già pianificata: handler stabile, la scheda riceve l'id dal figlio
+  // Deleting an already planned entry: stable handler, the card receives the id from the child
   const handleDeletePlanned = useCallback((entryId: string) => {
     onDeletePlanned?.(entryId);
   }, [onDeletePlanned]);
 
-  const handleCancelPending = () => {
+  const handleCancelPending = useCallback(() => {
     setPending(null);
-  };
+  }, []);
 
-  const handleConfirmPending = () => {
+  const handleConfirmPending = useCallback(() => {
     if (!pending) return;
+    if (pending.kind === 'recipe') {
+      const recipe = pending.recipe;
+      finishAdd(recipe.title);
+      onSelectRecipe(recipe, recipeServings, recipeSource);
+      return;
+    }
     if (pending.kind === 'ingredient') {
       const parsed = parseFloat(amountText.replace(',', '.'));
       const amount = amountText.trim() === '' || Number.isNaN(parsed) ? null : parsed;
@@ -360,123 +523,40 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     const meal = pending.meal;
     finishAdd(meal.name);
     onSelectReadyMeal(meal, count);
-  };
+  }, [pending, recipeServings, recipeSource, amountText, unitText, countText, finishAdd, onSelectRecipe, onSelectIngredient, onSelectReadyMeal, t]);
 
   const renderRow = useCallback(({ item: row }: ListRenderItemInfo<PickerRow>) => {
     if (row.kind === 'recipe') {
       const { recipe } = row;
-      const minutes = recipe.times?.total_minutes ?? 0;
-      const servings = recipe.servings ?? 0;
-      const isFavorite = favoriteIds.has(recipe.id);
+      const expanded = expandedRecipeId === recipe.id;
+      // Only the open row receives the step: the others have unchanged props and do not re-render
       return (
-        <TouchableOpacity
-          style={styles.pickerItem}
-          onPress={() => handleSelectRecipe(recipe)}
-          activeOpacity={0.7}
-        >
-          {recipe.image ? (
-            <Image
-              source={{ uri: recipe.image }}
-              style={[styles.recipeThumb, { backgroundColor: colors.surfaceMuted }]}
-              contentFit="cover"
-              cachePolicy="disk"
-              recyclingKey={recipe.id}
-              transition={0}
+        <PickerRecipeRow
+          recipe={recipe}
+          isFavorite={favoriteIds.has(recipe.id)}
+          expanded={expanded}
+          step={expanded ? (
+            <RecipeServingsStep
+              servings={recipeServings}
+              onChangeServings={changeRecipeServings}
+              source={recipeSource}
+              onChangeSource={handleChangeRecipeSource}
+              onCancel={handleCancelPending}
+              onConfirm={handleConfirmPending}
+              confirmLabel={t('mealPicker.add')}
             />
-          ) : (
-            <View style={[styles.recipeThumb, styles.recipeThumbPlaceholder]}>
-              <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.pickerItemTitle, { flexShrink: 1 }]} numberOfLines={2}>{recipe.title}</Text>
-            {(minutes > 0 || servings > 0 || isFavorite) && (
-              <View style={styles.recipeMeta}>
-                {minutes > 0 && (
-                  <>
-                    <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
-                    <Text style={styles.pickerItemMeta}>{t('common.minutes', { count: minutes })}</Text>
-                  </>
-                )}
-                {minutes > 0 && servings > 0 && (
-                  <Text style={styles.recipeMetaDivider}>·</Text>
-                )}
-                {servings > 0 && (
-                  <>
-                    <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
-                    <Text style={styles.pickerItemMeta}>{t('common.servings', { count: servings })}</Text>
-                  </>
-                )}
-                {isFavorite && (
-                  <Ionicons name="heart" size={14} color={colors.primary} style={{ marginLeft: 6 }} />
-                )}
-              </View>
-            )}
-          </View>
-          <Ionicons name="add-circle" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
+          ) : null}
+          onStart={handleStartRecipe}
+          onCollapse={handleCancelPending}
+        />
       );
     }
-    if (row.kind === 'ingredient') {
-      const { ingredient } = row;
-      const quantity = ingredient.default_amount != null
-        ? `${ingredient.default_amount} ${unitLabel(ingredient.default_unit, t, ingredient.default_amount ?? 1)}`.trim()
-        : '';
-      return (
-        <TouchableOpacity
-          style={styles.pickerItem}
-          onPress={() => handleStartIngredient(ingredient)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pickerItemTitle} numberOfLines={2}>{ingredientDisplayName(ingredient, t)}</Text>
-            <Text style={styles.pickerItemMeta} numberOfLines={1}>
-              {t(`mealPicker.type.${ingredient.type}`)}
-              {quantity ? ` • ${quantity}` : ''}
-            </Text>
-          </View>
-          <Ionicons name="add-circle" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-      );
-    }
-    if (row.kind === 'out') {
-      return (
-        <TouchableOpacity
-          style={styles.pickerItem}
-          onPress={() => handleSelectOutOfHome(row.label)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pickerItemTitle} numberOfLines={2}>{row.label}</Text>
-          </View>
-          <Ionicons name="add-circle" size={24} color={colors.primaryText} />
-        </TouchableOpacity>
-      );
-    }
-    const { meal } = row;
-    return (
-      <TouchableOpacity
-        style={styles.pickerItem}
-        onPress={() => handleStartReady(meal)}
-        activeOpacity={0.7}
-      >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.pickerItemCat}>
-            {t(`mealPicker.category.${meal.category}`)}
-          </Text>
-          <Text style={styles.pickerItemTitle} numberOfLines={2}>{meal.name}</Text>
-          {meal.tags.length > 0 && (
-            <Text style={styles.pickerItemMeta} numberOfLines={1}>
-              {(meal.tags as string[]).map(tag => formatTagLabel(tag, t)).join(' • ')}
-            </Text>
-          )}
-        </View>
-        <Ionicons name="add-circle" size={24} color={colors.primaryText} />
-      </TouchableOpacity>
-    );
-  }, [styles, colors, t, favoriteIds, handleSelectRecipe, handleStartIngredient, handleStartReady, handleSelectOutOfHome]);
+    if (row.kind === 'ingredient') return <PickerIngredientRow ingredient={row.ingredient} onStart={handleStartIngredient} />;
+    if (row.kind === 'out') return <PickerOutRow label={row.label} onSelect={handleSelectOutOfHome} />;
+    return <PickerReadyRow meal={row.meal} onStart={handleStartReady} />;
+  }, [t, favoriteIds, expandedRecipeId, recipeServings, recipeSource, handleStartRecipe, handleChangeRecipeSource, handleCancelPending, handleConfirmPending, changeRecipeServings, handleStartIngredient, handleStartReady, handleSelectOutOfHome]);
 
-  const pendingName = pending
+  const pendingName = pending && pending.kind !== 'recipe'
     ? pending.kind === 'ingredient'
       ? ingredientDisplayName(pending.ingredient, t)
       : pending.meal.name
@@ -523,7 +603,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           </View>
         )}
 
-        {/* Schede: Ricette / Ingredienti / Pronti / Fuori casa */}
+        {/* Tabs: Recipes / Ingredients / Ready / Out of home */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -549,6 +629,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
         </ScrollView>
 
         <AppTextField
+          variant="search"
           style={styles.pickerSearch}
           leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
           placeholder={t('mealPicker.search')}
@@ -609,7 +690,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           </ScrollView>
         )}
 
-        {pending && (
+        {pending && pending.kind !== 'recipe' && (
           <View style={styles.pickerStep}>
             <Text style={styles.pickerStepTitle} numberOfLines={2}>{pendingName}</Text>
             <View style={styles.pickerStepInputs}>
@@ -707,7 +788,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           </View>
         )}
 
-        {/* Avviso dopo un'aggiunta: non si chiude da solo, scegliere una delle due azioni */}
+        {/* Notice after an addition: does not close by itself, choose one of the two actions */}
         <Modal
           visible={added !== null}
           transparent
@@ -783,7 +864,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  // Una sola riga scorrevole orizzontalmente: le schede non vanno a capo
+  // A single horizontally scrollable row: tabs do not wrap
   pickerFilterScroll: {
     flexGrow: 0,
     flexShrink: 0,
@@ -831,8 +912,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 6,
   },
-  // Una sola riga di schede scorrevole orizzontalmente, altezza data dal contenuto
-  // Lista verticale a tutta larghezza, con altezza massima e scorrimento verticale
+  // A single horizontally scrollable row of tabs, height given by the content
+  // Full-width vertical list, with max height and vertical scrolling
   pickerPlannedScroll: {
     flexGrow: 0,
     flexShrink: 1,
@@ -907,7 +988,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
   },
-  // Altezza minima per i chip dei tag: senza, la riga si schiaccia e il testo viene tagliato
+  // Minimum height for tag chips: without it the row gets squashed and the text is cut off
   pickerTagScroll: {
     flexGrow: 0,
     flexShrink: 0,
@@ -1003,6 +1084,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     gap: 12,
+  },
+  pickerItemExpanded: {
+    marginBottom: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    borderColor: colors.borderStrong,
   },
   pickerItemCat: {
     fontSize: 10,

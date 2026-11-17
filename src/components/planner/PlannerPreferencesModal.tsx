@@ -89,7 +89,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
 
         <ScrollView contentContainerStyle={styles.prefsBody}>
           <View style={styles.prefRow}>
-            <View>
+            <View style={styles.prefText}>
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.servings')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.servingsSub')}</Text>
             </View>
@@ -111,7 +111,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
           </View>
 
           <View style={styles.prefRow}>
-            <View>
+            <View style={styles.prefText}>
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.weekend')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.weekendSub')}</Text>
             </View>
@@ -125,7 +125,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
           </View>
 
           <View style={styles.prefRow}>
-            <View>
+            <View style={styles.prefText}>
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.quickLunch')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.quickLunchSub')}</Text>
             </View>
@@ -139,7 +139,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
           </View>
 
           <View style={styles.prefRow}>
-            <View>
+            <View style={styles.prefText}>
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.autoMonday')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.autoMondaySub')}</Text>
             </View>
@@ -222,12 +222,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
+  prefText: {
+    flex: 1,
+    paddingRight: 12,
+  },
   prefSub: {
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
   },
   prefStepper: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

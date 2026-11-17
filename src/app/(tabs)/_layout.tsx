@@ -8,15 +8,15 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 
-// Barra di navigazione flottante in stile Material You
+// Floating navigation bar in Material You style
 const BAR_HEIGHT = 64;
-const BAR_SIDE_MARGIN = 16; // margine laterale della barra
-// Spazio della sfumatura sopra la barra: il contenuto sparisce gradualmente verso il bianco
+const BAR_SIDE_MARGIN = 16; // side margin of the bar
+// Height of the fade above the bar: content gradually fades to white
 const FADE_TOP = 10;
-// Stessa larghezza massima delle schermate (mainWrapper): barra e card restano allineate
+// Same max width as the screens (mainWrapper): bar and cards stay aligned
 const MAX_CONTENT_WIDTH = 1200;
 
-// Contenuto di ogni scheda: icona sopra, nome sotto. La scheda attiva ha una pillola verde.
+// Content of each tab: icon on top, name below. The active tab has a green pill.
 function tabContent(
   name: React.ComponentProps<typeof Ionicons>['name'],
   color: string,
@@ -41,8 +41,8 @@ function tabContent(
   );
 }
 
-// Contenitore di ogni scheda con altezza fissa: su web react-navigation usa un <a> con flex 1 1 0%
-// che si allunga sull'altezza della barra, quindi lo sostituiamo con un elemento a dimensione fissa
+// Container of each tab with fixed height: on web react-navigation uses an <a> with flex 1 1 0%
+// that stretches to the bar height, so we replace it with a fixed-size element
 function TabButton({
   children,
   onPress,
@@ -69,8 +69,8 @@ function TabButton({
   );
 }
 
-// Sfondo della barra: la sfumatura sale sopra la barra (trasparente in alto, bianca in basso),
-// la pillola bianca occupa esattamente l'area delle voci
+// Bar background: the fade rises above the bar (transparent at the top, white at the bottom),
+// the white pill covers exactly the area of the items
 function TabBarBackground({ fadeHeight }: { fadeHeight: number }) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -94,16 +94,16 @@ export default function TabsLayout() {
   const { width } = useWindowDimensions();
   const sideInset = Math.max((width - MAX_CONTENT_WIDTH) / 2, 0);
 
-  // Distanza della barra dal fondo: sopra la barra gestuale o la barra di navigazione di sistema
+  // Distance of the bar from the bottom: above the gesture bar or the system navigation bar
   const barBottom = Math.max(insets.bottom, 8) + 12;
-  // Altezza della sfumatura: sale sopra la barra di FADE_TOP
+  // Fade height: rises above the bar by FADE_TOP
   const fadeHeight = FADE_TOP + BAR_HEIGHT + barBottom;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        // Le schede non focalizzate restano congelate: non si ridisegnano sui cambi di contesto
+        // Unfocused tabs stay frozen: they do not re-render on context changes
         freezeOnBlur: true,
         tabBarShowLabel: false,
         tabBarInactiveTintColor: colors.textMuted,
@@ -124,7 +124,7 @@ export default function TabsLayout() {
           backgroundColor: 'transparent',
           elevation: 0,
         },
-        // Altezza fissa e centrata: nessuno stretch verticale delle voci, su qualsiasi schermo
+        // Fixed and centered height: no vertical stretch of the items, on any screen
         tabBarItemStyle: {
           height: BAR_HEIGHT,
           justifyContent: 'center',
@@ -209,7 +209,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     minWidth: 72,
     height: 52,
     paddingHorizontal: 8,
-    // Stesso raggio della barra: forma a capsula
+    // Same radius as the bar: capsule shape
     borderRadius: BAR_HEIGHT / 2,
     backgroundColor: colors.primarySoft,
   },

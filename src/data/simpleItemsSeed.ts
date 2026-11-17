@@ -1,16 +1,16 @@
 import type { SimpleTag } from '../constants/simpleTags';
 
-// Seed iniziale degli elementi semplici (lista della pianificazione settimanale).
-// Nomi e maiuscole come nella lista originale, senza traduzioni.
+// Initial seed of the simple items (weekly planning list).
+// Names and capitalization as in the original list, without translations.
 export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: number | null; unit: string }[] = [
-  // PIATTI FREDDI
+  // COLD DISHES
   { name: 'Insalata di farro', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
   { name: 'Insalata di riso', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
   { name: 'Pasta fredda', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
   { name: 'Pasta fredda - pomodori mozzarella olive', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
   { name: 'Pasta fredda - pesto mozzarella pomodori secchi', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
 
-  // ZUPPE
+  // SOUPS
   { name: 'Chili con carne', tags: ['ZUPPA/MINESTRA'], amount: null, unit: '' },
   { name: 'Minestrina', tags: ['ZUPPA/MINESTRA'], amount: null, unit: '' },
   { name: 'Minestrone', tags: ['ZUPPA/MINESTRA'], amount: null, unit: '' },
@@ -23,7 +23,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Curry di verdure e legumi', tags: ['ZUPPA/MINESTRA'], amount: null, unit: '' },
   { name: 'Farinata di ceci e verdure', tags: ['ZUPPA/MINESTRA', 'DA FORNO'], amount: null, unit: '' },
 
-  // IN FORNO
+  // BAKED
   { name: 'Focaccia', tags: ['DA FORNO'], amount: null, unit: '' },
   { name: 'Focaccia barese', tags: ['DA FORNO'], amount: null, unit: '' },
   { name: 'Peperoni ripieni', tags: ['DA FORNO'], amount: null, unit: '' },
@@ -59,7 +59,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Pasta e ceci', tags: ['PASTA'], amount: null, unit: '' },
   { name: 'Pasta e fagioli', tags: ['PASTA'], amount: null, unit: '' },
 
-  // RISO
+  // RICE
   { name: 'Riso basmati', tags: ['RISO'], amount: null, unit: '' },
   { name: 'Risotto - asparagi', tags: ['RISO'], amount: null, unit: '' },
   { name: 'Risotto - funghi', tags: ['RISO'], amount: null, unit: '' },
@@ -72,7 +72,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Risotto - porro e uvetta', tags: ['RISO'], amount: null, unit: '' },
   { name: 'Gnocchi di riso con verdure', tags: ['RISO'], amount: null, unit: '' },
 
-  // PASTA FRESCA
+  // FRESH PASTA
   { name: 'Gnocchi', tags: ['PASTA FRESCA'], amount: null, unit: '' },
   { name: 'Spatzle', tags: ['PASTA FRESCA'], amount: null, unit: '' },
   { name: 'Tortellini', tags: ['PASTA FRESCA'], amount: null, unit: '' },
@@ -85,7 +85,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Udon - zucchine carote gamberetti', tags: ['PASTA FRESCA'], amount: null, unit: '' },
   { name: 'Udon - zucchine carote pollo', tags: ['PASTA FRESCA'], amount: null, unit: '' },
 
-  // CARNE
+  // MEAT
   { name: 'Pollo', tags: ['CARNE'], amount: null, unit: '' },
   { name: 'Petto di pollo', tags: ['CARNE'], amount: null, unit: '' },
   { name: 'Petto di tacchino', tags: ['CARNE'], amount: null, unit: '' },
@@ -96,7 +96,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Polpette - carne', tags: ['CARNE'], amount: null, unit: '' },
   { name: 'Roast beef', tags: ['CARNE'], amount: null, unit: '' },
 
-  // PESCE
+  // FISH
   { name: 'Pesce surgelato finto', tags: ['PESCE', 'SURGELATO'], amount: 1, unit: 'confezione' },
   { name: 'Pesce surgelato', tags: ['PESCE', 'SURGELATO'], amount: 1, unit: 'confezione' },
   { name: 'Salmone scottato', tags: ['PESCE'], amount: null, unit: '' },
@@ -132,7 +132,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Insalata', tags: ['VEGETARIANO', 'VEGANO', 'VERDURA CONTORNO'], amount: 100, unit: 'g' },
   { name: 'Insalatona', tags: ['VEGETARIANO', 'VEGANO', 'VERDURA CONTORNO'], amount: null, unit: '' },
 
-  // VERDURE e CONTORNI
+  // VEGETABLES and SIDE DISHES
   { name: 'Asparagi', tags: ['VERDURA CONTORNO', 'VERDURA'], amount: 200, unit: 'g' },
   { name: 'Barbabietole', tags: ['VERDURA CONTORNO', 'VERDURA'], amount: 200, unit: 'g' },
   { name: 'Carciofi', tags: ['VERDURA CONTORNO', 'VERDURA'], amount: 200, unit: 'g' },
@@ -158,7 +158,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Patate lesse', tags: ['VERDURA CONTORNO', 'VERDURA'], amount: 200, unit: 'g' },
   { name: 'Patatine fritte', tags: ['VERDURA CONTORNO', 'VERDURA'], amount: 200, unit: 'g' },
 
-  // ALTRO
+  // OTHER
   { name: 'Uova - frittata', tags: ['VEGETARIANO'], amount: 2, unit: 'pz' },
   { name: 'Uova - occhio di bue', tags: ['VEGETARIANO'], amount: 2, unit: 'pz' },
   { name: 'Uova - sode', tags: ['VEGETARIANO'], amount: 2, unit: 'pz' },
@@ -167,7 +167,7 @@ export const SIMPLE_ITEMS_SEED: { name: string; tags: SimpleTag[]; amount: numbe
   { name: 'Primosale o Tosella', tags: ['FORMAGGIO'], amount: 100, unit: 'g' },
   { name: 'Panino', tags: ['PIATTO FREDDO'], amount: null, unit: '' },
 
-  // FUORI CASA
+  // OUT OF HOME
   { name: 'Asporto - pizza', tags: ['FUORI CASA'], amount: null, unit: '' },
   { name: 'Asporto - cinese', tags: ['FUORI CASA'], amount: null, unit: '' },
   { name: 'Fuori casa - sushi', tags: ['FUORI CASA'], amount: null, unit: '' },

@@ -1,5 +1,5 @@
-// Pasti fuori casa: occasioni pianificabili nel planner, scollegate da ingredienti, lista della spesa e pronti
-// Ordine: locali frequenti, poi le varianti "Asporto - {opzione}", poi le occasioni sociali
+// Out-of-home meals: occasions that can be planned in the planner, unlinked from ingredients, shopping list and ready meals
+// Order: frequent venues, then the "Takeaway - {option}" variants, then social occasions
 export const OUT_OF_HOME_OPTIONS = [
   'Ristorante',
   'Pizzeria',

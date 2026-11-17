@@ -1,14 +1,14 @@
 import { Recipe, RecipeDiet, RecipeOrigin } from '../types/recipe';
 import { classifyDiet } from '../utils/dietClassifier';
 
-// Modulo senza dipendenze da React Native: si può testare anche da Node (vedi scripts/test_catalog.js)
+// Module without React Native dependencies: can also be tested from Node (see scripts/test_catalog.js)
 
 const REQUIRED_STRING_FIELDS = ['id', 'title', 'category'] as const;
 const REQUIRED_ARRAY_FIELDS = ['ingredients', 'instructions', 'tags'] as const;
 const DIETS: RecipeDiet[] = ['omnivore', 'vegetarian', 'vegan'];
 const VEGAN_TAG = '100% Vegetale';
 
-// Quanto una dieta è restrittiva: la vegana include la vegetariana, che include l'onnivora
+// How restrictive a diet is: vegan includes vegetarian, which includes omnivore
 const DIET_RANK: Record<RecipeDiet, number> = { omnivore: 0, vegetarian: 1, vegan: 2 };
 
 export function isValidRecipe(value: unknown): value is Recipe {
@@ -19,12 +19,12 @@ export function isValidRecipe(value: unknown): value is Recipe {
     && typeof r.times === 'object' && r.times !== null;
 }
 
-/** Id della variante: fisso, così rigenerarla sostituisce la stessa ricetta anche su altri telefoni */
+/** Variant id: fixed, so regenerating it replaces the same recipe even on other phones */
 export function variantId(baseId: string, diet: Exclude<RecipeDiet, 'omnivore'>): string {
   return `${baseId}--${diet === 'vegan' ? 'vegana' : 'vegetariana'}`;
 }
 
-/** La dieta di una variante è quella dichiarata dal suffisso dell'id */
+/** A variant's diet is the one declared by the id suffix */
 function dietFromVariantId(id: string): RecipeDiet | undefined {
   if (id.endsWith('--vegana')) return 'vegan';
   if (id.endsWith('--vegetariana')) return 'vegetarian';
@@ -34,19 +34,19 @@ function dietFromVariantId(id: string): RecipeDiet | undefined {
 export interface ParsedCatalogFile {
   recipes: Recipe[];
   invalid: number;
-  // Id ripetuti nel file: resta l'ultima occorrenza
+  // Ids repeated in the file: the last occurrence stays
   duplicates: number;
 }
 
 /**
- * Legge il testo di un ricettario JSON. Lancia un errore se il contenuto non è un elenco.
- * Le ricette non valide vengono contate e scartate; i campi sconosciuti restano nell'oggetto.
+ * Reads the text of a JSON recipe book. Throws an error if the content is not a list.
+ * Invalid recipes are counted and discarded; unknown fields stay in the object.
  */
-// Codice dell'errore quando il file non è un elenco: il chiamante lo traduce
+// Error code when the file is not a list: the caller translates it
 export const CATALOG_NOT_LIST_ERROR = 'CATALOG_NOT_LIST';
 
 export function parseCatalogText(text: string): ParsedCatalogFile {
-  // Alcuni programmi salvano il JSON con un BOM in testa, che JSON.parse non accetta
+  // Some programs save the JSON with a BOM at the start, which JSON.parse does not accept
   const parsed: unknown = JSON.parse(text.replace(/^\uFEFF/, ''));
   if (!Array.isArray(parsed)) throw new Error(CATALOG_NOT_LIST_ERROR);
 
@@ -65,8 +65,8 @@ export function parseCatalogText(text: string): ParsedCatalogFile {
 }
 
 /**
- * Riempie i campi del catalogo che un file vecchio non ha e ricalcola la dieta.
- * Una dieta impostata a mano (diet_source 'manual') non viene toccata. I campi sconosciuti restano.
+ * Fills the catalog fields that an old file lacks and recomputes the diet.
+ * A manually set diet (diet_source 'manual') is not touched. Unknown fields stay.
  */
 export function normalizeImported(recipe: Recipe, now: number): Recipe {
   const declared = recipe.diet && DIETS.includes(recipe.diet) ? recipe.diet : undefined;
@@ -86,7 +86,7 @@ export function normalizeImported(recipe: Recipe, now: number): Recipe {
   const tags = recipe.tags.filter(tag => tag !== VEGAN_TAG);
   if (diet === 'vegan') tags.unshift(VEGAN_TAG);
 
-  // Una variante la cui dieta dichiarata non regge agli ingredienti va verificata
+  // A variant whose declared diet does not hold up against the ingredients must be verified
   const needsReview = variantDiet !== undefined && DIET_RANK[classifyDiet(recipe)] < DIET_RANK[variantDiet];
 
   return {
@@ -102,7 +102,7 @@ export function normalizeImported(recipe: Recipe, now: number): Recipe {
   };
 }
 
-/** Ricette personali: importate dall'AI, create a mano o modificate dall'utente */
+/** Personal recipes: imported by the AI, created by hand or edited by the user */
 export function isPersonalRecipe(recipe: Recipe): boolean {
   return (recipe.origin ?? 'file') !== 'file' || recipe.modified === true;
 }
@@ -117,7 +117,7 @@ export interface ExportFilter {
   origin: 'all' | RecipeOrigin;
 }
 
-/** Ricette che soddisfano il filtro di export, nell'ordine del catalogo */
+/** Recipes that satisfy the export filter, in catalog order */
 export function filterCatalog(recipes: Recipe[], filter: ExportFilter): Recipe[] {
   return recipes.filter(r => {
     if (filter.scope === 'personal' && !isPersonalRecipe(r)) return false;
@@ -129,7 +129,7 @@ export function filterCatalog(recipes: Recipe[], filter: ExportFilter): Recipe[]
   });
 }
 
-/** Aggiunge le varianti delle originali selezionate (senza duplicati) */
+/** Adds the variants of the selected originals (without duplicates) */
 export function withVariants(selected: Recipe[], all: Recipe[]): Recipe[] {
   const baseIds = new Set(selected.filter(r => !r.variant_of).map(r => r.id));
   const ids = new Set(selected.map(r => r.id));
@@ -137,7 +137,7 @@ export function withVariants(selected: Recipe[], all: Recipe[]): Recipe[] {
   return [...selected, ...extra];
 }
 
-/** Nome del file con i filtri usati, es. green-whisker-vegane-2026-11-05.json */
+/** File name with the filters used, e.g. green-whisker-vegane-2026-11-05.json */
 export function exportFileName(filter: ExportFilter, date: string): string {
   const parts = ['green-whisker'];
   if (filter.scope === 'personal') parts.push('personali');
@@ -148,7 +148,7 @@ export function exportFileName(filter: ExportFilter, date: string): string {
   return `${parts.join('-')}.json`;
 }
 
-/** Ids da eliminare: quelli scelti più le varianti delle originali scelte */
+/** Ids to delete: the chosen ones plus the variants of the chosen originals */
 export function expandDeletion(ids: string[], all: Recipe[]): string[] {
   const toDelete = new Set(ids);
   all.forEach(r => { if (r.variant_of && toDelete.has(r.variant_of)) toDelete.add(r.id); });
@@ -160,8 +160,8 @@ export type VariantDiet = Exclude<RecipeDiet, 'omnivore'>;
 const VARIANT_LABEL: Record<VariantDiet, string> = { vegetarian: 'vegetariana', vegan: 'vegana' };
 
 /**
- * Varianti che si possono generare da una ricetta: un'onnivora può avere entrambe, una vegetariana
- * solo la vegana, una vegana nessuna. Non si propone una variante che esiste già.
+ * Variants that can be generated from a recipe: an omnivore one can have both, a vegetarian one
+ * only the vegan one, a vegan one none. A variant that already exists is not proposed.
  */
 export function availableVariantDiets(source: Recipe, existing: Recipe[]): VariantDiet[] {
   const taken = new Set(existing.filter(r => r.variant_of === source.id).map(r => r.diet));
@@ -172,8 +172,8 @@ export function availableVariantDiets(source: Recipe, existing: Recipe[]): Varia
 }
 
 /**
- * Costruisce la variante a partire dalla ricetta adattata dall'AI. Id e titolo sono fissi per dieta,
- * così rigenerare sostituisce la stessa variante e l'export mostra il tipo nel titolo.
+ * Builds the variant from the recipe adapted by the AI. Id and title are fixed per diet,
+ * so regenerating replaces the same variant and the export shows the type in the title.
  */
 export function buildVariantRecord(source: Recipe, adapted: Recipe, diet: VariantDiet, now: number): Recipe {
   const baseTitle = adapted.title.replace(/\s*\((?:vegetariana|vegana)\)\s*$/i, '').trim();
@@ -199,8 +199,8 @@ export function buildVariantRecord(source: Recipe, adapted: Recipe, diet: Varian
 export type DietFilter = 'all' | 'vegetarian' | 'vegan';
 
 /**
- * Una ricetta soddisfa il filtro dieta se è di quella dieta, più restrittiva compresa,
- * oppure se una sua variante lo è (la variante si apre dalla scheda).
+ * A recipe satisfies the diet filter if it is of that diet, more restrictive included,
+ * or if one of its variants is (the variant opens from the card).
  */
 export function matchesDiet(recipe: Recipe, variants: Recipe[], filter: DietFilter): boolean {
   if (filter === 'all') return true;

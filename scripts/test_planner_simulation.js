@@ -97,19 +97,19 @@ const weekPlan = [];
 for (const day of days) {
   const dayPlan = { day };
 
-  // 1. Colazione
+  // 1. Breakfast
   const bfCand = breakfastPool.filter(r => !usedRecipeIds.has(r.id));
   const chosenBf = shuffle(bfCand)[0] || shuffle(breakfastPool)[0];
   usedRecipeIds.add(chosenBf.id);
   dayPlan.colazione = `${chosenBf.title} (${chosenBf.category})`;
 
-  // 2. Spuntino Mattina
+  // 2. Morning Snack
   const snk1Cand = snackPool.filter(r => !usedRecipeIds.has(r.id));
   const chosenSnk1 = shuffle(snk1Cand)[0] || shuffle(snackPool)[0];
   usedRecipeIds.add(chosenSnk1.id);
   dayPlan.spuntino_mattina = `${chosenSnk1.title} (${chosenSnk1.category})`;
 
-  // 3. Pranzo e Cena
+  // 3. Lunch and Dinner
   for (const slot of ['pranzo', 'cena']) {
     const isLunch = slot === 'pranzo';
     const allowPiattoUnico = lastFormat !== 'piatto_unico' && (isLunch ? Math.random() < 0.40 : Math.random() < 0.25);
@@ -136,7 +136,7 @@ for (const day of days) {
       let score = Math.random() * 10;
       if (usedRecipeIds.has(r.id)) score -= 200;
 
-      // Anti-monotonia categorie (ultimi 6 pasti / 3 giorni)
+      // Category anti-monotony (last 6 meals / 3 days)
       const catIdx = recentCategories.lastIndexOf(r.category);
       if (catIdx !== -1) {
         const recency = recentCategories.length - catIdx;
@@ -146,7 +146,7 @@ for (const day of days) {
         else if (recency <= 6) score -= 20;
       }
 
-      // Anti-monotonia proteica
+      // Protein anti-monotony
       if (SECONDI_CATEGORIES.has(r.category)) {
         const pg = getProteinGroup(r.category);
         const lastPgIdx = recentProteinGroups.lastIndexOf(pg);
@@ -185,7 +185,7 @@ for (const day of days) {
     dayPlan[slot] = `[${chosenFormat.toUpperCase()}] ${chosen.title} (${chosen.category})${sideText}`;
   }
 
-  // 4. Spuntino Pomeriggio
+  // 4. Afternoon Snack
   const snk2Cand = snackPool.filter(r => !usedRecipeIds.has(r.id) && r.id !== chosenSnk1.id);
   const chosenSnk2 = shuffle(snk2Cand)[0] || shuffle(snackPool)[0];
   usedRecipeIds.add(chosenSnk2.id);

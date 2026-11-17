@@ -10,11 +10,11 @@ interface ScreenHeaderProps {
   icon: IconName;
   title: string;
   subtitle?: string;
-  // Pulsanti a destra, resi con HeaderIconButton
+  // Buttons on the right, rendered with HeaderIconButton
   actions?: React.ReactNode;
 }
 
-// Intestazione comune delle schermate principali: icona a sinistra, titolo e sottotitolo, azioni a destra
+// Common header of the main screens: icon on the left, title and subtitle, actions on the right
 export function ScreenHeader({ icon, title, subtitle, actions }: ScreenHeaderProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -39,7 +39,7 @@ interface HeaderIconButtonProps {
   accessibilityLabel: string;
 }
 
-// Pulsante rotondo delle intestazioni: stessa dimensione e stile per tutte le schermate
+// Round header button: same size and style for all screens
 export function HeaderIconButton({ icon, onPress, accessibilityLabel }: HeaderIconButtonProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -93,7 +93,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
-    // Ombra leggera: il pulsante si legge come tale anche senza bordo
+    // Light shadow: the button reads as a button even without a border
     shadowColor: colors.shadow,
     shadowOpacity: 0.14,
     shadowRadius: 6,

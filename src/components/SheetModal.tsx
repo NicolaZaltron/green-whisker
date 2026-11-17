@@ -4,9 +4,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 
-// Scheda che sale dal basso, con gli stessi angoli arrotondati e lo stesso sfondo dei filtri avanzati.
-// Il tocco fuori dalla scheda la chiude; lo spazio sotto è quello della barra di sistema.
-// Con fullScreen mostra la stessa schermata a tutto schermo, rispettando le aree di sistema.
+// Card that rises from the bottom, with the same rounded corners and background as the advanced filters.
+// A tap outside the card closes it; the space below is that of the system bar.
+// With fullScreen it shows the same screen full screen, respecting the system areas.
 export function SheetModal({
   visible,
   onClose,
@@ -17,7 +17,7 @@ export function SheetModal({
   visible: boolean;
   onClose: () => void;
   fullScreen?: boolean;
-  // Altezza in base al contenuto (fino all'80%) invece del 90% fisso
+  // Height based on content (up to 80%) instead of a fixed 90%
   autoHeight?: boolean;
   children: React.ReactNode;
 }) {
@@ -27,7 +27,7 @@ export function SheetModal({
   const styles = useMemo(() => makeStyles(colors), [colors]);
   if (fullScreen) {
     return (
-      // Traslucide su Android: lo sfondo arriva sotto la status bar e la barra di navigazione, come nella home
+      // Translucent on Android: the background extends under the status bar and navigation bar, as on the home
       <Modal
         visible={visible}
         animationType="slide"
@@ -54,7 +54,7 @@ export function SheetModal({
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  // Stessa larghezza massima della home (1200px), centrata anche sulle schede a tutto schermo
+  // Same max width as the home (1200px), centered also on full-screen cards
   fullScreenContent: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   fullScreen: {
     flex: 1,
@@ -83,7 +83,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     borderRadius: 24,
-    // Su schermi larghi la scheda è centrata verticalmente, come i filtri avanzati della home
+    // On wide screens the card is vertically centered, like the advanced filters on the home
     marginTop: 'auto',
     marginBottom: 'auto',
   },

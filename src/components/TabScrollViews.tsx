@@ -1,9 +1,8 @@
-import React from 'react';
 import { FlatList, FlatListProps, ScrollView, ScrollViewProps, SectionList, SectionListProps, StyleProp, ViewStyle } from 'react-native';
 import { useTabBarClearance } from '../hooks/useTabBarClearance';
 
-// Wrapper di ScrollView, FlatList e SectionList per le schermate a tab: aggiungono in fondo
-// lo spazio della navbar, così nessun elemento finisce dietro di essa.
+// Wrappers of ScrollView, FlatList and SectionList for tab screens: they add at the bottom
+// the navbar space, so no element ends up behind it.
 
 export function TabScrollView({ contentContainerStyle, ...props }: ScrollViewProps) {
   const clearance = useTabBarClearance();

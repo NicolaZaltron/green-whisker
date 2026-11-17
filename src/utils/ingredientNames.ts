@@ -1,13 +1,13 @@
 import type { Ingredient } from '../types/catalog';
 
 /**
- * Restituisce il nome visualizzato per un ingrediente, usando le traduzioni i18n.
- * Se l'ingrediente ha un id, cerca la traduzione; altrimenti fa fallback sul nome italiano.
+ * Returns the display name for an ingredient, using the i18n translations.
+ * If the ingredient has an id, looks up the translation; otherwise falls back to the Italian name.
  *
- * @param ingredient - L'ingrediente da visualizzare
- * @param t - Funzione di traduzione da react-i18next
- * @param count - Contatore opzionale per il plurale (1 = singolare, altri = plurale)
- * @returns Il nome visualizzato nella lingua corrente
+ * @param ingredient - The ingredient to display
+ * @param t - Translation function from react-i18next
+ * @param count - Optional counter for the plural (1 = singular, others = plural)
+ * @returns The name displayed in the current language
  */
 export function ingredientDisplayName(
   ingredient: Ingredient,
@@ -32,12 +32,12 @@ export function ingredientDisplayName(
 }
 
 /**
- * Restituisce il nome visualizzato per un ingrediente, usando le traduzioni i18n.
- * Versione plurale (per liste o contesti dove il numero non è specificato).
+ * Returns the display name for an ingredient, using the i18n translations.
+ * Plural version (for lists or contexts where the number is not specified).
  *
- * @param ingredient - L'ingrediente da visualizzare
- * @param t - Funzione di traduzione da react-i18next
- * @returns Il nome visualizzato al plurale nella lingua corrente
+ * @param ingredient - The ingredient to display
+ * @param t - Translation function from react-i18next
+ * @returns The plural name displayed in the current language
  */
 export function ingredientDisplayNamePlural(
   ingredient: Ingredient,

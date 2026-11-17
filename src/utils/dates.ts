@@ -1,4 +1,4 @@
-// Data YYYY-MM-DD nel fuso locale. toISOString usa UTC e di notte può dare il giorno precedente.
+// YYYY-MM-DD date in the local timezone. toISOString uses UTC and at night can give the previous day.
 export function toLocalDateString(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -6,7 +6,7 @@ export function toLocalDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-// Giorno della settimana per esteso e data corta (es. "martedì 21/11"), dalla data YYYY-MM-DD nel fuso locale
+// Full weekday name and short date (e.g. "martedì 21/11"), from the YYYY-MM-DD date in the local timezone
 export function formatDayAndDate(dateString: string, locale: string): string {
   const [y, m, d] = dateString.split('-').map(Number);
   const date = new Date(y, m - 1, d);
@@ -18,12 +18,12 @@ export function formatDayAndDate(dateString: string, locale: string): string {
 
 export interface RollingDay {
   dateString: string;
-  weekdayIndex: number; // 0 = lunedì ... 6 = domenica
+  weekdayIndex: number; // 0 = Monday ... 6 = Sunday
   dayNumber: number;
-  monthIndex: number; // 0 = gennaio ... 11 = dicembre
+  monthIndex: number; // 0 = January ... 11 = December
 }
 
-// `count` giorni consecutivi a partire da startDate (data locale) e intervallo "dd/mm – dd/mm"
+// `count` consecutive days starting from startDate (local date) and the "dd/mm – dd/mm" range
 const MONTHS: Record<'it' | 'en', string[]> = {
   it: ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'],
   en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],

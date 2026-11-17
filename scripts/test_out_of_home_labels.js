@@ -1,6 +1,6 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_out_of_home_labels.js
-// Testa la mappa delle rinomine e la lista opzioni fuori casa. Il database non viene testato
-// (richiede expo-sqlite): il modulo viene caricato con react-native ed expo-sqlite stubbati.
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_out_of_home_labels.js
+// Tests the rename map and the out-of-home options list. The database is not tested
+// (it requires expo-sqlite): the module is loaded with react-native and expo-sqlite stubbed.
 const { spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -10,7 +10,7 @@ const Module = require('module');
 
 const root = path.join(__dirname, '..');
 const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-labels-'));
-// tsc emette anche con errori di tipo nel grafo degli import: si controlla l'output, non il codice di uscita
+// tsc emits even with type errors in the import graph: the output is checked, not the exit code
 spawnSync(
   path.join(root, 'node_modules/.bin/tsc'),
   ['--ignoreConfig', path.join(root, 'src/constants/outOfHome.ts'), path.join(root, 'src/db/database.ts'),

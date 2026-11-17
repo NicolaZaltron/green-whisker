@@ -1,5 +1,5 @@
-// Uso: NODE_PATH=$PWD/node_modules node scripts/test_ai_prompt_no_catalog.js
-// Verifica che il payload Gemini non contenga mai i nomi del catalogo, e che il seed fornisca i nomi in locale.
+// Usage: NODE_PATH=$PWD/node_modules node scripts/test_ai_prompt_no_catalog.js
+// Checks that the Gemini payload never contains the catalog names, and that the seed provides the names locally.
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -18,7 +18,7 @@ const { buildRecipeRequestPayload, namesFromSeed } = require(path.join(outDir, '
 
 const seed = JSON.parse(fs.readFileSync(path.join(root, 'src/data/ingredients.seed.json'), 'utf8'));
 const catalogNames = ['Mandorle', 'Uova'];
-// Prompt neutro: il prompt reale contiene esempi di nomi nel campo "name" e non viene testato qui
+// Neutral prompt: the real prompt contains example names in the "name" field and is not tested here
 const NEUTRAL_PROMPT = 'Estrai la ricetta in JSON.';
 const SCHEMA = { type: 'OBJECT', properties: { title: { type: 'STRING' } } };
 
@@ -35,7 +35,7 @@ const check = (label, fn) => {
   }
 };
 
-// Input con catalogNames: il payload non deve leggerli
+// Input with catalogNames: the payload must not read them
 const input = { text: 'Torta: 200 g di farina e 2 uova', catalogNames };
 const payload = buildRecipeRequestPayload(input, SCHEMA, NEUTRAL_PROMPT);
 const serialized = JSON.stringify(payload);
