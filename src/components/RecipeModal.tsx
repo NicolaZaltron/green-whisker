@@ -1,4 +1,6 @@
 import { SheetModal } from './SheetModal';
+import { useCatalogVersion } from '../hooks/useCatalog';
+import type { RecipeSummary } from '../types/recipe';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Modal,
@@ -20,7 +22,8 @@ import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
   saveMealPlanEntryDetailed,
   getRecipeNote,
-  saveRecipeNote
+  saveRecipeNote,
+  getRecipeDetail,
 } from '../db/database';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getPlannerDays, getPlannerPreferences, MealSlot } from '../services/plannerService';
@@ -47,23 +50,29 @@ function recommendedPlanSlot(recipe: Recipe): MealSlot {
 }
 
 interface RecipeModalProps {
-  // Original recipe: variants are shown with the cards
-  recipe: Recipe | null;
-  variants?: Recipe[];
+  // Original recipe summary: the card body is loaded by id. Variants are shown with the cards
+  recipe: RecipeSummary | null;
+  variants?: RecipeSummary[];
   visible: boolean;
   onClose: () => void;
   onFavoriteChange?: (isFav: boolean) => void;
   onEdit?: (recipe: Recipe) => void;
-  onGenerateVariant?: (source: Recipe, diet: VariantDiet) => void;
+  onGenerateVariant?: (source: RecipeSummary, diet: VariantDiet) => void;
   // Diet of the variant being generated: shows the spinner on its button
   generatingDiet?: VariantDiet | null;
-  onRegenerateVariant?: (variant: Recipe) => void;
-  onDeleteVariant?: (variant: Recipe) => void;
+  onRegenerateVariant?: (variant: RecipeSummary) => void;
+  onDeleteVariant?: (variant: RecipeSummary) => void;
+}
+
+// The card itself works on the full recipe: RecipeModal below loads it
+interface RecipeModalCardProps extends Omit<RecipeModalProps, 'recipe' | 'variants'> {
+  recipe: Recipe | null;
+  variants?: Recipe[];
 }
 
 const VERSION_LABELS: Record<VariantDiet, string> = { vegetarian: 'recipeDetail.versionVegetarian', vegan: 'recipeDetail.versionVegan' };
 
-export const RecipeModal: React.FC<RecipeModalProps> = ({
+const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
   recipe: baseRecipe,
   variants = [],
   visible,
@@ -86,7 +95,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   // Everything that follows (ingredients, planner, shopping, sharing, notes) uses the active version
   const recipe = activeVariant ?? baseRecipe;
   const missingDiets = baseRecipe ? availableVariantDiets(baseRecipe, variants) : [];
-  const [currentServings, setCurrentServings] = useState<number>(recipe?.servings || 4);
+  const [currentServings, setCurrentServings] = useState<number>(recipe?.servings ?? 1);
   const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
   const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   // Synchronous favorite state from global context: the heart applies to the whole group (original and variants)
@@ -139,7 +148,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   if (prevRecipeId !== recipe?.id) {
     setPrevRecipeId(recipe?.id);
     if (recipe) {
-      setCurrentServings(recipe.servings || 4);
+      setCurrentServings(recipe.servings);
       setCheckedIngredients({});
       setCompletedSteps({});
       setFeedbackMessage(null);
@@ -194,7 +203,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
   if (!recipe || !visible) return null;
 
-  const baseServings = recipe.servings || 4;
+  const baseServings = recipe.servings;
   const scale = currentServings / baseServings;
   const scalableIngredients = getScalableIngredients(recipe);
   const hasExternalLink = /^https?:\/\//i.test(recipe.url ?? '');
@@ -573,7 +582,7 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Main Image with expo-image */}
+            {/* Main image; without an image there is no picture area, only the diet badge stays, on its own row */}
             {recipe.image ? (
               <View style={styles.imageContainer}>
                 <Image
@@ -591,9 +600,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 )}
               </View>
             ) : (
-              <View style={[styles.imageContainer, styles.imagePlaceholder]}>
-                <Ionicons name="restaurant-outline" size={48} color={colors.textMuted} />
-              </View>
+              dietBadge && (
+                <View style={styles.plantBadgeRow}>
+                  <View style={[styles.plantBadge, styles.plantBadgeInline]}>
+                    <Ionicons name="leaf" size={13} color={colors.primaryText} style={{ marginRight: 4 }} />
+                    <Text style={styles.plantBadgeText}>{dietBadge}</Text>
+                  </View>
+                </View>
+              )
             )}
 
             {/* Content Body */}
@@ -1451,10 +1465,8 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  imagePlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  plantBadgeRow: { paddingHorizontal: 16, paddingTop: 8 },
+  plantBadgeInline: { position: 'relative', top: 0, left: 0, right: 0, bottom: 0, alignSelf: 'flex-start' },
   recipeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1623,11 +1635,6 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: 10,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 8,
   },
   stickyPlanBtnPrimary: {
     flex: 1,
@@ -2092,11 +2099,6 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 20,
     paddingBottom: 32,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 8,
   },
   shareSheetTablet: {
     maxWidth: 520,
@@ -2190,3 +2192,34 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginTop: 1,
   },
 });
+
+/** Recipe card for summaries: the recipe and its variants are loaded by id when the card opens. */
+export const RecipeModal: React.FC<RecipeModalProps> = ({ recipe, variants = [], ...props }) => {
+  const recipeId = recipe?.id;
+  const variantKey = variants.map(v => v.id).join('|');
+  const catalogVersion = useCatalogVersion();
+  const [loaded, setLoaded] = useState<{ id: string; version: number; recipe: Recipe | null; variants: Recipe[] } | null>(null);
+
+  useEffect(() => {
+    if (!recipeId) return;
+    let active = true;
+    const variantIds = variantKey ? variantKey.split('|') : [];
+    Promise.all([getRecipeDetail(recipeId), ...variantIds.map(id => getRecipeDetail(id))]).then(([full, ...fullVariants]) => {
+      if (active) {
+        setLoaded({ id: recipeId, version: catalogVersion, recipe: full, variants: fullVariants.filter((v): v is Recipe => v !== null) });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [recipeId, variantKey, catalogVersion]);
+
+  const isLoaded = !!loaded && loaded.id === recipeId && loaded.version === catalogVersion;
+  return (
+    <RecipeModalCard
+      {...props}
+      recipe={isLoaded ? loaded!.recipe : null}
+      variants={isLoaded ? loaded!.variants : []}
+    />
+  );
+};

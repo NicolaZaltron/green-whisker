@@ -1,9 +1,22 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { Recipe, MealPlanEntry } from '../types/recipe';
+import { RecipeSummary, MealPlanEntry } from '../types/recipe';
 import { toLocalDateString, rollingDays } from '../utils/dates';
 import { getMealPlans, saveMealPlanEntriesBulk, deleteMealPlanEntry, getKV, setKV } from '../db/database';
+
 import { catalogRecipes } from './recipeCatalog';
+
+// Anti-repetition looks back this many days before the generated days
+const HISTORY_DAYS = 56;
+
+/** Date range read for the generator: the history before the given dates, up to the last of them. */
+export function planHistoryRange(dates: string[]): { fromDate: string; toDate: string } | undefined {
+  if (dates.length === 0) return undefined;
+  const sorted = [...dates].sort();
+  const from = new Date(`${sorted[0]}T00:00:00`);
+  from.setDate(from.getDate() - HISTORY_DAYS);
+  return { fromDate: toLocalDateString(from), toDate: sorted[sorted.length - 1] };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERFACES
@@ -214,7 +227,7 @@ export const SLOT_COLORS: Record<
  * Returns the suitable and recommended recipes for each of the 5 meal slots,
  * based on the canonical category mapping per slot (Slot Matching Rule).
  */
-export function getRecipesForSlot(slot: MealSlot): Recipe[] {
+export function getRecipesForSlot(slot: MealSlot): RecipeSummary[] {
   if (slot === 'colazione') {
     return catalogRecipes.filter(r => BREAKFAST_CATEGORIES.has(r.category));
   }
@@ -230,7 +243,7 @@ export function getRecipesForSlot(slot: MealSlot): Recipe[] {
   );
 }
 
-export function isAuthenticSideDish(r: Recipe): boolean {
+export function isAuthenticSideDish(r: RecipeSummary): boolean {
   return (
     r.category === 'CAT_CONTORNI' ||
     r.category === 'CAT_VERDURE_AL_FORNO' ||
@@ -239,7 +252,7 @@ export function isAuthenticSideDish(r: Recipe): boolean {
   );
 }
 
-export function getSideRecipes(recipes: Recipe[] = catalogRecipes): Recipe[] {
+export function getSideRecipes(recipes: RecipeSummary[] = catalogRecipes): RecipeSummary[] {
   return recipes.filter(isAuthenticSideDish);
 }
 
@@ -257,7 +270,7 @@ export function getCurrentSeason(date: Date = new Date()): Season {
 /**
  * O(1) classifier of the Balanced Plate Rule based on the recipe's normalized metadata.
  */
-export function classifyHealthyPlate(recipe: Recipe, season: Season = getCurrentSeason()): HealthyPlateClassification {
+export function classifyHealthyPlate(recipe: RecipeSummary, season: Season = getCurrentSeason()): HealthyPlateClassification {
   const proteinGroup: ProteinGroup = recipe.protein_group || 'leggero_vegetale';
   const rawCarb = (recipe.carb_family as string) || 'nessuno';
   const carbFamily: CarbFamily = rawCarb === 'none' ? 'nessuno' : (rawCarb as CarbFamily);
@@ -305,21 +318,21 @@ export function classifyHealthyPlate(recipe: Recipe, season: Season = getCurrent
 // LEGACY CLASSIFIERS (for backward compatibility)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function classifyProtein(recipe: Recipe): ProteinType {
+export function classifyProtein(recipe: RecipeSummary): ProteinType {
   const hp = classifyHealthyPlate(recipe);
   if (hp.proteinGroup === 'soia_derivati') return 'soya';
   if (hp.proteinGroup === 'legumi_interi') return 'legumi';
   return 'verdure';
 }
 
-export function classifyCarb(recipe: Recipe): CarbType {
+export function classifyCarb(recipe: RecipeSummary): CarbType {
   const hp = classifyHealthyPlate(recipe);
   if (['farro_orzo', 'pseudocereali', 'tuberi'].includes(hp.carbFamily)) return 'complessi';
   if (['pasta', 'riso', 'pane_cereali_rapidi'].includes(hp.carbFamily)) return 'semplici';
   return null;
 }
 
-export function extractMainCarb(recipe: Recipe): string | null {
+export function extractMainCarb(recipe: RecipeSummary): string | null {
   const hp = classifyHealthyPlate(recipe);
   return hp.carbFamily !== 'nessuno' ? hp.carbFamily : null;
 }
@@ -678,7 +691,7 @@ export function generateBalancedWeekPlan(
     const allowPiattoUnico = lastFormat !== 'piatto_unico' && (slotInfo.slot === 'pranzo' ? Math.random() < 0.40 : Math.random() < 0.25);
 
     let chosenFormat: 'piatto_unico' | 'primo' | 'secondo';
-    let candidatePool: Recipe[];
+    let candidatePool: RecipeSummary[];
 
     if (allowPiattoUnico) {
       chosenFormat = 'piatto_unico';
@@ -775,7 +788,7 @@ export function generateBalancedWeekPlan(
     lastFormat = chosenFormat;
 
     // Side Dish pairing for Structured Meals (Option A)
-    let chosenSide: Recipe | undefined = undefined;
+    let chosenSide: RecipeSummary | undefined = undefined;
     if (chosenFormat !== 'piatto_unico') {
       const availableSides = sidePool.filter(s => !usedSideIds.has(s.id) && !usedRecipeIds.has(s.id));
       availableSides.sort((a, b) => {
@@ -853,8 +866,8 @@ export async function checkAndAutoGeneratePlan(): Promise<{ generated: boolean; 
     const { days } = getPlannerDays(prefs.calendarMode, 0);
     const weekDates = new Set(days.map(d => d.dateString));
     // The plan is read only after the checks (Monday, preference, last generation): the generator
-    // uses the whole plan for anti-repetition, so here it stays complete
-    const existingPlans = await getMealPlans();
+    // reads the history it needs for anti-repetition, not the whole plan
+    const existingPlans = await getMealPlans(planHistoryRange([...weekDates]));
     const weekPlans = existingPlans.filter(p => weekDates.has(p.date));
 
     // A meal can contain several recipes: occupied meals are counted, not entries
@@ -900,8 +913,8 @@ export async function manualGeneratePlan(
       : weekDays;
     if (days.length === 0) return 0;
 
-    // The full plan is read here (not from the screen state, which shows a single week)
-    const existingPlans = await getMealPlans();
+    // The plan read here covers the history and the days to generate (not the screen state, which shows a single week)
+    const existingPlans = await getMealPlans(planHistoryRange(weekDays.map(d => d.dateString)));
 
     const options: AutoPlanOptions = {
       servings: prefs.servings,
@@ -935,7 +948,7 @@ export async function manualGeneratePlan(
 export function formatWeekPlanShareText(
   days: WeekDayInfo[],
   plans: MealPlanEntry[],
-  recipesMap: Record<string, Recipe>,
+  recipesMap: Record<string, RecipeSummary>,
   weekLabel: string,
 ): string {
   const lines: string[] = [];

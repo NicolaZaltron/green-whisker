@@ -24,6 +24,20 @@ import { ALL_SIMPLE_SLOTS } from '../utils/simpleSlots';
 import { deleteIngredient, listIngredients, saveIngredient } from '../db/ingredientsDb';
 import { deleteReadyMeal, listReadyMeals, saveReadyMeal } from '../db/readyMealsDb';
 import { AppTextField } from './ui/AppTextField';
+import { OutOfHomeList } from './OutOfHomeList';
+import { TransferModal, type TransferKind } from './TransferModal';
+import { exportIngredientsFile, importIngredientsFile } from '../services/ingredientTransfer';
+import { exportReadyMealsFile, importReadyMealsFile } from '../services/readyMealTransfer';
+import {
+  addOutOfHomeOption,
+  deleteOutOfHomeOption,
+  exportOutOfHomeFile,
+  importOutOfHomeFile,
+  listOutOfHomeEntries,
+  renameOutOfHomeOption,
+  type OutOfHomeEntry,
+} from '../services/outOfHomeService';
+import { ConfirmModal } from './ui/ConfirmModal';
 
 interface IngredientsModalProps {
   visible: boolean;
@@ -31,7 +45,7 @@ interface IngredientsModalProps {
   onChanged?: () => void;
 }
 
-type Tab = 'ingredients' | 'ready';
+type Tab = 'ingredients' | 'ready' | 'outOfHome';
 
 interface IngredientForm {
   name: string;
@@ -172,6 +186,48 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   // Dropdown open in the editor: only one at a time
   const [unitMenu, setUnitMenu] = useState<'default' | 'purchase' | null>(null);
 
+  // Tab "Fuori casa": its add field, and the import/export dialog shared by the three tabs
+  const [outEntries, setOutEntries] = useState<OutOfHomeEntry[]>([]);
+  const [outEditing, setOutEditing] = useState<OutOfHomeEntry | 'new' | null>(null);
+  const [outName, setOutName] = useState('');
+  const [outError, setOutError] = useState('');
+  const [outReload, setOutReload] = useState(0);
+  const [outConfirmDelete, setOutConfirmDelete] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const transferKind: TransferKind = tab === 'ingredients' ? 'ingredients' : tab === 'ready' ? 'readyMeals' : 'outOfHome';
+
+  // Opens the editor page of an option ('new' for a new one)
+  const openOutOfHome = (target: OutOfHomeEntry | 'new') => {
+    setOutEditing(target);
+    setOutName(target === 'new' ? '' : target.label);
+    setOutError('');
+  };
+
+  const saveOutOfHome = async () => {
+    try {
+      if (outEditing === 'new') await addOutOfHomeOption(outName);
+      else if (outEditing) await renameOutOfHomeOption(outEditing.id, outName);
+      setOutEditing(null);
+      setOutError('');
+      setOutReload(k => k + 1);
+    } catch (e: any) {
+      const key = String(e?.message ?? '');
+      setOutError(key.startsWith('outOfHome.') ? t(key) : t('transfer.failed'));
+    }
+  };
+
+  const deleteOutOfHome = async () => {
+    if (!outEditing || outEditing === 'new') return;
+    setOutConfirmDelete(false);
+    try {
+      await deleteOutOfHomeOption(outEditing.id);
+      setOutEditing(null);
+      setOutReload(k => k + 1);
+    } catch {
+      setOutError(t('transfer.failed'));
+    }
+  };
+
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
@@ -192,6 +248,52 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     setIngredients(ings);
     setReadyMeals(meals);
   };
+
+  // The dialog works on the tab that is open: its export and import
+  const transferModal = (
+    <TransferModal
+      visible={transferOpen}
+      kind={transferKind}
+      onClose={() => setTransferOpen(false)}
+      onExport={async () => {
+        if (tab === 'ingredients') return t('transfer.exported', { count: await exportIngredientsFile() });
+        if (tab === 'ready') return t('transfer.exported', { count: await exportReadyMealsFile() });
+        return t('transfer.exported', { count: await exportOutOfHomeFile() });
+      }}
+      onImport={async () => {
+        if (tab === 'outOfHome') {
+          const result = await importOutOfHomeFile();
+          if (!result) return null;
+          setOutReload(k => k + 1);
+          return t('transfer.imported', { count: result.imported });
+        }
+        const result = tab === 'ingredients' ? await importIngredientsFile() : await importReadyMealsFile();
+        if (!result) return null;
+        await reload();
+        onChanged?.();
+        return result.invalid > 0
+          ? t('transfer.importedWithErrors', { count: result.imported, invalid: result.invalid })
+          : t('transfer.imported', { count: result.imported });
+      }}
+    />
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    listOutOfHomeEntries()
+      .then(list => { if (!cancelled) setOutEntries(list); })
+      .catch(e => console.warn('Lettura voci fuori casa fallita', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, outReload]);
+
+  // Search on the out-of-home options, same field as the other tabs
+  const visibleOutEntries = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? outEntries.filter(entry => entry.label.toLowerCase().includes(q)) : outEntries;
+  }, [outEntries, query]);
 
   const filteredIngredients = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -224,6 +326,8 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     setUnitMenu(null);
     setIngEditing(null);
     setReadyEditing(null);
+    setOutEditing(null);
+    setOutConfirmDelete(false);
     setPendingDelete(false);
     setError('');
   };
@@ -247,7 +351,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
   // System back and X: inside an editor they return to the list, otherwise they close the modal
   const handleDismiss = () => {
-    if (ingEditing !== null || readyEditing !== null) {
+    if (ingEditing !== null || readyEditing !== null || outEditing !== null) {
       backToList();
       return;
     }
@@ -457,7 +561,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
   const tabRow = (
     <View style={styles.tabRow}>
-      {(['ingredients', 'ready'] as const).map(key => {
+      {(['ingredients', 'ready', 'outOfHome'] as const).map(key => {
         const active = tab === key;
         return (
           <TouchableOpacity
@@ -469,7 +573,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
             accessibilityState={{ selected: active }}
           >
             <Text style={[styles.tabText, active && styles.tabTextActive]}>
-              {key === 'ingredients' ? t('ingredients.tabIngredients') : t('ingredients.tabReady')}
+              {key === 'ingredients' ? t('ingredients.tabIngredients') : key === 'ready' ? t('ingredients.tabReady') : t('ingredients.tabOutOfHome')}
             </Text>
           </TouchableOpacity>
         );
@@ -681,8 +785,10 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
           keyExtractor={item => item.id}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.listContent}
+          // The search and the filters stay on top: only the list scrolls
+          stickyHeaderIndices={[0]}
           ListHeaderComponent={
-            <View>
+            <View style={styles.stickyHeader}>
               {searchField}
               <ScrollView key="ingredient-filters" horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
                 {renderChip('all', t('ingredients.all'), typeFilter === null, () => setTypeFilter(null))}
@@ -698,7 +804,75 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
           <TouchableOpacity style={styles.primaryBtn} onPress={() => openIngredient('new')} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>{t('ingredients.newIngredient')}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
+            <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
+          </TouchableOpacity>
         </View>
+        {transferModal}
+      </SheetModal>
+    );
+  }
+
+  // Out-of-home option editor: same structure as the ingredient and ready meal editors
+  if (outEditing !== null) {
+    const isNew = outEditing === 'new';
+    return (
+      <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
+        {header}
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContent}>
+          <Text style={styles.label}>{t('ingredients.name')}</Text>
+          <AppTextField style={styles.fieldSpacing} value={outName} onChangeText={setOutName} autoCorrect={false} />
+        </ScrollView>
+        <View style={styles.footer}>
+          {outError !== '' && <Text style={styles.outError}>{outError}</Text>}
+          <View style={styles.footerRow}>
+            {!isNew && (
+              <TouchableOpacity style={styles.dangerBtn} onPress={() => setOutConfirmDelete(true)} activeOpacity={0.85}>
+                <Text style={styles.dangerBtnText}>{t('common.delete')}</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.secondaryBtn} onPress={resetEditors} activeOpacity={0.85}>
+              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.primaryBtn, styles.footerBtn]} onPress={saveOutOfHome} activeOpacity={0.85}>
+              <Text style={styles.primaryBtnText}>{t('common.save')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        <ConfirmModal
+          visible={outConfirmDelete}
+          icon="trash-outline"
+          title={t('outOfHome.deleteTitle')}
+          body={t('outOfHome.deleteBody', { label: outName })}
+          confirmLabel={t('outOfHome.deleteConfirm')}
+          cancelLabel={t('outOfHome.cancel')}
+          onCancel={() => setOutConfirmDelete(false)}
+          onConfirm={deleteOutOfHome}
+          destructive
+        />
+      </SheetModal>
+    );
+  }
+
+  // Out-of-home options list
+  if (tab === 'outOfHome') {
+    return (
+      <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
+        {header}
+        {tabRow}
+        <View style={[styles.stickyHeader, { paddingHorizontal: 16 }]}>{searchField}</View>
+        <View style={styles.outList}>
+          <OutOfHomeList entries={visibleOutEntries} onOpen={openOutOfHome} />
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => openOutOfHome('new')} activeOpacity={0.85}>
+            <Text style={styles.primaryBtnText}>{t('ingredients.newOutOfHome')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
+            <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
+          </TouchableOpacity>
+        </View>
+        {transferModal}
       </SheetModal>
     );
   }
@@ -713,8 +887,9 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         keyExtractor={item => item.id}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.listContent}
+        stickyHeaderIndices={[0]}
         ListHeaderComponent={
-          <View>
+          <View style={styles.stickyHeader}>
             {searchField}
             <ScrollView key="ready-filters" horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
               {renderChip('all', t('ingredients.all'), categoryFilter === null, () => setCategoryFilter(null))}
@@ -737,12 +912,18 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         <TouchableOpacity style={styles.primaryBtn} onPress={() => openReady('new')} activeOpacity={0.85}>
           <Text style={styles.primaryBtnText}>{t('ingredients.newReady')}</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
+          <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
+        </TouchableOpacity>
       </View>
+      {transferModal}
     </SheetModal>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  outList: { flex: 1 },
+  outError: { fontSize: 13, color: colors.danger, textAlign: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -793,6 +974,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   fieldSpacing: { marginBottom: 4 },
   filterRow: { marginTop: 8, marginBottom: 8 },
+  // Opaque, so the list scrolls under it without showing through
+  stickyHeader: { backgroundColor: colors.background, paddingTop: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   chip: {
     paddingHorizontal: 12,
@@ -839,6 +1022,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
+    gap: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },

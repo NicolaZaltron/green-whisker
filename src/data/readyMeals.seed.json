@@ -1,5 +1,6 @@
 [
   {
+    "id": "minestrone_surgelato",
     "name": "Minestrone surgelato",
     "category": "pronto",
     "tags": [
@@ -91,6 +92,7 @@
     }
   },
   {
+    "id": "pollo_arrosto",
     "name": "Pollo arrosto",
     "category": "pronto",
     "tags": [
@@ -192,6 +194,7 @@
     }
   },
   {
+    "id": "lasagna_di_verdure_confezionata",
     "name": "Lasagna di verdure confezionata",
     "category": "pronto",
     "tags": [
@@ -279,6 +282,7 @@
     }
   },
   {
+    "id": "burger_di_verdure",
     "name": "Burger di verdure",
     "category": "pronto",
     "tags": [
@@ -366,6 +370,7 @@
     }
   },
   {
+    "id": "minestra_surgelata",
     "name": "Minestra surgelata",
     "category": "pronto",
     "tags": [
@@ -458,6 +463,7 @@
     }
   },
   {
+    "id": "zuppa",
     "name": "Zuppa",
     "category": "pronto",
     "tags": [
@@ -547,6 +553,7 @@
     }
   },
   {
+    "id": "lasagne",
     "name": "Lasagne",
     "category": "pronto",
     "tags": [
@@ -633,6 +640,7 @@
     }
   },
   {
+    "id": "pasta_fresca_all_uovo",
     "name": "Pasta fresca all'uovo",
     "category": "pronto",
     "tags": [
@@ -719,6 +727,7 @@
     }
   },
   {
+    "id": "ravioli",
     "name": "Ravioli",
     "category": "pronto",
     "tags": [
@@ -807,6 +816,7 @@
     }
   },
   {
+    "id": "tortellini",
     "name": "Tortellini",
     "category": "pronto",
     "tags": [
@@ -893,6 +903,7 @@
     }
   },
   {
+    "id": "gnocchi",
     "name": "Gnocchi",
     "category": "pronto",
     "tags": [
@@ -981,6 +992,7 @@
     }
   },
   {
+    "id": "pizza_surgelata",
     "name": "Pizza surgelata",
     "category": "pronto",
     "tags": [
@@ -1082,6 +1094,7 @@
     }
   },
   {
+    "id": "pinsa",
     "name": "Pinsa",
     "category": "pronto",
     "tags": [
@@ -1185,6 +1198,7 @@
     }
   },
   {
+    "id": "piadina",
     "name": "Piadina",
     "category": "pronto",
     "tags": [
@@ -1273,6 +1287,7 @@
     }
   },
   {
+    "id": "torta_salata",
     "name": "Torta salata",
     "category": "pronto",
     "tags": [
@@ -1377,6 +1392,7 @@
     }
   },
   {
+    "id": "polpette",
     "name": "Polpette",
     "category": "pronto",
     "tags": [
@@ -1478,6 +1494,7 @@
     }
   },
   {
+    "id": "pesce_surgelato",
     "name": "Pesce surgelato",
     "category": "pronto",
     "tags": [
@@ -1569,6 +1586,7 @@
     }
   },
   {
+    "id": "panino",
     "name": "Panino",
     "category": "pronto",
     "tags": [
@@ -1671,6 +1689,7 @@
     }
   },
   {
+    "id": "insalatona",
     "name": "Insalatona",
     "category": "pronto",
     "tags": [
@@ -1775,6 +1794,7 @@
     }
   },
   {
+    "id": "hamburger",
     "name": "Hamburger",
     "category": "pronto",
     "tags": [
@@ -1876,6 +1896,7 @@
     }
   },
   {
+    "id": "brioche_confezionata",
     "name": "Brioche confezionata",
     "category": "pronto",
     "tags": [
@@ -1963,6 +1984,7 @@
     }
   },
   {
+    "id": "cornetto_confezionato",
     "name": "Cornetto confezionato",
     "category": "pronto",
     "tags": [
@@ -2049,6 +2071,7 @@
     }
   },
   {
+    "id": "merendina_confezionata",
     "name": "Merendina confezionata",
     "category": "pronto",
     "tags": [
@@ -2136,6 +2159,7 @@
     }
   },
   {
+    "id": "frutta_frullata_confezionata",
     "name": "Frutta frullata confezionata",
     "category": "pronto",
     "tags": [
@@ -2224,6 +2248,7 @@
     }
   },
   {
+    "id": "barretta_ai_cereali",
     "name": "Barretta ai cereali",
     "category": "pronto",
     "tags": [
@@ -2322,6 +2347,7 @@
     }
   },
   {
+    "id": "budino_confezionato",
     "name": "Budino confezionato",
     "category": "pronto",
     "tags": [
@@ -2406,6 +2432,7 @@
     }
   },
   {
+    "id": "sofficini",
     "name": "Sofficini",
     "category": "pronto",
     "tags": [
@@ -2493,6 +2520,7 @@
     }
   },
   {
+    "id": "cotolette_di_pollo_impanate",
     "name": "Cotolette di pollo impanate",
     "category": "pronto",
     "tags": [
@@ -2579,6 +2607,7 @@
     }
   },
   {
+    "id": "sushi",
     "name": "Sushi",
     "category": "pronto",
     "tags": [
@@ -2683,6 +2712,7 @@
     }
   },
   {
+    "id": "poke_bowl",
     "name": "Poke bowl",
     "category": "pronto",
     "tags": [
@@ -2785,6 +2815,7 @@
     }
   },
   {
+    "id": "insalata_di_riso",
     "name": "Insalata di riso",
     "category": "pronto",
     "tags": [
@@ -2889,6 +2920,7 @@
     }
   },
   {
+    "id": "pasta_fredda",
     "name": "Pasta fredda",
     "category": "pronto",
     "tags": [
@@ -2992,6 +3024,7 @@
     }
   },
   {
+    "id": "pasta_al_pesto",
     "name": "Pasta al pesto",
     "category": "pronto",
     "tags": [
@@ -3094,6 +3127,7 @@
     }
   },
   {
+    "id": "frittata",
     "name": "Frittata",
     "category": "pronto",
     "tags": [
@@ -3194,6 +3228,7 @@
     }
   },
   {
+    "id": "quiche",
     "name": "Quiche",
     "category": "pronto",
     "tags": [
@@ -3298,6 +3333,7 @@
     }
   },
   {
+    "id": "cannelloni",
     "name": "Cannelloni",
     "category": "pronto",
     "tags": [
@@ -3403,6 +3439,7 @@
     }
   },
   {
+    "id": "vellutata",
     "name": "Vellutata",
     "category": "pronto",
     "tags": [
@@ -3491,6 +3528,7 @@
     }
   },
   {
+    "id": "passato_di_verdure",
     "name": "Passato di verdure",
     "category": "pronto",
     "tags": [
@@ -3578,6 +3616,7 @@
     }
   },
   {
+    "id": "crema_di_legumi",
     "name": "Crema di legumi",
     "category": "pronto",
     "tags": [
@@ -3680,6 +3719,7 @@
     }
   },
   {
+    "id": "zuppa_di_legumi",
     "name": "Zuppa di legumi",
     "category": "pronto",
     "tags": [
@@ -3782,6 +3822,7 @@
     }
   },
   {
+    "id": "tramezzino",
     "name": "Tramezzino",
     "category": "pronto",
     "tags": [
@@ -3885,6 +3926,7 @@
     }
   },
   {
+    "id": "focaccia",
     "name": "Focaccia",
     "category": "pronto",
     "tags": [
@@ -3986,6 +4028,7 @@
     }
   },
   {
+    "id": "kebab",
     "name": "Kebab",
     "category": "pronto",
     "tags": [
@@ -4088,6 +4131,7 @@
     }
   },
   {
+    "id": "tortine_salate",
     "name": "Tortine salate",
     "category": "pronto",
     "tags": [
@@ -4192,6 +4236,7 @@
     }
   },
   {
+    "id": "insalata_di_mare",
     "name": "Insalata di mare",
     "category": "pronto",
     "tags": [
@@ -4294,6 +4339,7 @@
     }
   },
   {
+    "id": "stinco_di_maiale",
     "name": "Stinco di maiale",
     "category": "pronto",
     "tags": [
@@ -4381,6 +4427,7 @@
     }
   },
   {
+    "id": "parmigiana_di_melanzane",
     "name": "Parmigiana di melanzane",
     "category": "pronto",
     "tags": [
@@ -4466,6 +4513,7 @@
     }
   },
   {
+    "id": "vitello_tonnato",
     "name": "Vitello tonnato",
     "category": "pronto",
     "tags": [
@@ -4566,6 +4614,7 @@
     }
   },
   {
+    "id": "arrosto_di_tacchino",
     "name": "Arrosto di tacchino",
     "category": "pronto",
     "tags": [
@@ -4666,6 +4715,7 @@
     }
   },
   {
+    "id": "polpette_al_sugo",
     "name": "Polpette al sugo",
     "category": "pronto",
     "tags": [
@@ -4767,6 +4817,7 @@
     }
   },
   {
+    "id": "peperoni_ripieni",
     "name": "Peperoni ripieni",
     "category": "pronto",
     "tags": [
@@ -4871,6 +4922,7 @@
     }
   },
   {
+    "id": "frittata_di_pasta",
     "name": "Frittata di pasta",
     "category": "pronto",
     "tags": [
@@ -4974,6 +5026,7 @@
     }
   },
   {
+    "id": "torta_di_verdure",
     "name": "Torta di verdure",
     "category": "pronto",
     "tags": [
@@ -5078,6 +5131,7 @@
     }
   },
   {
+    "id": "spiedini_di_pollo",
     "name": "Spiedini di pollo",
     "category": "pronto",
     "tags": [
@@ -5180,6 +5234,7 @@
     }
   },
   {
+    "id": "pollo_allo_spiedo",
     "name": "Pollo allo spiedo",
     "category": "pronto",
     "tags": [
@@ -5280,6 +5335,7 @@
     }
   },
   {
+    "id": "suppli",
     "name": "Supplì",
     "category": "pronto",
     "tags": [
@@ -5384,6 +5440,7 @@
     }
   },
   {
+    "id": "arancini",
     "name": "Arancini",
     "category": "pronto",
     "tags": [
@@ -5489,6 +5546,7 @@
     }
   },
   {
+    "id": "pizza_al_taglio",
     "name": "Pizza al taglio",
     "category": "pronto",
     "tags": [
@@ -5589,6 +5647,7 @@
     }
   },
   {
+    "id": "insalata_caprese",
     "name": "Insalata caprese",
     "category": "pronto",
     "tags": [
@@ -5690,6 +5749,7 @@
     }
   },
   {
+    "id": "insalata_di_pollo",
     "name": "Insalata di pollo",
     "category": "pronto",
     "tags": [
@@ -5792,6 +5852,7 @@
     }
   },
   {
+    "id": "insalata_di_farro",
     "name": "Insalata di farro",
     "category": "pronto",
     "tags": [
@@ -5890,6 +5951,7 @@
     }
   },
   {
+    "id": "cous_cous_di_verdure",
     "name": "Cous cous di verdure",
     "category": "pronto",
     "tags": [
@@ -5993,6 +6055,7 @@
     }
   },
   {
+    "id": "peperonata",
     "name": "Peperonata",
     "category": "pronto",
     "tags": [

@@ -1,13 +1,10 @@
-import { Platform } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import { pickJsonText, shareJsonFile } from './jsonFiles';
 import { Recipe } from '../types/recipe';
 import { deleteCatalogRecipes, removeRecipeReferences } from '../db/database';
-import { removeRecipeFromSimpleItems } from '../db/simpleItemsDb';
 import { refreshCatalog } from './recipeCatalog';
-import { RecipeLinkEntry, saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
-import { ingredientItemFromText } from '../utils/servingsScaler';
+import { saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
+import { buildImportWrite, findUnresolvedRecipeIngredients } from './importPlan';
+import type { ImportChoice, UnresolvedIngredient } from '../utils/importResolution';
 import { ExportFilter, ParsedCatalogFile, CATALOG_NOT_LIST_ERROR, exportFileName, normalizeImported, parseCatalogText } from './catalogFormat';
 import i18n from '../i18n';
 
@@ -22,43 +19,13 @@ export interface ImportResult {
 }
 
 /**
- * Reads the chosen file trying several methods, in order. If all fail, the error lists every attempt.
- */
-async function readPickedFile(asset: { uri: string; file?: Blob & { text(): Promise<string> } }): Promise<string> {
-  if (Platform.OS === 'web' && asset.file) return asset.file.text();
-
-  const attempts: { name: string; read: () => Promise<string> }[] = [
-    { name: 'File', read: () => new File(asset.uri).text() },
-    { name: 'fetch', read: () => fetch(asset.uri).then(r => r.text()) },
-  ];
-  const errors: string[] = [];
-  for (const attempt of attempts) {
-    try {
-      const text = await attempt.read();
-      console.info(`Ricettario letto con il metodo: ${attempt.name}`);
-      return text;
-    } catch (e: any) {
-      errors.push(`${attempt.name}: ${e?.message ?? e}`);
-    }
-  }
-  throw new Error(errors.join(' | '));
-}
-
-/**
  * Asks the phone for a JSON file and reads it. Returns null if the user cancels.
  */
 export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
-  const picked = await DocumentPicker.getDocumentAsync({
-    type: ['application/json', 'text/plain'],
-    copyToCacheDirectory: true,
-  });
-  if (picked.canceled) return null;
-
-  const asset = picked.assets[0];
-  const text = await readPickedFile(asset);
+  const text = await pickJsonText();
+  if (text === null) return null;
   try {
-    const parsedFile = parseCatalogText(text);
-    return parsedFile;
+    return parseCatalogText(text);
   } catch (e: any) {
     if (e?.message === CATALOG_NOT_LIST_ERROR) throw new Error(i18n.t('errors.catalogNotList'));
     throw e;
@@ -68,21 +35,28 @@ export async function pickCatalogFile(): Promise<ParsedCatalogFile | null> {
 /**
  * Imports the recipes read from a file. With mode 'keep' recipes already present stay unchanged.
  */
-export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: ImportMode): Promise<ImportResult> {
+/** Unknown ingredient names of the recipe book, grouped for the user's choice. */
+export async function findUnresolvedImportIngredients(parsed: ParsedCatalogFile): Promise<UnresolvedIngredient[]> {
+  return findUnresolvedRecipeIngredients(parsed.recipes);
+}
+
+/**
+ * Imports the recipes with their ingredient links. Every unknown ingredient name must have a choice
+ * (existing ingredient or a new one): otherwise nothing is written.
+ */
+export async function applyCatalogImport(
+  parsed: ParsedCatalogFile,
+  mode: ImportMode,
+  choices: ReadonlyMap<string, ImportChoice> = new Map(),
+  onProgress?: (done: number, total: number) => void,
+): Promise<ImportResult> {
   const now = Date.now();
   const recipes = parsed.recipes.map(r => normalizeImported(r, now));
-  // A recipe without details does not touch the existing links: the text rows are used if present,
-  // otherwise the recipe is omitted. In 'keep' links are created only for the recipes written.
-  const links: RecipeLinkEntry[] = [];
-  for (const recipe of recipes) {
-    const items = recipe.detailed_ingredients?.length
-      ? recipe.detailed_ingredients
-      : (recipe.ingredients ?? []).filter(t => t && t.trim()).map(t => ingredientItemFromText(t));
-    if (items.length > 0) links.push({ recipeId: recipe.id, items });
-  }
-  // Recipes and links in a single transaction; an error interrupts the import and reaches the caller
-  const write = await saveCatalogRecipesWithLinks(recipes, mode, links);
-  await refreshCatalog();
+  const { links, plan } = await buildImportWrite(recipes, choices);
+  // Recipes, new ingredients, aliases and links in a single transaction; an error interrupts the import
+  const write = await saveCatalogRecipesWithLinks(recipes, mode, links, plan, onProgress);
+  console.log('[import] written', { mode, ...write, unresolvedChoices: choices.size, created: plan.ingredients.created.length });
+  await refreshCatalog(recipes.map(r => r.id));
   return {
     imported: write.inserted,
     updated: write.updated,
@@ -98,7 +72,6 @@ export async function applyCatalogImport(parsed: ParsedCatalogFile, mode: Import
 export async function deleteRecipes(ids: string[]): Promise<number> {
   const deleted = await deleteCatalogRecipes(ids);
   await removeRecipeReferences(deleted);
-  await removeRecipeFromSimpleItems(deleted);
   await refreshCatalog();
   return deleted.length;
 }
@@ -108,21 +81,6 @@ export async function deleteRecipes(ids: string[]): Promise<number> {
  */
 export async function exportRecipeBook(recipes: Recipe[], filter: ExportFilter): Promise<number> {
   const json = JSON.stringify(recipes, null, 2);
-  const fileName = exportFileName(filter, new Date().toISOString().slice(0, 10));
-
-  if (Platform.OS === 'web') {
-    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
-    return recipes.length;
-  }
-
-  const file = new File(Paths.cache, fileName);
-  file.create({ overwrite: true });
-  file.write(json);
-  await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json' });
+  await shareJsonFile(json, exportFileName(filter, new Date().toISOString().slice(0, 10)));
   return recipes.length;
 }

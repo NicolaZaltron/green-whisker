@@ -43,7 +43,7 @@ import {
   formatShoppingListShareText,
 } from '../../utils/shareHelper';
 import { useTheme } from '../../context/ThemeContext';
-import { SheetModal } from '../../components/SheetModal';
+import { CenterDialog } from '../../components/ui/CenterDialog';
 import { AppTextField } from '../../components/ui/AppTextField';
 import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits';
 import { unitLabel } from '../../constants/simpleTags';
@@ -901,7 +901,7 @@ export default function ShoppingScreen() {
           </View>
         )}
       </View>
-      <SheetModal visible={pendingAction !== null} onClose={() => setPendingAction(null)} autoHeight>
+      <CenterDialog visible={pendingAction !== null} onClose={() => setPendingAction(null)}>
         <View style={styles.confirmSheet}>
           <Text style={styles.confirmTitle}>
             {pendingAction === 'clearCompleted' && t('shopping.confirm.completedTitle')}
@@ -924,8 +924,8 @@ export default function ShoppingScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SheetModal>
-      <SheetModal visible={quantityTarget !== null} onClose={() => setQuantityTarget(null)} autoHeight>
+      </CenterDialog>
+      <CenterDialog visible={quantityTarget !== null} onClose={() => setQuantityTarget(null)}>
         <View style={styles.confirmSheet}>
           <Text style={styles.qtyProductName}>
             {quantityTarget?.mode === 'add' ? quantityTarget.name : quantityTarget?.mode === 'edit' ? quantityTarget.item.name : ''}
@@ -1003,7 +1003,7 @@ export default function ShoppingScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </SheetModal>
+      </CenterDialog>
       <ShoppingPlanModal
         visible={showPlanModal}
         onClose={() => setShowPlanModal(false)}

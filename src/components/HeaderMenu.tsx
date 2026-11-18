@@ -9,6 +9,8 @@ import { clearAISettings } from '../services/settingsService';
 import { resetAllData } from '../db/database';
 import type { Palette } from '../theme/palette';
 import { RecipeBookModal } from './RecipeBookModal';
+import { TransferModal } from './TransferModal';
+import { exportBackupFile, pickBackup, restoreBackup, type BackupData } from '../services/backupService';
 import { AISettingsModal } from './AISettingsModal';
 import { ConfirmModal } from './ui/ConfirmModal';
 import IngredientsModal from './IngredientsModal';
@@ -38,6 +40,11 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
 
   // Deletion of all data (to start over): explicit confirmation, then manual restart
   const [resetState, setResetState] = useState<'confirm' | 'done' | 'error' | null>(null);
+  // Import and export dialogs for the ingredients and the out-of-home options (the recipe book has its own)
+  const [transfer, setTransfer] = useState<'backup' | null>(null);
+  // Backup read from a file, waiting for the restore confirmation, and the result of the last restore
+  const [pendingRestore, setPendingRestore] = useState<BackupData | null>(null);
+  const [backupNotice, setBackupNotice] = useState<string | null>(null);
   const confirmReset = () => {
     setMenuOpen(false);
     setResetState('confirm');
@@ -71,7 +78,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuOpen(false)} />
           <View style={[styles.popup, { top: insets.top + 56, right: popupRight }]}>
             <Text style={styles.sectionLabel}>{t('menu.language')}</Text>
-            <View style={styles.langRow}>
+            <View style={[styles.langRow, styles.sectionGap]}>
               {(['it', 'en'] as const).map(lng => {
                 const active = (lng === 'en') === !!isEnglish;
                 return (
@@ -115,6 +122,7 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
 
             <MenuItem icon="book-outline" label={t('menu.recipeBook')} onPress={() => openPanel('recipeBook')} />
             <MenuItem icon="nutrition-outline" label={t('ingredients.menuItem')} onPress={() => openPanel('ingredients')} />
+            <MenuItem icon="cloud-upload-outline" label={t('transfer.backup.title')} onPress={() => { setBackupNotice(null); setTransfer('backup'); }} />
             <MenuItem icon="key-outline" label={t('menu.aiSettings')} onPress={() => openPanel('aiSettings')} />
             <MenuItem icon="trash-outline" label={t('menu.resetData')} onPress={confirmReset} danger />
           </View>
@@ -146,6 +154,47 @@ export function HeaderMenu({ onRecipesChanged }: HeaderMenuProps) {
         confirmLabel={t('common.close')}
         onConfirm={() => setResetState(null)}
         destructive={false}
+      />
+      <TransferModal
+        visible={transfer === 'backup'}
+        kind="backup"
+        notice={backupNotice}
+        onClose={() => setTransfer(null)}
+        onExport={async () => t('transfer.backupExported', { count: await exportBackupFile() })}
+        onImport={async () => {
+          const data = await pickBackup();
+          if (!data) return null;
+          // The restore replaces data: it starts only after the confirmation
+          setTransfer(null);
+          setPendingRestore(data);
+          return null;
+        }}
+      />
+      <ConfirmModal
+        visible={pendingRestore !== null}
+        icon="cloud-upload-outline"
+        title={t('transfer.restoreTitle')}
+        body={t('transfer.restoreBody')}
+        confirmLabel={t('transfer.restoreConfirm')}
+        onConfirm={async () => {
+          const data = pendingRestore;
+          setPendingRestore(null);
+          if (!data) return;
+          try {
+            const summary = await restoreBackup(data);
+            setBackupNotice(t('transfer.restored', {
+              recipes: summary.recipes,
+              ingredients: summary.ingredients,
+              entries: summary.plannerEntries,
+              dropped: summary.droppedPlannerEntries,
+            }));
+          } catch (e) {
+            console.warn('Ripristino backup fallito', e);
+            setBackupNotice(t('transfer.failed'));
+          }
+          setTransfer('backup');
+        }}
+        onCancel={() => setPendingRestore(null)}
       />
       <IngredientsModal
         visible={panel === 'ingredients'}
@@ -208,6 +257,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   sectionLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 8 },
   langRow: { flexDirection: 'row', gap: 8 },
+  // Space between the language buttons and the theme label
+  sectionGap: { marginBottom: 16 },
   langBtn: {
     flex: 1,
     paddingVertical: 8,

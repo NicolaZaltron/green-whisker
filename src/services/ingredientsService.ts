@@ -1,6 +1,6 @@
 import SEED from '../data/ingredients.seed.json';
-import { getKV, setKV } from '../db/database';
-import { deleteIngredient, listIngredients, upsertIngredientsByName } from '../db/ingredientsDb';
+import { getSeedVersion, setSeedVersion } from '../db/seedMeta';
+import { upsertIngredientsByName } from '../db/ingredientsDb';
 import type { IngredientInput } from '../db/ingredientsDb';
 import {
   INGREDIENT_TAGS,
@@ -9,7 +9,6 @@ import {
   type Nutrient,
 } from '../types/catalog';
 
-const SEED_FLAG_KEY = 'ingredients_seed_v1';
 const TAG_SET = new Set<string>(INGREDIENT_TAGS);
 
 /** Shape of an entry in src/data/ingredients.seed.json (JSON types are widened to string). */
@@ -32,7 +31,8 @@ interface SeedJsonEntryWithId extends SeedJsonEntry {
   aliases: string[];
 }
 
-const SEED_ITEMS: IngredientInput[] = (SEED as SeedJsonEntryWithId[]).map(entry => ({
+const SEED_ITEMS: (IngredientInput & { id: string })[] = (SEED as SeedJsonEntryWithId[]).map(entry => ({
+  id: entry.id,
   name: entry.name,
   type: entry.type as IngredientType,
   tags: entry.tags.filter((t): t is IngredientTag => TAG_SET.has(t)),
@@ -46,41 +46,22 @@ const SEED_ITEMS: IngredientInput[] = (SEED as SeedJsonEntryWithId[]).map(entry 
   aliases: entry.aliases ?? [],
 }));
 
-/** Imports the bundled starting catalog on first run only. Returns the number of inserted ingredients. */
-export async function seedIngredientsIfEmpty(): Promise<number> {
-  if ((await getKV(SEED_FLAG_KEY)) !== null) return 0;
-  const existing = await listIngredients();
-  if (existing.length > 0) return 0;
-
-  const result = await upsertIngredientsByName(SEED_ITEMS);
-  await setKV(SEED_FLAG_KEY, '1');
-  return result.inserted;
-}
-
 // v17: revised seed with nutrients per 100 g and per serving, 980 ingredients, provenance and reliability.
 // v16: nutritional values from external review (cooked cereals, fruit, vegetables, sweets, spices), types and duplicates fixed.
 // v12: adds the gastronomia tag.
 // v11: removes composite items or items with an alternative and applies the nutritional values.
 // v10: curated stable ids (readable), aliases and i18n translations for ingredients.
 // Note: the v11 reseed deletes planned meals linked to ingredients (the ingredient_ids change).
-const SEED_FLAG_KEY_V17 = 'ingredients_seed_v17';
+// Version of this seed in seed_meta: bump it when the seed changes
+export const INGREDIENTS_SEED_VERSION = 17;
 
 /**
- * One-time reset (v2): deletes all existing ingredients and reimports the base catalog.
- * Ids are regenerated and the recipe-ingredient links disappear along with the ingredients: they must be recreated
- * by reimporting the recipe book (or with a future "relink"). This function is no longer followed by a link seed.
- * Deleting an ingredient also removes the planner entries and links (acceptable in the alpha phase).
- * Returns the number of ingredients inserted, or 0 if the reset was already done.
+ * Upserts the seed ingredients by id when the seed version changes. Nothing is deleted: planned entries and
+ * links survive a new seed. Returns the number of ingredients inserted.
  */
 export async function seedIngredientsV2(): Promise<number> {
-  if ((await getKV(SEED_FLAG_KEY_V17)) !== null) return 0;
-
-  const existing = await listIngredients();
-  for (const ingredient of existing) {
-    await deleteIngredient(ingredient.id);
-  }
-
+  if ((await getSeedVersion('ingredients')) >= INGREDIENTS_SEED_VERSION) return 0;
   const result = await upsertIngredientsByName(SEED_ITEMS);
-  await setKV(SEED_FLAG_KEY_V17, '1');
+  await setSeedVersion('ingredients', INGREDIENTS_SEED_VERSION);
   return result.inserted;
 }

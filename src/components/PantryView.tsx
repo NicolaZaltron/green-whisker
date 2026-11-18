@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Recipe } from '../types/recipe';
+import { RecipeSummary } from '../types/recipe';
 import { RecipeCard, PantryMatchInfo } from './RecipeCard';
 import { useResponsiveDimensions } from '../hooks/useResponsiveDimensions';
 import {
@@ -28,7 +28,7 @@ import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
 
 interface PantryViewProps {
-  onSelectRecipe: (recipe: Recipe) => void;
+  onSelectRecipe: (recipe: RecipeSummary) => void;
   onToastMessage?: (msg: string) => void;
 }
 

@@ -1,11 +1,17 @@
 import { SheetModal } from './SheetModal';
 import { useMemo, useState } from 'react';
-import { Alert, View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
+import { ConfirmModal } from './ui/ConfirmModal';
+import { TransferModal } from './TransferModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { Recipe } from '../types/recipe';
+import { Recipe, RecipeSummary } from '../types/recipe';
+import { getFullCatalogRecipes, getRecipeDetail } from '../db/database';
 import { RecipePreviewCard } from './RecipePreviewCard';
-import { applyCatalogImport, deleteRecipes, exportRecipeBook, pickCatalogFile } from '../services/recipeBookService';
+import { applyCatalogImport, deleteRecipes, exportRecipeBook, findUnresolvedImportIngredients, pickCatalogFile } from '../services/recipeBookService';
+import { knownIngredients } from '../db/recipeIngredientsDb';
+import type { ImportChoice, KnownIngredient, UnresolvedIngredient } from '../utils/importResolution';
+import { UnresolvedIngredientsModal } from './UnresolvedIngredientsModal';
 import { catalogRecipes, catalogVariants } from '../services/recipeCatalog';
 import { useCatalogVersion } from '../hooks/useCatalog';
 import { ExportFilter, ParsedCatalogFile, filterCatalog, withVariants } from '../services/catalogFormat';
@@ -36,6 +42,10 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   const [includeVariants, setIncludeVariants] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [preview, setPreview] = useState<Recipe | null>(null);
+  // The preview shows the whole recipe: its body is loaded when it opens
+  const openPreview = (id: string) => {
+    getRecipeDetail(id).then(full => setPreview(full));
+  };
   // Deselected ones are stored: by default all are selected
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
 
@@ -83,7 +93,13 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   const handleExport = async () => {
     setBusy(true);
     try {
-      const count = await exportRecipeBook(toExport, filter);
+      // The export needs the whole recipes: the bodies are loaded only now
+      const full = new Map((await getFullCatalogRecipes()).map(r => [r.id, r]));
+      const payload = toExport.flatMap(r => {
+        const recipe = full.get(r.id);
+        return recipe ? [recipe] : [];
+      });
+      const count = await exportRecipeBook(payload, filter);
       showStatus(t('recipeBook.exported', { count }));
     } catch (e) {
       console.warn('Esportazione ricettario fallita', e);
@@ -93,10 +109,22 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     }
   };
 
-  const runImport = async (parsed: ParsedCatalogFile, mode: 'overwrite' | 'keep') => {
+  // An import that has unknown ingredient names waits for the user's choices in the modal
+  const [pendingImport, setPendingImport] = useState<{
+    parsed: ParsedCatalogFile;
+    mode: 'overwrite' | 'keep';
+    items: UnresolvedIngredient[];
+    known: KnownIngredient[];
+  } | null>(null);
+
+  const finishImport = async (parsed: ParsedCatalogFile, mode: 'overwrite' | 'keep', choices?: Map<string, ImportChoice>) => {
     setBusy(true);
+    setProgress({ phase: 'writing', done: 0, total: parsed.recipes.length });
     try {
-      const result = await applyCatalogImport(parsed, mode);
+      // Updated every 10 recipes and at the end: each update re-renders the whole book
+      const result = await applyCatalogImport(parsed, mode, choices, (done, total) => {
+        if (done === total || done % 10 === 0) setProgress({ phase: 'writing', done, total });
+      });
       showStatus(t('recipeBook.imported', {
         imported: result.imported,
         updated: result.updated,
@@ -109,8 +137,38 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
       showStatus(t('common.error'), true);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   };
+
+  const runImport = async (parsed: ParsedCatalogFile, mode: 'overwrite' | 'keep') => {
+    setBusy(true);
+    setProgress({ phase: 'checking', done: 0, total: parsed.recipes.length });
+    let items: UnresolvedIngredient[];
+    try {
+      items = await findUnresolvedImportIngredients(parsed);
+    } catch (e) {
+      console.warn('Controllo ingredienti del ricettario fallito', e);
+      showStatus(t('common.error'), true);
+      setBusy(false);
+      return;
+    }
+    setBusy(false);
+    if (items.length === 0) {
+      await finishImport(parsed, mode);
+      return;
+    }
+    setPendingImport({ parsed, mode, items, known: await knownIngredients() });
+  };
+
+  // Import progress shown next to the spinner: the recipes checked, then the recipes written so far
+  const [progress, setProgress] = useState<{ phase: 'checking' | 'writing'; done: number; total: number } | null>(null);
+
+  // Import and export of the book: one dialog shared with the other data (see TransferModal)
+  const [transferOpen, setTransferOpen] = useState(false);
+
+  // Import with recipes already in the book: the user chooses overwrite or keep
+  const [conflict, setConflict] = useState<{ parsed: ParsedCatalogFile; count: number } | null>(null);
 
   const handleImport = async () => {
     setBusy(true);
@@ -128,19 +186,13 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
 
     const existing = new Set(everything.map(r => r.id));
     const conflicts = parsed.recipes.filter(r => existing.has(r.id)).length;
+    console.log('[import] file', { recipes: parsed.recipes.length, invalid: parsed.invalid, invalidReasons: parsed.invalidReasons, duplicates: parsed.duplicates, conflicts });
     if (conflicts === 0) {
       await runImport(parsed, 'keep');
       return;
     }
-    Alert.alert(
-      t('recipeBook.conflictTitle'),
-      t('recipeBook.conflictMessage', { count: conflicts }),
-      [
-        { text: t('recipeBook.overwriteAll'), onPress: () => runImport(parsed, 'overwrite') },
-        { text: t('recipeBook.keepMine'), onPress: () => runImport(parsed, 'keep') },
-        { text: t('common.cancel'), style: 'cancel' },
-      ]
-    );
+    // In-window choice: Alert with several buttons does not work on web
+    setConflict({ parsed, count: conflicts });
   };
 
   // Deletion: confirmation is in the window itself (an Alert opened from a modal is unreliable)
@@ -162,7 +214,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     }
   };
 
-  const renderItem = ({ item }: { item: Recipe }) => {
+  const renderItem = ({ item }: { item: RecipeSummary }) => {
     const checked = !deselectedIds.has(item.id);
     return (
       <View style={styles.row}>
@@ -176,7 +228,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             {item.variant_of ? `${item.title} · ${t(`recipeBook.dietShort.${item.diet ?? 'omnivore'}`)}` : item.title}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setPreview(item)} hitSlop={10} accessibilityLabel={t('recipeBook.preview')}>
+        <TouchableOpacity onPress={() => openPreview(item.id)} hitSlop={10} accessibilityLabel={t('recipeBook.preview')}>
           <Ionicons name="open-outline" size={18} color={colors.primaryText} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setPendingDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
@@ -205,7 +257,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
     { value: 'all', label: t('recipeBook.optAll') },
     { value: 'file', label: t('recipeBook.originFile') },
     { value: 'ai', label: t('recipeBook.originAi') },
-    { value: 'manual', label: t('recipeBook.originManual') },
+    { value: 'bundled', label: t('recipeBook.originBundled') },
   ];
 
   const renderChips = <T extends string>(
@@ -303,16 +355,6 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           ) : null}
 
           <TouchableOpacity
-            style={[styles.primaryBtn, (busy || toExport.length === 0) && styles.disabledBtn]}
-            onPress={handleExport}
-            disabled={busy || toExport.length === 0}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="share-outline" size={18} color={colors.onPrimary} style={styles.btnIcon} />
-            <Text style={styles.primaryBtnText}>{t('recipeBook.exportSelected', { count: toExport.length })}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.dangerBtn, (busy || selected.length === 0) && styles.disabledBtn]}
             onPress={() => setPendingDelete(selected.map(r => r.id))}
             disabled={busy || selected.length === 0}
@@ -322,20 +364,31 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             <Text style={styles.dangerBtnText}>{t('recipeBook.deleteSelected', { count: selected.length })}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.secondaryBtn} onPress={handleImport} disabled={busy} activeOpacity={0.85}>
-            <Ionicons name="folder-open-outline" size={18} color={colors.primaryText} style={styles.btnIcon} />
-            <Text style={styles.secondaryBtnText}>{t('recipeBook.import')}</Text>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} disabled={busy} activeOpacity={0.85}>
+            <Ionicons name="swap-vertical-outline" size={18} color={colors.primaryText} style={styles.btnIcon} />
+            <Text style={styles.secondaryBtnText}>{t('transfer.recipes.title')}</Text>
           </TouchableOpacity>
 
-          {busy ? <ActivityIndicator color={colors.primaryText} style={styles.busy} /> : null}
+          {busy ? (
+            <View style={styles.progressRow}>
+              <ActivityIndicator color={colors.primaryText} />
+              {progress ? (
+                <Text style={styles.progressText}>
+                  {progress.phase === 'checking'
+                    ? t('recipeBook.checking', { total: progress.total })
+                    : t('recipeBook.progress', { done: progress.done, total: progress.total })}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           {message ? (
             <Text style={[styles.message, isError && styles.messageError]}>{message}</Text>
           ) : null}
         </View>
 
-        <SheetModal visible={showFilters} onClose={() => setShowFilters(false)} autoHeight>
+        <SheetModal visible={showFilters} onClose={() => setShowFilters(false)}>
           <View style={styles.filterSheet}>
-            <View style={styles.header}>
+            <View style={styles.filterHeader}>
               <Text style={styles.title}>{t('recipeBook.filtersTitle')}</Text>
               <TouchableOpacity onPress={() => setShowFilters(false)} hitSlop={12} accessibilityLabel={t('common.close')}>
                 <Ionicons name="close" size={24} color={colors.primaryText} />
@@ -354,6 +407,53 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
         <RecipePreviewCard
           recipe={preview}
           onClose={() => setPreview(null)}
+        />
+
+        <TransferModal
+          visible={transferOpen}
+          kind="recipes"
+          exportCount={toExport.length}
+          onClose={() => setTransferOpen(false)}
+          onExport={async () => {
+            await handleExport();
+            return null;
+          }}
+          onImport={async () => {
+            setTransferOpen(false);
+            await handleImport();
+            return null;
+          }}
+        />
+
+        <ConfirmModal
+          visible={conflict !== null}
+          icon="copy-outline"
+          title={t('recipeBook.conflictTitle')}
+          body={t('recipeBook.conflictMessage', { count: conflict?.count ?? 0 })}
+          confirmLabel={t('recipeBook.overwriteAll')}
+          cancelLabel={t('recipeBook.keepMine')}
+          onConfirm={() => {
+            const pending = conflict;
+            setConflict(null);
+            if (pending) void runImport(pending.parsed, 'overwrite');
+          }}
+          onCancel={() => {
+            const pending = conflict;
+            setConflict(null);
+            if (pending) void runImport(pending.parsed, 'keep');
+          }}
+        />
+
+        <UnresolvedIngredientsModal
+          visible={pendingImport !== null}
+          items={pendingImport?.items ?? []}
+          known={pendingImport?.known ?? []}
+          onConfirm={choices => {
+            const pending = pendingImport;
+            setPendingImport(null);
+            if (pending) finishImport(pending.parsed, pending.mode, choices);
+          }}
+          onCancel={() => setPendingImport(null)}
         />
       </View>
     </SheetModal>
@@ -384,7 +484,9 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginBottom: 8,
   },
   filterButtonText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
-  filterSheet: { padding: 20, paddingBottom: 28 },
+  filterSheet: { padding: 20, paddingBottom: 4 },
+  // Title row of the filter sheet: no extra margin, it sits inside the sheet padding
+  filterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 0, marginBottom: 16 },
   filterGroup: { marginBottom: 8 },
   filterLabel: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
@@ -471,6 +573,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   confirmDeleteText: { fontSize: 14, fontWeight: '800', color: colors.onPrimary },
   dangerBtnText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
   busy: { marginTop: 12 },
+  progressRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  progressText: { fontSize: 13, fontWeight: '600' },
   message: { fontSize: 14, fontWeight: '600', color: colors.primaryText, marginTop: 12, lineHeight: 20 },
   messageError: { color: colors.danger },
 });

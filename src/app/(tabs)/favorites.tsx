@@ -11,7 +11,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
-import { Recipe } from '../../types/recipe';
+import { RecipeSummary } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { RecipeModal } from '../../components/RecipeModal';
 import { useResponsiveDimensions } from '../../hooks/useResponsiveDimensions';
@@ -31,7 +31,7 @@ export default function FavoritesScreen() {
   const { width } = useResponsiveDimensions();
   const { favoriteIds, toggleFavorite, refreshFavorites } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeSummary | null>(null);
   const catalogVersion = useCatalogVersion();
 
   // Syncs favorites when the screen gains focus
@@ -45,7 +45,7 @@ export default function FavoritesScreen() {
 
   // Favorite recipes from the catalog index (originals and variants); catalogVersion recomputes if the catalog changes
   const favoriteRecipes = useMemo(() => {
-    const list: Recipe[] = [];
+    const list: RecipeSummary[] = [];
     favoriteIds.forEach(id => {
       const r = getRecipeById(id);
       if (r) list.push(r);
@@ -71,7 +71,7 @@ export default function FavoritesScreen() {
 
   // Memoized renderItem to prevent item re-rendering during parent state changes
   const renderFavoriteItem = useCallback(
-    ({ item }: { item: Recipe }) => (
+    ({ item }: { item: RecipeSummary }) => (
       <View style={numColumns > 1 ? styles.gridItem : styles.fullWidthItem}>
         <RecipeCard
           recipe={item}

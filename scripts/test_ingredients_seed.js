@@ -41,6 +41,7 @@ if (!Array.isArray(seed)) {
   if (seed.length !== EXPECTED_COUNT) fail(`expected ${EXPECTED_COUNT} entries, got ${seed.length}`);
 
   const names = new Map();
+  const ids = new Set();
   seed.forEach((entry, i) => {
     const label = `entry ${i} (${entry && entry.name})`;
     if (!entry || typeof entry !== 'object') {
@@ -69,6 +70,9 @@ if (!Array.isArray(seed)) {
     if (entry.edible_alone === false && entry.default_amount !== null) fail(`${label} is not edible_alone but default_amount is set`);
     if (typeof entry.purchase_amount !== 'number' || !(entry.purchase_amount > 0)) fail(`${label} purchase_amount must be a number > 0`);
     if (typeof entry.purchase_unit !== 'string' || !entry.purchase_unit.trim()) fail(`${label} purchase_unit must be a non-empty string`);
+    if (typeof entry.id !== 'string' || !entry.id.trim()) fail(`${label} has no id`);
+    else if (ids.has(entry.id)) fail(`duplicate id "${entry.id}" at entry ${i}`);
+    else ids.add(entry.id);
     if (typeof entry.name === 'string') {
       const key = entry.name.trim().toLowerCase();
       if (names.has(key)) fail(`duplicate name (case-insensitive) "${entry.name}" at entries ${names.get(key)} and ${i}`);

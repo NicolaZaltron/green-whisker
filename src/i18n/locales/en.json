@@ -43,6 +43,12 @@
     "emptyCatalogTitle": "The recipe book is empty",
     "emptyCatalogSub": "Open the menu (chef hat, top right), then Recipe book, to import a JSON file of recipes.",
     "advanced": {
+      "sortTitle": "Sort by",
+      "sortAlpha": "Alphabetical",
+      "sortCreated": "Creation date",
+      "sortUpdated": "Last change",
+      "sortAsc": "Ascending",
+      "sortDesc": "Descending",
       "title": "Advanced Filters",
       "subtitle": "Customize your recipe search",
       "open": "Advanced filters",
@@ -65,7 +71,7 @@
       "originOptions": {
         "ai": "AI",
         "file": "File",
-        "manual": "Manual"
+        "bundled": "Bundled"
       },
       "features": "Features",
       "noCooking": "No-cook",
@@ -401,7 +407,74 @@
     "resetDataConfirm": "Delete",
     "resetDataDone": "Data deleted. Close and reopen the app."
   },
+  "outOfHome": {
+    "title": "Out of home",
+    "editTitle": "Out of home: edit options",
+    "add": "Add",
+    "rename": "Rename",
+    "delete": "Delete",
+    "deleteTitle": "Delete this option?",
+    "deleteBody": "\"{{label}}\" will no longer be offered in the planner. Meals already planned stay as they are.",
+    "deleteConfirm": "Delete",
+    "placeholder": "New option",
+    "errorEmpty": "Enter a name.",
+    "errorDuplicate": "An option with this name already exists.",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "transfer": {
+    "readyMeals": {
+      "title": "Ready meals: import and export",
+      "body": "Export all ready meals, including the ones you added, or import a file. Ready meals with the same id are updated.",
+      "export": "Export the ready meals",
+      "import": "Import ready meals from file"
+    },
+    "backup": {
+      "title": "Backup and restore",
+      "body": "Creates one file with recipes, ingredients, out of home, planner, shopping list, favorites, notes, settings and AI keys. The file contains the AI keys: keep it somewhere safe.",
+      "export": "Create backup",
+      "import": "Restore from backup"
+    },
+    "backupExported": "Backup created: {{count}} recipes",
+    "restoreTitle": "Restore the backup?",
+    "restoreBody": "Planner, shopping list, favorites, notes and settings will be replaced by the file's. Recipes and ingredients of the file are added or updated.",
+    "restoreConfirm": "Restore",
+    "restored": "Restore completed: {{recipes}} recipes, {{ingredients}} ingredients, {{entries}} planner entries ({{dropped}} dropped because missing)",
+    "exported": "Exported {{count}}",
+    "failed": "Operation failed: check the file",
+    "imported": "Imported {{count}}",
+    "importedWithErrors": "Imported {{count}}, invalid {{invalid}}",
+    "recipes": {
+      "title": "Recipe book: import and export",
+      "body": "Export the selected recipes to a JSON file, or import a file of recipes.",
+      "export": "Export the selected recipes",
+      "import": "Import recipes from file"
+    },
+    "ingredients": {
+      "title": "Ingredients: import and export",
+      "body": "Export all ingredients, including the ones you added, or import a file. Ingredients with the same id are updated.",
+      "export": "Export the ingredients",
+      "import": "Import ingredients from file"
+    },
+    "outOfHome": {
+      "title": "Out of home: import and export",
+      "body": "Export the Out of home options or import a file: existing options stay as they are.",
+      "export": "Export the options",
+      "import": "Import options from file"
+    }
+  },
   "recipeBook": {
+    "checking": "Checking {{total}} recipes…",
+    "progress": "Processed {{done}} of {{total}}",
+    "unresolved": {
+      "title": "Unknown ingredients",
+      "body": "These {{count}} ingredients of the file are not in the database. Link each one to an existing ingredient or add it as new. The import starts only when all are chosen.",
+      "usedIn": "Used in {{count}} recipes: {{titles}}",
+      "linkExisting": "Link to an ingredient",
+      "addNew": "Add as new",
+      "searchPlaceholder": "Search an ingredient",
+      "confirm": "Import"
+    },
     "title": "Recipe book",
     "description": "Choose what to export to a JSON file, or import a recipe book.",
     "filterScope": "Scope",
@@ -420,7 +493,7 @@
     },
     "originFile": "File",
     "originAi": "AI",
-    "originManual": "By hand",
+    "originBundled": "Bundled",
     "selectedCount": "{{selected}} of {{total}} selected",
     "selectAll": "Select all",
     "deselectAll": "Deselect all",
@@ -734,6 +807,9 @@
     }
   },
   "ingredients": {
+    "tabOutOfHome": "Out of home",
+    "newOutOfHome": "New option",
+    "transfer": "Export / import",
     "title": "Products and ready meals",
     "menuItem": "Products and ready foods",
     "tabIngredients": "Products",

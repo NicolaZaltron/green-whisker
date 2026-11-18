@@ -1,8 +1,8 @@
-import { Recipe } from '../types/recipe';
+import { RecipeSummary } from '../types/recipe';
 import { catalogRecipes } from './recipeCatalog';
 
 export interface PantryMatchResult {
-  recipe: Recipe;
+  recipe: RecipeSummary;
   percentage: number;
   matchedCount: number;
   requiredCount: number;

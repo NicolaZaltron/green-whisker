@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, GestureResponderEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { Recipe } from '../types/recipe';
+import { RecipeSummary } from '../types/recipe';
 import { VariantDiet } from '../services/catalogFormat';
 import { useFavoritesSafe } from '../context/FavoritesContext';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,7 @@ export interface PantryMatchInfo {
 }
 
 interface RecipeCardProps {
-  recipe: Recipe;
+  recipe: RecipeSummary;
   onPress: () => void;
   // Vegetarian/vegan versions available for this recipe
   variantDiets?: VariantDiet[];
@@ -58,10 +58,52 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
     }
   };
 
+  const hasImage = !!recipe.image;
+  const inlineStyle = styles.inline;
+
+  const categoryBadge = (
+    <View style={hasImage ? styles.categoryPill : [styles.categoryPill, inlineStyle]}>
+      <Text style={styles.categoryPillText}>
+        {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
+      </Text>
+    </View>
+  );
+
+  const favoriteButton = (
+    <TouchableOpacity
+      style={hasImage ? styles.favButton : [styles.favButton, inlineStyle]}
+      onPress={handleToggleFavorite}
+      activeOpacity={0.8}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Ionicons
+        name={favorite ? 'heart' : 'heart-outline'}
+        size={18}
+        color={favorite ? colors.danger : colors.primaryText}
+      />
+    </TouchableOpacity>
+  );
+
+  const variantBadge = variantDiets && variantDiets.length > 0 ? (
+    <View
+      style={hasImage ? styles.variantButton : [styles.variantButton, inlineStyle]}
+      accessibilityLabel={t('recipeCard.hasVariants')}
+    >
+      <Ionicons name="layers-outline" size={18} color={colors.primaryText} />
+    </View>
+  ) : null;
+
+  const fastBadge = recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 ? (
+    <View style={hasImage ? styles.fastPill : [styles.fastPill, inlineStyle]}>
+      <Ionicons name="flash" size={11} color={colors.onPrimary} />
+      <Text style={styles.fastPillText}>{t('recipeCard.fast')}</Text>
+    </View>
+  ) : null;
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.88}>
-      <View style={styles.imageWrapper}>
-        {recipe.image ? (
+      {hasImage ? (
+        <View style={styles.imageWrapper}>
           <Image
             source={imageSource}
             style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
@@ -70,45 +112,24 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
             cachePolicy="disk"
             recyclingKey={recipe.id}
           />
-        ) : (
-          <View style={[styles.image, styles.placeholder]}>
-            <Ionicons name="leaf-outline" size={36} color={colors.textMuted} />
-          </View>
-        )}
-
-        <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>
-            {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
-          </Text>
+          {categoryBadge}
+          {favoriteButton}
+          {variantBadge}
+          {fastBadge}
         </View>
-
-        {/* Quick Favorite Button */}
-        <TouchableOpacity
-          style={styles.favButton}
-          onPress={handleToggleFavorite}
-          activeOpacity={0.8}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons
-            name={favorite ? 'heart' : 'heart-outline'}
-            size={18}
-            color={favorite ? colors.danger : colors.primaryText}
-          />
-        </TouchableOpacity>
-
-        {variantDiets && variantDiets.length > 0 && (
-          <View style={styles.variantButton} accessibilityLabel={t('recipeCard.hasVariants')}>
-            <Ionicons name="layers-outline" size={18} color={colors.primaryText} />
+      ) : (
+        // No image: no picture area, the badges stay on one compact row above the title
+        <View style={styles.compactTop}>
+          <View style={styles.compactGroup}>
+            {categoryBadge}
+            {fastBadge}
           </View>
-        )}
-
-        {recipe.times.total_minutes > 0 && recipe.times.total_minutes <= 25 && (
-          <View style={styles.fastPill}>
-            <Ionicons name="flash" size={11} color={colors.onPrimary} />
-            <Text style={styles.fastPillText}>{t('recipeCard.fast')}</Text>
+          <View style={styles.compactGroup}>
+            {variantBadge}
+            {favoriteButton}
           </View>
-        )}
-      </View>
+        </View>
+      )}
 
       <View style={styles.content}>
         {pantryMatch && (
@@ -178,6 +199,18 @@ export const RecipeCard = React.memo<RecipeCardProps>(({
 });
 
 const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
+  // Badges placed in the flow (no image): they replace the absolute positions of the picture area
+  inline: { position: 'relative', top: 0, left: 0, right: 0, bottom: 0 },
+  compactTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+  },
+  compactGroup: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   card: {
     flex: 1,
     backgroundColor: colors.surface,

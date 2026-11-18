@@ -22,7 +22,10 @@ import { parseRecipeWithAI } from '../services/aiService';
 import { VariantDiet } from '../services/catalogFormat';
 import { ingredientItemFromText } from '../utils/servingsScaler';
 import { classifyDiet } from '../utils/dietClassifier';
-import { saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
+import { knownIngredients, saveCatalogRecipesWithLinks } from '../db/recipeIngredientsDb';
+import { buildImportWrite, findUnresolvedRecipeIngredients } from '../services/importPlan';
+import type { ImportChoice, KnownIngredient, UnresolvedIngredient } from '../utils/importResolution';
+import { UnresolvedIngredientsModal } from './UnresolvedIngredientsModal';
 import { refreshCatalog } from '../services/recipeCatalog';
 import { MACRO_CATEGORIES, RECIPE_TAXONOMY, MacroCategory } from '../constants/categories';
 import { useTranslation } from 'react-i18next';
@@ -34,7 +37,7 @@ import { AppTextField } from './ui/AppTextField';
 export interface ReviewRequest {
   recipe: Recipe;
   title: string;
-  onConfirm: (recipe: Recipe) => Promise<void>;
+  onConfirm: (recipe: Recipe, choices: ReadonlyMap<string, ImportChoice>) => Promise<void>;
   onDiscard: () => void;
   onRetry: (instructions: string) => Promise<void>;
 }
@@ -118,6 +121,8 @@ export function MagicRecipeImporterModal({
   const [editDiet, setEditDiet] = useState<RecipeDiet>('omnivore');
   const [retryInstructions, setRetryInstructions] = useState('');
   const [retrying, setRetrying] = useState(false);
+  // Save waiting for the user's choices on unknown ingredient names
+  const [pendingIngredients, setPendingIngredients] = useState<{ recipe: Recipe; items: UnresolvedIngredient[]; known: KnownIngredient[] } | null>(null);
   // true if the user chose the diet manually: from then on it is no longer recomputed
   const [dietChosenByHand, setDietChosenByHand] = useState(false);
   // Ingredients replaced by the AI (vegetarian/vegan adaptation): for verification only, they are not saved
@@ -262,7 +267,7 @@ export function MagicRecipeImporterModal({
     setEditCategory(recipe.macro_category || 'MACRO_PRIMI_E_CEREALI');
     setEditSubCategory(recipe.subcategory || recipe.category || '');
     setEditSlot((recipe.recommended_slot as any) || 'pranzo_cena');
-    setEditServings(String(recipe.servings || 4));
+    setEditServings(String(recipe.servings));
     setEditTotalTime(String(recipe.times?.total_minutes || 30));
     setEditDifficulty(recipe.difficulty === 'hard' || recipe.difficulty === 'Difficile' ? 'Difficile' : recipe.difficulty === 'medium' || recipe.difficulty === 'Media' ? 'Media' : 'Facile');
     setEditImageUrl(recipe.image || fallbackImage);
@@ -348,9 +353,25 @@ export function MagicRecipeImporterModal({
       is_complete_plate: parsedRecipe?.is_complete_plate ?? true,
     };
 
+    let unresolved: UnresolvedIngredient[];
+    try {
+      unresolved = await findUnresolvedRecipeIngredients([finalRecipe]);
+    } catch (e: any) {
+      Alert.alert(t('recipeImporter.saveErrorTitle'), e.message);
+      return;
+    }
+    // Unknown ingredients: the user links or adds them first, in the modal
+    if (unresolved.length > 0) {
+      setPendingIngredients({ recipe: finalRecipe, items: unresolved, known: await knownIngredients() });
+      return;
+    }
+    await commitRecipe(finalRecipe, new Map());
+  }
+
+  async function commitRecipe(finalRecipe: Recipe, choices: ReadonlyMap<string, ImportChoice>) {
     try {
       if (review) {
-        await review.onConfirm({ ...finalRecipe, origin: 'ai', modified: false });
+        await review.onConfirm({ ...finalRecipe, origin: 'ai', modified: false }, choices);
         handleReset();
         onClose();
         return;
@@ -358,13 +379,15 @@ export function MagicRecipeImporterModal({
       // An edit of an existing recipe keeps origin and creation date
       const now = Date.now();
       // Recipe and links in a single transaction
-      await saveCatalogRecipesWithLinks([{
+      const record: Recipe = {
         ...finalRecipe,
         origin: editingRecipe?.origin ?? 'ai',
         modified: !!editingRecipe,
         created_at: editingRecipe?.created_at ?? now,
         updated_at: now,
-      }], 'overwrite', [{ recipeId: finalRecipe.id, items: finalRecipe.detailed_ingredients ?? [] }]);
+      };
+      const { links, plan } = await buildImportWrite([record], choices);
+      await saveCatalogRecipesWithLinks([record], 'overwrite', links, plan);
       await refreshCatalog();
       // First close, then notify: so the receiver can open the variants review
       handleReset();
@@ -952,6 +975,17 @@ export function MagicRecipeImporterModal({
           )}
         </KeyboardAvoidingView>
       </View>
+      <UnresolvedIngredientsModal
+        visible={pendingIngredients !== null}
+        items={pendingIngredients?.items ?? []}
+        known={pendingIngredients?.known ?? []}
+        onConfirm={choices => {
+          const pending = pendingIngredients;
+          setPendingIngredients(null);
+          if (pending) void commitRecipe(pending.recipe, choices);
+        }}
+        onCancel={() => setPendingIngredients(null)}
+      />
     </SheetModal>
   );
 }

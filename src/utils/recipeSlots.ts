@@ -1,4 +1,4 @@
-import type { RecommendedSlot, Recipe } from '../types/recipe';
+import type { RecommendedSlot, RecipeSummary } from '../types/recipe';
 
 const BREAKFAST_SLOTS = ['colazione'];
 const SNACK_SLOTS = ['spuntino_mattina', 'spuntino_pomeriggio'];
@@ -18,7 +18,7 @@ const SLOTS_BY_RECOMMENDED: Partial<Record<RecommendedSlot, string[]>> = {
  * Recipe compatible with a planner slot.
  * Without recommended_slot (or with an unknown value): all slots except breakfast and snacks.
  */
-export function isRecipeForSlot(recipe: Recipe, slot: string): boolean {
+export function isRecipeForSlot(recipe: RecipeSummary, slot: string): boolean {
   const recommended = recipe.recommended_slot;
   const allowed = recommended ? SLOTS_BY_RECOMMENDED[recommended] : undefined;
   if (allowed) return allowed.includes(slot);

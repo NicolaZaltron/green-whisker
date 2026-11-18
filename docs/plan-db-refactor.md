@@ -1,6 +1,8 @@
 # Piano: refactoring del database locale
 
-Stato: **piano approvato, non implementato**. Fonti: `docs/APP_REFERENCE.md`, verifiche di codice del 13 novembre 2026, aggiornate il 17 novembre 2026 (controllo di Haiku e revisione critica di Opus). I riferimenti di riga sono indicativi. Le stime di tempo e dimensione sul telefono non sono misurate.
+Stato: **fasi 0–9 implementate**, con backup e ripristino completo (`src/services/backupService.ts`, modale comune `TransferModal`). Correzioni dal controllo di Sonnet: alias letti anche su nativo, versioni dei seed in `seed_meta` (il reseed non cancella più ingredienti), seed delle ricette predefinite robusto, cancellazioni affidate alle chiavi esterne. I punti di media priorità della sezione 13 sono chiusi (validazione delle ricette, cache del catalogo, divisione di `database.ts` per tabella) (fase 8 completata tranne esportazione e importazione delle opzioni Fuori casa dalle impostazioni, rimandate per decisione D20) (17 novembre 2026, branch `feature/db-refactoring`, non committate). Deviazioni rispetto al piano: i nomi delle tabelle sono ancora al plurale (`ingredients`, `recipe_ingredients`, …), la rinomina è rimandata alla fase 8; i nutrienti restano in formato lungo; `simple_items` non è ancora rimosso (D18 è da completare); il web usa ancora `localStorage` (fase 9). Fasi 6–9: ricerca tollerante con confronto parola per parola (test con refusi); spesa legge solo le porzioni future non già pronte (query dedicata) e il generatore legge una finestra di storico di 56 giorni (L14); web apre SQLite (WASM) come il telefono, con localStorage solo come riserva se SQLite non si apre; porzioni obbligatorie 1–24 all'import, senza fallback a 4. Fase 8: tabelle al singolare (schema v3), nutrienti in una riga larga per ingrediente, voci semplici rimosse (D18), opzioni Fuori casa in tabella seminata dalla costante (D20). Fase 5: il catalogo è diviso in `recipe` (riepilogo JSON più colonne indicizzate, in memoria) e `recipe_body` (corpo della scheda, caricato per id con `getRecipeDetail`). Le liste non caricano più le istruzioni. Restano da fare: lettura del planner per intervallo di date in `plannerService` (L14) e la scrittura nativa del corpo verificata solo tramite lo schema. Fase 3: schema versionato `user_version = 1` in `src/db/schema.ts`, con chiavi esterne e `CHECK`; le migrazioni vecchie sono rimosse e i dati vengono ricreati da zero. Fase 4: modale di risoluzione degli ingredienti sconosciuti (`UnresolvedIngredientsModal`), import con transazione unica e alias salvati per le scelte "collega".
+
+Stato precedente: piano approvato. Fonti: `docs/APP_REFERENCE.md`, verifiche di codice del 13 novembre 2026, aggiornate il 17 novembre 2026 (controllo di Haiku e revisione critica di Opus). I riferimenti di riga sono indicativi. Le stime di tempo e dimensione sul telefono non sono misurate.
 
 ## 1. Obiettivo
 
@@ -186,4 +188,83 @@ Lavori rimandati, non parte del refactoring principale.
 - `src/data/recipes.catalog.json` rimosso dal bundle. I collegamenti ricetta-ingrediente si creano all'import del ricettario (`applyCatalogImport`), all'import AI e per le varianti, tutti tramite `saveCatalogRecipesWithLinks` in un'unica transazione (`recipeIngredientsDb.ts`).
 - Le righe senza corrispondenza vengono scartate e contate, non salvate come testo. Il comportamento da cambiare è descritto in D7 e in L6.
 - Il ramo di risoluzione per id non è ancora verificato sui dati: gli id del database sono casuali e il seme non li salva. Tutti i collegamenti passano oggi dal nome.
-- Test: `scripts/test_recipe_import_links.js` (percorso reale dell'import), `scripts/test_recipe_links.js` (copre `saveRecipeLinks`, oggi senza chiamanti nell'app) e `scripts/test_ready_meals_seed.js` (pronti).
+- Test: `scripts/test_recipe_import_links.js` (percorso reale dell'import), `scripts/test_recipe_links.js` (rimosso: copriva `saveRecipeLinks`, senza chiamanti nell'app) e `scripts/test_ready_meals_seed.js` (pronti).
+
+## 13. Residui da sistemare (dopo le fasi 0–9)
+
+Emersi dal controllo di Sonnet sulla codebase finita. Non bloccano l'uso, ma vanno sistemati prima di aggiungere altre funzioni di import.
+
+### 13.1 Validazione delle ricette importate (fatto)
+
+**Problema.** `isValidRecipe` (`src/services/catalogFormat.ts`) controlla solo `id`, `title` e `category` come stringhe, più il fatto che `ingredients`, `instructions` e `tags` siano array. Non controlla:
+- il contenuto degli array (un elemento `null` o un numero in `instructions` passa);
+- la forma di `detailed_ingredients` (`ingredient`, `amount`, `unit`), che `buildImportLinks` legge direttamente: un elemento malformato può far fallire l'import a metà o creare un ingrediente con nome vuoto;
+- i valori di `diet`, `origin` e la coerenza di `variant_of` con l'id della variante.
+
+**Perché conta.** Un file esportato da un'altra versione o modificato a mano può passare la validazione e rompere l'import dopo che alcune ricette sono già state scritte. Oggi l'import è transazionale, quindi non resta niente a metà, ma l'errore arriva all'utente senza spiegazione.
+
+**Fix.**
+1. Una funzione `validateRecipe(value) → { recipe, issues }` che restituisce la ricetta normalizzata (campi mancanti riempiti con i default, elementi non stringa scartati) e la lista dei problemi con il motivo.
+2. `parseCatalogText` conta le ricette non valide per motivo (`invalid`) e le mostra nel messaggio di esito, non solo il numero.
+3. Ricette con `variant_of` che non corrisponde al suffisso dell'id: trattate come ricette normali, con un avviso.
+4. Test con fixture malformate: elemento `null` in `instructions`, `detailed_ingredients` senza `ingredient`, `diet` sconosciuto, `servings` stringa.
+
+**Verifica.** `scripts/test_recipe_validation.js` con almeno dieci fixture; il file `bundledRecipes.json` e `assets/ricette.json` devono restare validi senza avvisi.
+
+**Priorità:** media. **Fase:** dopo la 13.3 (il validatore va in un modulo proprio).
+
+### 13.2 Cache del catalogo (fatto: refreshCatalog(ids) aggiorna solo gli id toccati, Fuse si ricostruisce in differita)
+
+**Problema.** `loadCatalog` (chiamato da `refreshCatalog`) legge tutti i riepiloghi dal database (`SELECT summary_json FROM recipe`), parsa ogni JSON e ricostruisce l'indice di ricerca Fuse su tutto il catalogo. Succede a ogni salvataggio, cancellazione, import, variante e ripristino: nove file lo chiamano, sei punti lo fanno dopo una scrittura.
+
+**Perché conta.** Oggi con 835 ricette è probabilmente sotto il secondo, ma il costo cresce in modo lineare e l'indice viene ricostruito anche quando è cambiata una sola ricetta. Sul telefono questo si sente dopo un import grande o un ripristino.
+
+**Fix.**
+1. Misurare prima: un log di tempo (solo in sviluppo) su `loadCatalog` e `initializeSearchIndex` con il catalogo attuale e con un catalogo di 2.000 ricette generate.
+2. `refreshCatalog(changedIds?)`: se sono noti gli id cambiati, aggiorna solo quelli nell'array in memoria e la mappa per id.
+3. Indice di ricerca: Fuse non supporta l'aggiornamento incrementale, quindi l'indice va ricostruito in modo differito (una volta sola dopo una raffica di modifiche, con `setTimeout` o `scheduleIdle` già presente in `src/utils/idle.ts`), non a ogni chiamata.
+4. Le chiamate che oggi fanno `refreshCatalog()` dopo un import devono passare gli id scritti, non ricaricare tutto.
+
+**Verifica.** Il tempo di `refreshCatalog(ids)` con 2.000 ricette resta sotto i 50 ms (misurato nello stesso ambiente di test); nessuna chiamata a `initializeSearchIndex` per ogni singola ricetta di un import.
+
+**Priorità:** media. **Fase:** dopo la misura (13.2.1), prima di qualunque altra modifica al catalogo.
+
+### 13.3 Divisione di `database.ts` (fatto: `database.ts` è ora una facciata che ri-esporta `connection`, `webStorage`, `favoritesDb`, `shoppingDb`, `plannerDb`, `settingsDb`, `recipeCatalogDb`; `plannerDb.ts` è a 258 righe, sotto il limite di 400: non serve altro spostamento)
+
+**Problema.** `src/db/database.ts` ha 1384 righe e 54 funzioni esportate. Nello stesso file ci sono: apertura del database e schema, la coda delle transazioni, il fallback web con `localStorage`, le letture e scritture del catalogo, del planner, della spesa, dei preferiti, delle note, delle impostazioni (kv) e le migrazioni residue (le etichette "Fuori casa").
+
+**Perché conta.** Ogni modifica tocca un file che non si riesce più a leggere per intero, e i test devono importare tutto il modulo (con le stub di Expo) anche per una sola funzione. È anche il motivo per cui il fallback web e il percorso SQL sono difficili da tenere allineati.
+
+**Fix (senza cambiare comportamento).** Stesso stile dei file già presenti in `src/db` (`ingredientsDb.ts`, `readyMealsDb.ts`): un file per gruppo di tabelle. Tutte le tabelle restano nello stesso database `greenwhisker.db`.
+1. `src/db/connection.ts`: apertura del database, `applySchema`, coda delle transazioni, `isWebMode`.
+2. `src/db/webStorage.ts`: chiavi di `localStorage` e lettura/scrittura del fallback web.
+3. `src/db/recipeCatalogDb.ts`: tabelle `recipe` e `recipe_body`, varianti.
+4. `src/db/plannerDb.ts`: tabella `meal_plan`.
+5. `src/db/shoppingDb.ts`: tabella `shopping_item`.
+6. `src/db/favoritesDb.ts`: tabelle `favorite` e `recipe_note`.
+7. `src/db/settingsDb.ts`: tabella `kv_store` (lettura e scrittura complete, usate dal backup).
+8. `database.ts` resta come facciata che ri-esporta tutto, così gli import esistenti non cambiano nella prima fase; poi si migrano gli import uno per volta e la facciata si elimina.
+9. Nessun file nuovo supera le 400 righe.
+
+**Verifica.** Tutti i test esistenti passano senza modifiche ai test (l'unica differenza ammessa è il percorso di import dentro i test). `tsc` e `lint` puliti. Il numero di funzioni esportate per file è riportato nel piano.
+
+**Priorità:** media. **Fase:** dopo 13.1 e 13.2, perché il validatore e la cache toccano il catalogo che qui viene spostato.
+### 13.4 Punti 1–5 del controllo Sonnet sul DB (fatto)
+
+Ordine di esecuzione: 5, 3, 4, 2, 1.
+
+1. **Alias utente persi al re-seed (fatto).** `ingredient_alias` ha la colonna `source` (`'seed'` o `'user'`), schema v5. Il re-seed sostituisce solo gli alias `seed` e non sovrascrive una chiave che appartiene all'utente (`ON CONFLICT ... WHERE source = 'seed'`). Sul web, dove non c'è la colonna, il seed unisce gli alias esistenti con quelli del seme. Test: `scripts/test_alias_preserved_on_reseed.js` (cinque controlli sul codice reale, su SQLite in memoria).
+2. **`planCatalogUpsert` fuori dalla transazione (fatto).** La decisione keep/overwrite e la risoluzione dei collegamenti avvengono dentro la transazione che scrive, sulle stesse righe. Vale anche per `upsertCatalogRecipes`. Sul web il percorso è invariato. Il percorso nativo non è coperto dai test in Node.
+3. **Funzioni inutilizzate (fatto).** Rimosse da `plannerDb.ts`, `ingredientsDb.ts`, `recipeIngredientsDb.ts` le funzioni senza chiamanti, più `updateMealPlanServings` e `isValidRecipe`.
+4. **`knownIngredients` caricato più volte (fatto).** Su nativo legge solo id, nome e alias (due letture leggere, senza nutrienti). L'import la carica una volta sola e la passa nel piano (`ImportPlan.known`).
+5. **`saveReadyMeal` legge tutta la tabella (fatto).** Legge solo la data di creazione del pronto che si sta salvando (`readCreatedAt`).
+
+### 13.5 Verifica prima del commit (fatto)
+
+Controlli eseguiti sui file modificati e non committati:
+- commenti in italiano nel codice: nessuno (le parole italiane trovate erano dati di esempio tra virgolette);
+- codice duplicato: `requireDb` e `runInTransaction` erano copiati in quattro moduli, ora sono in `connection.ts` e importati da lì; `readWeb` è ancora copiato in più moduli con tipi diversi (da lasciare, dipende dal tipo del record); `normalizeNutrients` è in `src/utils/nutrientValues.ts`, usato da entrambi i moduli;
+- codice obsoleto: rimossi `isValidRecipe` e `updateMealPlanServings`. Restano da decidere, perché esistono già su `main` senza chiamanti: `getRecipesForSlot`, `getSideRecipes`, `formatWeekPlanShareText` in `plannerService.ts`;
+- import inutilizzati: nessuno (`tsc --noUnusedLocals --noUnusedParameters` pulito);
+- lint: nessun errore né warning (`npx expo lint`, uscita 0);
+- test: 34 script su 34 passano.

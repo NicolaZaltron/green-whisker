@@ -11,14 +11,11 @@ export function SheetModal({
   visible,
   onClose,
   fullScreen = false,
-  autoHeight = false,
   children,
 }: {
   visible: boolean;
   onClose: () => void;
   fullScreen?: boolean;
-  // Height based on content (up to 80%) instead of a fixed 90%
-  autoHeight?: boolean;
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -41,11 +38,12 @@ export function SheetModal({
       </Modal>
     );
   }
+  // Bottom sheet: the window stops above the system bars (no translucent bars), so nothing needs an inset
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={[styles.sheet, autoHeight ? styles.sheetAuto : styles.sheetFixed, { paddingBottom: Math.max(insets.bottom, 8) }, width >= 768 && styles.sheetTablet]}>
+        <View style={[styles.sheet, styles.sheetAuto, width >= 768 && styles.sheetTablet]}>
           {children}
         </View>
       </View>
@@ -70,13 +68,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 12,
+    paddingBottom: 16,
   },
-  sheetFixed: { height: '90%' },
   sheetAuto: { maxHeight: '80%' },
   sheetTablet: {
     maxWidth: 520,

@@ -31,7 +31,7 @@ const loadSeed = () => store.set('gw_ingredients', JSON.stringify(seed.map((i, n
 (async () => {
   const { getWebData, WEB_STORAGE_KEYS } = require(path.join(ROOT, 'src/db/database.ts'));
   const links = () => getWebData(WEB_STORAGE_KEYS.RECIPE_INGREDIENTS, []);
-  const { saveRecipeLinks, saveRecipeLinksBatch, saveCatalogRecipesWithLinks } = require(path.join(ROOT, 'src/db/recipeIngredientsDb.ts'));
+  const { saveCatalogRecipesWithLinks } = require(path.join(ROOT, 'src/db/recipeIngredientsDb.ts'));
   const ingredientsDb = require(path.join(ROOT, 'src/db/ingredientsDb.ts'));
   const { applyCatalogImport } = require(path.join(ROOT, 'src/services/recipeBookService.ts'));
   const { parseCatalogText } = require(path.join(ROOT, 'src/services/catalogFormat.ts'));
@@ -67,22 +67,22 @@ const loadSeed = () => store.set('gw_ingredients', JSON.stringify(seed.map((i, n
   assert.ok(!links().some(l => l.recipe_id === 'bad-recipe'));
   console.log('PASS T3 errore propagato, nessun collegamento orfano (web: nessun rollback, limite documentato)');
 
-  // T4: batch == singles, a single read of the ingredients
+  // T4: one recipe per write == all recipes in one write, and a single read of the ingredients
   const sample = parsed.recipes.filter(r => (r.detailed_ingredients || []).length > 0).slice(0, 20);
+  const linksOf = r => ({ recipeId: r.id, items: r.detailed_ingredients });
   reset(); loadSeed();
-  for (const r of sample) await saveRecipeLinks(r.id, r.detailed_ingredients);
+  for (const r of sample) await saveCatalogRecipesWithLinks([r], 'overwrite', [linksOf(r)]);
   const single = JSON.stringify(links());
   reset(); loadSeed();
   let reads = 0;
   const orig = ingredientsDb.listIngredients;
   ingredientsDb.listIngredients = async () => { reads++; return orig(); };
-  const out = await saveRecipeLinksBatch(sample.map(r => ({ recipeId: r.id, items: r.detailed_ingredients })));
+  const batch = await saveCatalogRecipesWithLinks(sample, 'overwrite', sample.map(linksOf));
   ingredientsDb.listIngredients = orig;
   assert.strictEqual(JSON.stringify(links()), single, 'stesso risultato');
-  assert.strictEqual(out.unresolved, 0);
-  assert.strictEqual(reads, 1, 'una sola lettura');
+  assert.strictEqual(batch.inserted, sample.length);
+  assert.strictEqual(reads, 1, 'una sola lettura ingredienti');
   // keep mode: no links for recipes already present
-  await saveCatalogRecipesWithLinks([sample[0]], 'overwrite', [{ recipeId: sample[0].id, items: sample[0].detailed_ingredients }]);
   const k = await saveCatalogRecipesWithLinks([sample[0]], 'keep', [{ recipeId: sample[0].id, items: [] }]);
   assert.strictEqual(k.skipped, 1);
   assert.ok(links().some(l => l.recipe_id === sample[0].id), 'keep non tocca i collegamenti');

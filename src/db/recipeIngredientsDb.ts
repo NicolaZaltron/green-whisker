@@ -1,24 +1,15 @@
 import type { RecipeIngredient } from '../types/catalog';
 import type { IngredientItem, Recipe } from '../types/recipe';
-import { getDatabase, getWebData, isWebMode, planCatalogUpsert, runQueuedTransaction, setWebData, WEB_STORAGE_KEYS, writeCatalogRecipesInTx, writeCatalogRecipesWeb } from './database';
-import { listIngredients } from './ingredientsDb';
-import { matchCatalogName } from '../utils/catalogNameMatch';
+import { getDatabase, getWebData, isWebMode, planCatalogUpsert, requireDb, runInTransaction, setWebData, WEB_STORAGE_KEYS, writeCatalogRecipesInTx, writeCatalogRecipesWeb } from './database';
+import { listIngredients, writeImportIngredientsInTx, writeImportIngredientsWeb } from './ingredientsDb';
+import type { ImportIngredientPlan } from './ingredientsDb';
+import { resolveRowIdWithChoices } from '../utils/importResolution';
+import type { KnownIngredient } from '../utils/importResolution';
 
 export type RecipeIngredientDetail = RecipeIngredient & {
   ingredient_name: string;
   ingredient_type: string;
 };
-
-function requireDb(): any {
-  const db = getDatabase();
-  if (!db) throw new Error('database_unavailable');
-  return db;
-}
-
-function runInTransaction<T>(db: any, fn: () => Promise<T>): Promise<T> {
-  if (typeof db.withTransactionAsync === 'function') return runQueuedTransaction(db, fn);
-  return fn();
-}
 
 function readWeb(): RecipeIngredient[] {
   return getWebData<RecipeIngredient[]>(WEB_STORAGE_KEYS.RECIPE_INGREDIENTS, []);
@@ -39,21 +30,33 @@ interface ResolvedLinks {
 // 100 rows x 6 columns = 600 variables per INSERT, below SQLite's limit of 999
 const INSERT_CHUNK_ROWS = 100;
 
+/** Ingredients the database knows, with their aliases (the same on native and web). */
+export async function knownIngredients(): Promise<KnownIngredient[]> {
+  if (isWebMode()) {
+    const ingredients = await listIngredients();
+    return ingredients.map(i => ({ id: i.id, name: i.name, aliases: i.aliases }));
+  }
+  // Native: two light reads (no nutrients) instead of the whole ingredient table
+  const db = getDatabase();
+  const rows: { id: string; name: string }[] = await db.getAllAsync('SELECT id, name FROM ingredient');
+  const aliases: { alias_key: string; ingredient_id: string }[] = await db.getAllAsync('SELECT alias_key, ingredient_id FROM ingredient_alias');
+  const byId = new Map<string, string[]>();
+  for (const a of aliases) byId.set(a.ingredient_id, [...(byId.get(a.ingredient_id) ?? []), a.alias_key]);
+  return rows.map(r => ({ id: r.id, name: r.name, aliases: byId.get(r.id) ?? [] }));
+}
+
 /**
  * Resolves the rows of several recipes into links: a single read of the ingredients.
- * Uses the row id if it exists in the database, otherwise looks up the (normalized) name.
+ * Uses the row id if it exists in the database, otherwise the name or an alias, otherwise the user's choice.
  */
-async function resolveLinks(entries: RecipeLinkEntry[]): Promise<ResolvedLinks> {
-  const ingredients = await listIngredients();
-  const knownIds = new Set(ingredients.map(i => i.id));
-  const names = ingredients.map(i => ({ id: i.id, name: i.name }));
+async function resolveLinks(entries: RecipeLinkEntry[], choiceIds: ReadonlyMap<string, string> = new Map(), preloaded?: readonly KnownIngredient[]): Promise<ResolvedLinks> {
+  const known = preloaded ?? await knownIngredients();
+  const knownIds = new Set(known.map(i => i.id));
   const rows: RecipeIngredient[] = [];
   let unresolved = 0;
   for (const { recipeId, items } of entries) {
     items.forEach((item, index) => {
-      const id = item.ingredient_id && knownIds.has(item.ingredient_id)
-        ? item.ingredient_id
-        : matchCatalogName(item.ingredient || item.text, names).id;
+      const id = resolveRowIdWithChoices(item, knownIds, known, choiceIds);
       if (!id) {
         unresolved++;
         return;
@@ -79,47 +82,17 @@ function writeLinksWeb(resolved: ResolvedLinks): void {
  */
 async function writeLinksInTx(db: any, resolved: ResolvedLinks): Promise<void> {
   for (const recipeId of resolved.recipeIds) {
-    await db.runAsync('DELETE FROM recipe_ingredients WHERE recipe_id = ?', [recipeId]);
+    await db.runAsync('DELETE FROM recipe_ingredient WHERE recipe_id = ?', [recipeId]);
   }
   for (let i = 0; i < resolved.rows.length; i += INSERT_CHUNK_ROWS) {
     const chunk = resolved.rows.slice(i, i + INSERT_CHUNK_ROWS);
     const params: (string | number | null)[] = [];
     for (const r of chunk) params.push(r.recipe_id, r.ingredient_id, r.amount, r.unit, r.note, r.position);
     await db.runAsync(
-      `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, amount, unit, note, position) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
+      `INSERT INTO recipe_ingredient (recipe_id, ingredient_id, amount, unit, note, position) VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?)').join(', ')}`,
       params,
     );
   }
-}
-
-/**
- * Links the rows of several recipes to ingredients: ingredients read once, everything in one transaction.
- * For each recipe it replaces the previous links (even with an empty list: it deletes them), without touching the others.
- * Rows without a match stay as text only: they are counted, not linked.
- */
-export async function saveRecipeLinksBatch(entries: RecipeLinkEntry[]): Promise<{ linked: number; unresolved: number }> {
-  if (entries.length === 0) return { linked: 0, unresolved: 0 };
-  const resolved = await resolveLinks(entries);
-  if (isWebMode()) {
-    writeLinksWeb(resolved);
-    return { linked: resolved.linked, unresolved: resolved.unresolved };
-  }
-  const db = requireDb();
-  try {
-    await runInTransaction(db, () => writeLinksInTx(db, resolved));
-    return { linked: resolved.linked, unresolved: resolved.unresolved };
-  } catch (e) {
-    console.error('saveRecipeLinksBatch error', e);
-    throw e;
-  }
-}
-
-/**
- * Links the rows of a recipe to ingredients (batch wrapper).
- * Note: the section of the rows is not kept in the links, only ingredient, quantity, unit and position.
- */
-export async function saveRecipeLinks(recipeId: string, items: IngredientItem[]): Promise<{ linked: number; unresolved: number }> {
-  return saveRecipeLinksBatch([{ recipeId, items }]);
 }
 
 /**
@@ -129,31 +102,56 @@ export async function saveRecipeLinks(recipeId: string, items: IngredientItem[])
  * Errors are rethrown. Entries of `links` with an empty list delete the recipe's links:
  * whoever does not want to touch them must omit the entry.
  */
+export interface ImportPlan {
+  // Ingredients to create and aliases to add, decided by the user before the import
+  ingredients: ImportIngredientPlan;
+  // Unknown ingredient names (normalized) mapped to the id that the user chose for them
+  choiceIds: ReadonlyMap<string, string>;
+  // Known ingredients read once for the whole import (read from the database when absent)
+  known?: readonly KnownIngredient[];
+}
+
+const NO_IMPORT_PLAN: ImportPlan = { ingredients: { created: [], aliases: [] }, choiceIds: new Map() };
+
 export async function saveCatalogRecipesWithLinks(
   recipes: Recipe[],
   mode: 'overwrite' | 'keep',
   links: RecipeLinkEntry[],
+  plan: ImportPlan = NO_IMPORT_PLAN,
+  onProgress?: (done: number, total: number) => void,
 ): Promise<{ inserted: number; updated: number; skipped: number; linked: number; unresolved: number }> {
-  const { toWrite, result } = await planCatalogUpsert(recipes, mode);
-  const written = new Set(toWrite.map(r => r.id));
-  const resolved = await resolveLinks(links.filter(l => written.has(l.recipeId)));
-
   if (isWebMode()) {
+    const { toWrite, result } = await planCatalogUpsert(recipes, mode);
+    const alreadyDone = recipes.length - toWrite.length;
+    onProgress?.(alreadyDone, recipes.length);
+    const written = new Set(toWrite.map(r => r.id));
+    const resolved = await resolveLinks(links.filter(l => written.has(l.recipeId)), plan.choiceIds, plan.known);
     await writeCatalogRecipesWeb(toWrite);
+    onProgress?.(recipes.length, recipes.length);
+    await writeImportIngredientsWeb(plan.ingredients);
     if (resolved.recipeIds.length > 0) writeLinksWeb(resolved);
     return { ...result, linked: resolved.linked, unresolved: resolved.unresolved };
   }
+
   const db = requireDb();
   try {
-    await runInTransaction(db, async () => {
-      await writeCatalogRecipesInTx(db, toWrite);
+    return await runInTransaction(db, async () => {
+      // The keep/overwrite decision and the link resolution read the rows inside the transaction that writes them
+      const { toWrite, result } = await planCatalogUpsert(recipes, mode, db);
+      // Recipes skipped in 'keep' mode count as processed from the start
+      const alreadyDone = recipes.length - toWrite.length;
+      onProgress?.(alreadyDone, recipes.length);
+      const written = new Set(toWrite.map(r => r.id));
+      const resolved = await resolveLinks(links.filter(l => written.has(l.recipeId)), plan.choiceIds, plan.known);
+      await writeCatalogRecipesInTx(db, toWrite, index => onProgress?.(alreadyDone + index + 1, recipes.length));
+      await writeImportIngredientsInTx(db, plan.ingredients);
       await writeLinksInTx(db, resolved);
+      return { ...result, linked: resolved.linked, unresolved: resolved.unresolved };
     });
   } catch (e) {
     console.error('saveCatalogRecipesWithLinks error', e);
     throw e;
   }
-  return { ...result, linked: resolved.linked, unresolved: resolved.unresolved };
 }
 
 /** Lists the ingredients of a recipe ordered by position, with the ingredient name and type. */
@@ -179,8 +177,8 @@ export async function listRecipeIngredients(recipeId: string): Promise<RecipeIng
     const rows: any[] = await db.getAllAsync(
       `SELECT ri.recipe_id, ri.ingredient_id, ri.amount, ri.unit, ri.note, ri.position,
               i.name AS ingredient_name, i.type AS ingredient_type
-       FROM recipe_ingredients ri
-       JOIN ingredients i ON i.id = ri.ingredient_id
+       FROM recipe_ingredient ri
+       JOIN ingredient i ON i.id = ri.ingredient_id
        WHERE ri.recipe_id = ?
        ORDER BY ri.position`,
       [recipeId],
@@ -201,24 +199,3 @@ export async function listRecipeIngredients(recipeId: string): Promise<RecipeIng
   }
 }
 
-/** Returns the distinct recipe ids that use the given ingredient. */
-export async function listRecipeIdsForIngredient(ingredientId: string): Promise<string[]> {
-  if (isWebMode()) {
-    const ids = new Set<string>();
-    for (const row of readWeb()) {
-      if (row.ingredient_id === ingredientId) ids.add(row.recipe_id);
-    }
-    return [...ids].sort();
-  }
-  const db = requireDb();
-  try {
-    const rows: any[] = await db.getAllAsync(
-      'SELECT DISTINCT recipe_id FROM recipe_ingredients WHERE ingredient_id = ? ORDER BY recipe_id',
-      [ingredientId],
-    );
-    return rows.map(r => r.recipe_id as string);
-  } catch (e) {
-    console.error('listRecipeIdsForIngredient error', e);
-    throw e;
-  }
-}

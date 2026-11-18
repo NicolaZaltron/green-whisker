@@ -1,6 +1,6 @@
 // Shopping list preview: what the planner needs vs what is already in the list.
 // Pure function, without React/Expo dependencies.
-import type { MealPlanEntry, Recipe, ShoppingItem } from '../types/recipe';
+import type { MealPlanEntry, RecipeSummary, ShoppingItem } from '../types/recipe';
 import type { Ingredient, ReadyMeal } from '../types/catalog';
 import { cleanSupermarketIngredientName, normalizeIngredientKey } from '../utils/ingredientAggregator';
 import { normalizeUnit, sameFamilyKey, toBase } from '../utils/unitConversion';
@@ -29,7 +29,7 @@ export interface ShoppingPreviewInput {
   today: string;
   entries: MealPlanEntry[];
   /** Only for title (label) and base servings of the recipe. */
-  recipes: Record<string, Recipe>;
+  recipes: Record<string, RecipeSummary>;
   ingredients: Record<string, Ingredient>;
   /** Ingredient rows by recipe id, already referred to the recipe's base servings. */
   recipeIngredients: Record<string, { ingredient_name: string; amount: number | null; unit: string }[]>;
@@ -83,7 +83,9 @@ function collectNeeds(input: ShoppingPreviewInput): Need[] {
       const rows = input.recipeIngredients[entry.recipe_id];
       if (!rows) continue;
       const recipe = input.recipes[entry.recipe_id];
-      const factor = entry.servings / (recipe?.servings || 4);
+      // Without the recipe (deleted) the quantities cannot be scaled: the entry is skipped
+      if (!recipe) continue;
+      const factor = entry.servings / recipe.servings;
       const label = recipe?.title ?? '';
       for (const r of rows) {
         const amount = r.amount === null || r.amount === undefined ? null : r.amount * factor;

@@ -1,4 +1,4 @@
-import { Recipe, RecipeDiet, RecipeOrigin } from '../types/recipe';
+import { Recipe, RecipeDiet, RecipeOrigin, RecipeSummary } from '../types/recipe';
 import { classifyDiet } from '../utils/dietClassifier';
 
 // Module without React Native dependencies: can also be tested from Node (see scripts/test_catalog.js)
@@ -11,12 +11,44 @@ const VEGAN_TAG = '100% Vegetale';
 // How restrictive a diet is: vegan includes vegetarian, which includes omnivore
 const DIET_RANK: Record<RecipeDiet, number> = { omnivore: 0, vegetarian: 1, vegan: 2 };
 
-export function isValidRecipe(value: unknown): value is Recipe {
-  if (!value || typeof value !== 'object') return false;
+/**
+ * Why a recipe of an imported file cannot be used, or null if it can. Structural problems reject the recipe;
+ * junk inside its lists is removed by cleanRecipe instead. Servings are required (1 to 24): the app does not guess them.
+ */
+export function invalidReason(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'not_object';
   const r = value as Record<string, unknown>;
-  return REQUIRED_STRING_FIELDS.every(f => typeof r[f] === 'string' && (r[f] as string).trim() !== '')
-    && REQUIRED_ARRAY_FIELDS.every(f => Array.isArray(r[f]))
-    && typeof r.times === 'object' && r.times !== null;
+  for (const field of REQUIRED_STRING_FIELDS) {
+    if (typeof r[field] !== 'string' || (r[field] as string).trim() === '') return `${field}_missing`;
+  }
+  for (const field of REQUIRED_ARRAY_FIELDS) {
+    if (!Array.isArray(r[field])) return `${field}_missing`;
+  }
+  if (typeof r.times !== 'object' || r.times === null) return 'times_missing';
+  if (!Number.isInteger(r.servings) || (r.servings as number) < 1 || (r.servings as number) > 24) return 'servings_invalid';
+  if (r.variant_of !== undefined && typeof r.variant_of !== 'string') return 'variant_of_invalid';
+  if (r.detailed_ingredients !== undefined) {
+    if (!Array.isArray(r.detailed_ingredients)) return 'detailed_ingredients_invalid';
+    for (const item of r.detailed_ingredients) {
+      if (!item || typeof item !== 'object') return 'detailed_ingredients_invalid';
+      const row = item as Record<string, unknown>;
+      const name = typeof row.ingredient === 'string' && row.ingredient.trim() ? row.ingredient : row.text;
+      if (typeof name !== 'string' || !name.trim()) return 'detailed_ingredients_invalid';
+      if (row.amount !== undefined && row.amount !== null && typeof row.amount !== 'number') return 'detailed_amount_invalid';
+    }
+  }
+  return null;
+}
+
+/** The recipe without the non-text items of its lists (they are dropped, the recipe stays). */
+export function cleanRecipe(recipe: Recipe): Recipe {
+  const texts = (list: unknown[]) => list.filter((item): item is string => typeof item === 'string');
+  return {
+    ...recipe,
+    ingredients: texts(recipe.ingredients),
+    instructions: texts(recipe.instructions),
+    tags: texts(recipe.tags),
+  };
 }
 
 /** Variant id: fixed, so regenerating it replaces the same recipe even on other phones */
@@ -34,6 +66,8 @@ function dietFromVariantId(id: string): RecipeDiet | undefined {
 export interface ParsedCatalogFile {
   recipes: Recipe[];
   invalid: number;
+  // Number of invalid recipes per reason (see invalidReason)
+  invalidReasons?: Record<string, number>;
   // Ids repeated in the file: the last occurrence stays
   duplicates: number;
 }
@@ -53,15 +87,19 @@ export function parseCatalogText(text: string): ParsedCatalogFile {
   const byId = new Map<string, Recipe>();
   let invalid = 0;
   let duplicates = 0;
+  const invalidReasons: Record<string, number> = {};
   for (const item of parsed) {
-    if (!isValidRecipe(item)) {
+    const reason = invalidReason(item);
+    if (reason !== null) {
       invalid++;
+      invalidReasons[reason] = (invalidReasons[reason] ?? 0) + 1;
       continue;
     }
-    if (byId.has(item.id)) duplicates++;
-    byId.set(item.id, item);
+    const recipe = cleanRecipe(item as Recipe);
+    if (byId.has(recipe.id)) duplicates++;
+    byId.set(recipe.id, recipe);
   }
-  return { recipes: Array.from(byId.values()), invalid, duplicates };
+  return { recipes: Array.from(byId.values()), invalid, duplicates, invalidReasons };
 }
 
 /**
@@ -102,9 +140,9 @@ export function normalizeImported(recipe: Recipe, now: number): Recipe {
   };
 }
 
-/** Personal recipes: imported by the AI, created by hand or edited by the user */
-export function isPersonalRecipe(recipe: Recipe): boolean {
-  return (recipe.origin ?? 'file') !== 'file' || recipe.modified === true;
+/** Personal recipes: imported by the AI or edited by the user (the bundled recipes are not personal) */
+export function isPersonalRecipe(recipe: RecipeSummary): boolean {
+  return (recipe.origin === 'ai') || recipe.modified === true;
 }
 
 export type ExportScope = 'all' | 'personal';
@@ -118,7 +156,7 @@ export interface ExportFilter {
 }
 
 /** Recipes that satisfy the export filter, in catalog order */
-export function filterCatalog(recipes: Recipe[], filter: ExportFilter): Recipe[] {
+export function filterCatalog<T extends RecipeSummary>(recipes: T[], filter: ExportFilter): T[] {
   return recipes.filter(r => {
     if (filter.scope === 'personal' && !isPersonalRecipe(r)) return false;
     if (filter.kind === 'originals' && r.variant_of) return false;
@@ -130,7 +168,7 @@ export function filterCatalog(recipes: Recipe[], filter: ExportFilter): Recipe[]
 }
 
 /** Adds the variants of the selected originals (without duplicates) */
-export function withVariants(selected: Recipe[], all: Recipe[]): Recipe[] {
+export function withVariants<T extends RecipeSummary>(selected: T[], all: T[]): T[] {
   const baseIds = new Set(selected.filter(r => !r.variant_of).map(r => r.id));
   const ids = new Set(selected.map(r => r.id));
   const extra = all.filter(r => r.variant_of && baseIds.has(r.variant_of) && !ids.has(r.id));
@@ -149,7 +187,7 @@ export function exportFileName(filter: ExportFilter, date: string): string {
 }
 
 /** Ids to delete: the chosen ones plus the variants of the chosen originals */
-export function expandDeletion(ids: string[], all: Recipe[]): string[] {
+export function expandDeletion(ids: string[], all: { id: string; variant_of?: string }[]): string[] {
   const toDelete = new Set(ids);
   all.forEach(r => { if (r.variant_of && toDelete.has(r.variant_of)) toDelete.add(r.id); });
   return Array.from(toDelete);
@@ -163,7 +201,7 @@ const VARIANT_LABEL: Record<VariantDiet, string> = { vegetarian: 'vegetariana', 
  * Variants that can be generated from a recipe: an omnivore one can have both, a vegetarian one
  * only the vegan one, a vegan one none. A variant that already exists is not proposed.
  */
-export function availableVariantDiets(source: Recipe, existing: Recipe[]): VariantDiet[] {
+export function availableVariantDiets(source: RecipeSummary, existing: RecipeSummary[]): VariantDiet[] {
   const taken = new Set(existing.filter(r => r.variant_of === source.id).map(r => r.diet));
   const candidates: VariantDiet[] = [];
   if (source.diet !== 'vegetarian' && source.diet !== 'vegan') candidates.push('vegetarian');
@@ -202,7 +240,7 @@ export type DietFilter = 'all' | 'vegetarian' | 'vegan';
  * A recipe satisfies the diet filter if it is of that diet, more restrictive included,
  * or if one of its variants is (the variant opens from the card).
  */
-export function matchesDiet(recipe: Recipe, variants: Recipe[], filter: DietFilter): boolean {
+export function matchesDiet(recipe: RecipeSummary, variants: RecipeSummary[], filter: DietFilter): boolean {
   if (filter === 'all') return true;
   const needed = DIET_RANK[filter];
   const ownDiet = recipe.diet ?? 'omnivore';

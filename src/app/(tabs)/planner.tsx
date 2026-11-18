@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
 import { TabScrollView } from '../../components/TabScrollViews';
 import { ScreenHeader, HeaderIconButton } from '../../components/ui/ScreenHeader';
@@ -17,7 +18,7 @@ import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
-import { Recipe, MealPlanEntry, RecipeSource } from '../../types/recipe';
+import { RecipeSummary, MealPlanEntry, RecipeSource } from '../../types/recipe';
 import type { Ingredient, ReadyMeal } from '../../types/catalog';
 import {
   getMealPlans,
@@ -103,12 +104,12 @@ export default function PlannerScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPrefsModal, setShowPrefsModal] = useState(false);
 
-  // Recipe Picker Modal State
+  // RecipeSummary Picker Modal State
   const [pickerVisible, setPickerVisible] = useState(false);
   // The picker stays mounted after the first opening: later openings do not recreate the modal
   const [pickerMounted, setPickerMounted] = useState(false);
   const [targetSlot, setTargetSlot] = useState<MealSlot>('pranzo');
-  const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<Recipe | null>(null);
+  const [selectedDetailRecipe, setSelectedDetailRecipe] = useState<RecipeSummary | null>(null);
 
   // Toast animation (value kept in state so it is not treated as a ref during render) and auto-close timer
   const [toastAnim] = useState(() => new Animated.Value(0));
@@ -141,10 +142,10 @@ export default function PlannerScreen() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastAnim.stopAnimation();
     setToastMessage(msg);
-    Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    Animated.timing(toastAnim, { toValue: 1, duration: 250, useNativeDriver: Platform.OS !== 'web' }).start();
     toastTimer.current = setTimeout(() => {
       toastTimer.current = null;
-      Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(({ finished }) => {
+      Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: Platform.OS !== 'web' }).start(({ finished }) => {
         if (finished) setToastMessage(null);
       });
     }, 3500);
@@ -247,7 +248,7 @@ export default function PlannerScreen() {
     setPickerVisible(true);
   }, []);
 
-  const handleSelectRecipeForSlot = async (recipe: Recipe, servings: number, source: RecipeSource) => {
+  const handleSelectRecipeForSlot = async (recipe: RecipeSummary, servings: number, source: RecipeSource) => {
       await saveMealPlanEntryDetailed({
         date: selectedDate,
         slot: targetSlot,
@@ -581,7 +582,7 @@ export default function PlannerScreen() {
           />
         )}
 
-        {/* Recipe Detail Modal */}
+        {/* RecipeSummary Detail Modal */}
         <RecipeModal
           recipe={selectedDetailRecipe}
           visible={!!selectedDetailRecipe}
@@ -620,7 +621,7 @@ interface MealSlotCardProps {
   onAdd: (slot: MealSlot) => void;
   onDelete: (id: string) => void;
   onUpdate: (id: string, input: MealPlanDetailInput) => void;
-  onView: (r: Recipe) => void;
+  onView: (r: RecipeSummary) => void;
 }
 
 const MealSlotCard = React.memo(function MealSlotCard({

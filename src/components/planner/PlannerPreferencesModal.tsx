@@ -3,13 +3,13 @@ import {
   StyleSheet,
   Text,
   View,
-  Modal,
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { SheetModal } from '../SheetModal';
 import { PlannerPreferences, savePlannerPreferences } from '../../services/plannerService';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
@@ -73,13 +73,8 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
   ];
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.prefsSafeArea} edges={['top', 'bottom', 'left', 'right']}>
+    <SheetModal visible={visible} onClose={onClose} fullScreen>
+      <SafeAreaView style={styles.prefsSafeArea} edges={['left', 'right']}>
         <View style={styles.prefsHeader}>
           <Text style={styles.prefsTitle}>{t('planner.preferencesModal.title')}</Text>
           <TouchableOpacity onPress={onClose} style={styles.prefsCloseBtn}>
@@ -174,7 +169,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
           </View>
         </ScrollView>
       </SafeAreaView>
-    </Modal>
+    </SheetModal>
   );
 };
 

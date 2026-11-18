@@ -1,4 +1,3 @@
-import type { SimpleTag } from '../constants/simpleTags';
 export interface IngredientItem {
   section: string;
   text: string;
@@ -69,8 +68,15 @@ export interface Recipe {
   updated_at?: number;
 }
 
+// Fields that only the recipe card needs: stored apart, loaded by id (see getRecipeDetail)
+export const RECIPE_BODY_KEYS = ['instructions', 'tips', 'ingredients_by_section', 'detailed_ingredients', 'source', 'url'] as const;
+export type RecipeBodyKey = (typeof RECIPE_BODY_KEYS)[number];
+
+// What the lists, the planner, the picker and the search keep in memory
+export type RecipeSummary = Omit<Recipe, RecipeBodyKey>;
+
 export type RecipeDiet = 'omnivore' | 'vegetarian' | 'vegan';
-export type RecipeOrigin = 'file' | 'ai' | 'manual';
+export type RecipeOrigin = 'file' | 'ai' | 'bundled';
 
 export interface ShoppingItem {
   id: string;
@@ -86,18 +92,6 @@ export interface ShoppingItem {
 }
 
 export type SimpleSlot = 'colazione' | 'spuntino_mattina' | 'pranzo' | 'spuntino_pomeriggio' | 'cena';
-
-export interface SimpleItem {
-  id: string;
-  name: string;
-  tags: SimpleTag[];
-  amount: number | null;
-  unit: string;
-  recipe_ids: string[];
-  slots: SimpleSlot[];
-  created_at: number;
-  updated_at: number;
-}
 
 // Recipe to prepare (goes into the shopping list) or servings already ready (does not)
 export type RecipeSource = 'prepare' | 'ready';

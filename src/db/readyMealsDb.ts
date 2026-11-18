@@ -1,19 +1,15 @@
 import {
-  NUTRIENTS,
   READY_MEAL_CATEGORIES,
-  type Nutrient,
   type ReadyMeal,
   type ReadyMealCategory,
 } from '../types/catalog';
-import { getDatabase, getWebData, isWebMode, runQueuedTransaction, setWebData, WEB_STORAGE_KEYS } from './database';
-import type { MealPlanEntry } from '../types/recipe';
+import { normalizeNutrients } from '../utils/nutrientValues';
+import { getWebData, isWebMode, requireDb, runInTransaction, runQueuedTransaction, setWebData, WEB_STORAGE_KEYS } from './database';
 
-type Nutrients = Partial<Record<Nutrient, number>>;
 export type ReadyMealInput = Omit<ReadyMeal, 'id' | 'created_at' | 'updated_at'>;
 export type SaveReadyMealInput = ReadyMealInput & { id?: string };
 
 const CATEGORY_SET = new Set<string>(READY_MEAL_CATEGORIES);
-const NUTRIENT_SET = new Set<string>(NUTRIENTS);
 
 function newReadyMealId(): string {
   return `rm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -32,17 +28,6 @@ function safeParseJson<T>(raw: unknown, fallback: T): T {
 function normalizeStringList(input: unknown): string[] {
   if (!Array.isArray(input)) return [];
   return input.filter((v): v is string => typeof v === 'string' && v.trim() !== '');
-}
-
-function normalizeNutrients(input: unknown): Nutrients {
-  const out: Nutrients = {};
-  if (!input || typeof input !== 'object') return out;
-  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-    if (NUTRIENT_SET.has(key) && typeof value === 'number' && Number.isFinite(value)) {
-      out[key as Nutrient] = value;
-    }
-  }
-  return out;
 }
 
 function normalizeCount(value: unknown): number {
@@ -66,17 +51,6 @@ function normalizeInput(input: ReadyMealInput): ReadyMealInput {
 
 function sortByName(list: ReadyMeal[]): ReadyMeal[] {
   return list.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
-}
-
-function requireDb(): any {
-  const db = getDatabase();
-  if (!db) throw new Error('database_unavailable');
-  return db;
-}
-
-function runInTransaction<T>(db: any, fn: () => Promise<T>): Promise<T> {
-  if (typeof db.withTransactionAsync === 'function') return runQueuedTransaction(db, fn);
-  return fn();
 }
 
 function readWeb(): ReadyMeal[] {
@@ -108,7 +82,7 @@ export async function listReadyMeals(): Promise<ReadyMeal[]> {
   }
   const db = requireDb();
   try {
-    const rows: any[] = await db.getAllAsync('SELECT * FROM ready_meals');
+    const rows: any[] = await db.getAllAsync('SELECT * FROM ready_meal');
     return sortByName(rows.map(rowToReadyMeal));
   } catch (e) {
     console.error('listReadyMeals error', e);
@@ -116,16 +90,24 @@ export async function listReadyMeals(): Promise<ReadyMeal[]> {
   }
 }
 
+/** Creation date of a ready meal already saved, or null if it is new. */
+async function readCreatedAt(id: string): Promise<number | null> {
+  if (isWebMode()) return (await listReadyMeals()).find(m => m.id === id)?.created_at ?? null;
+  const row: { created_at: number } | null = await requireDb().getFirstAsync('SELECT created_at FROM ready_meal WHERE id = ?', [id]);
+  return row?.created_at ?? null;
+}
+
 /** Creates or updates a ready meal. Returns the saved record. */
 export async function saveReadyMeal(input: SaveReadyMealInput): Promise<ReadyMeal> {
   const normalized = normalizeInput(input);
   const id = input.id?.trim() || newReadyMealId();
-  const existing = input.id ? (await listReadyMeals()).find(m => m.id === id) ?? null : null;
+  // Only the creation date of this row is needed: the native read is one row, the web read stays on the list
+  const existingCreatedAt = input.id ? await readCreatedAt(id) : null;
   const now = Date.now();
   const meal: ReadyMeal = {
     ...normalized,
     id,
-    created_at: existing?.created_at ?? now,
+    created_at: existingCreatedAt ?? now,
     updated_at: now,
   };
 
@@ -139,9 +121,12 @@ export async function saveReadyMeal(input: SaveReadyMealInput): Promise<ReadyMea
   const db = requireDb();
   try {
     await db.runAsync(
-      `INSERT OR REPLACE INTO ready_meals
+      `INSERT INTO ready_meal
         (id, name, category, tags, slots, default_count, nutrients, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name, category = excluded.category, tags = excluded.tags, slots = excluded.slots,
+        default_count = excluded.default_count, nutrients = excluded.nutrients, updated_at = excluded.updated_at`,
       [
         meal.id,
         meal.name,
@@ -171,8 +156,7 @@ export async function deleteReadyMeal(id: string): Promise<void> {
   const db = requireDb();
   try {
     await runQueuedTransaction(db, async () => {
-      await db.runAsync('DELETE FROM meal_plan WHERE ready_meal_id = ?', [id]);
-      await db.runAsync('DELETE FROM ready_meals WHERE id = ?', [id]);
+      await db.runAsync('DELETE FROM ready_meal WHERE id = ?', [id]);
     });
   } catch (e) {
     console.error('deleteReadyMeal error', e);
@@ -181,50 +165,53 @@ export async function deleteReadyMeal(id: string): Promise<void> {
 }
 
 /** Deletes all ready meals and inserts the given ones. Returns the number inserted. */
-export async function replaceReadyMeals(items: ReadyMealInput[]): Promise<number> {
-  const now = Date.now();
-  const meals: ReadyMeal[] = items.map(item => ({
-    ...normalizeInput(item),
-    id: newReadyMealId(),
-    created_at: now,
-    updated_at: now,
-  }));
+export type SeedReadyMealInput = ReadyMealInput & { id: string };
 
-  // Items planned from ready meals point to the old ids: they must be removed along with the catalog
+// Upserts the seed by id: planned entries keep pointing to the same ready meal, nothing is deleted
+export async function upsertReadyMeals(items: SeedReadyMealInput[]): Promise<number> {
+  const now = Date.now();
+
   if (isWebMode()) {
-    writeWeb(meals);
-    const planner = getWebData<MealPlanEntry[]>(WEB_STORAGE_KEYS.PLANNER, []);
-    setWebData(WEB_STORAGE_KEYS.PLANNER, planner.filter(e => e.kind !== 'ready' && !e.ready_meal_id));
-    return meals.length;
+    const list = readWeb();
+    for (const item of items) {
+      const data = normalizeInput(item);
+      const idx = list.findIndex(m => m.id === item.id);
+      if (idx >= 0) list[idx] = { ...list[idx], ...data, updated_at: now };
+      else list.push({ ...data, id: item.id, created_at: now, updated_at: now });
+    }
+    writeWeb(list);
+    return items.length;
   }
 
   const db = requireDb();
   try {
     await runInTransaction(db, async () => {
-      await db.runAsync("DELETE FROM meal_plan WHERE kind = 'ready'");
-      await db.runAsync('DELETE FROM ready_meals');
-      for (const meal of meals) {
+      for (const item of items) {
+        const data = normalizeInput(item);
         await db.runAsync(
-          `INSERT INTO ready_meals
+          `INSERT INTO ready_meal
             (id, name, category, tags, slots, default_count, nutrients, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name, category = excluded.category, tags = excluded.tags, slots = excluded.slots,
+            default_count = excluded.default_count, nutrients = excluded.nutrients, updated_at = excluded.updated_at`,
           [
-            meal.id,
-            meal.name,
-            meal.category,
-            JSON.stringify(meal.tags),
-            JSON.stringify(meal.slots),
-            meal.default_count,
-            JSON.stringify(meal.nutrients),
-            meal.created_at,
-            meal.updated_at,
+            item.id,
+            data.name,
+            data.category,
+            JSON.stringify(data.tags),
+            JSON.stringify(data.slots),
+            data.default_count,
+            JSON.stringify(data.nutrients),
+            now,
+            now,
           ],
         );
       }
     });
-    return meals.length;
+    return items.length;
   } catch (e) {
-    console.error('replaceReadyMeals error', e);
+    console.error('upsertReadyMeals error', e);
     throw e;
   }
 }

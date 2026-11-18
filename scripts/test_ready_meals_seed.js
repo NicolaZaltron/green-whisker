@@ -34,6 +34,10 @@ check(
   `ready meal count is ${EXPECTED_READY_MEALS} (got ${readyMeals.length})`,
 );
 
+const readyIds = readyMeals.map(m => m.id);
+check(readyIds.every(id => typeof id === 'string' && id.length > 0), 'every ready meal has an id');
+check(new Set(readyIds).size === readyIds.length, 'ready meal ids are unique');
+
 const badCategory = readyMeals.filter(m => !VALID_CATEGORIES.includes(m.category));
 check(badCategory.length === 0, `all ready meals have a valid category (bad: ${badCategory.length})`);
 

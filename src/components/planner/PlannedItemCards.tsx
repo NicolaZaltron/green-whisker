@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
-import type { Recipe, MealPlanEntry, RecipeSource } from '../../types/recipe';
+import type { RecipeSummary, MealPlanEntry, RecipeSource } from '../../types/recipe';
 import type { Ingredient, ReadyMeal } from '../../types/catalog';
 import type { MealPlanDetailInput } from '../../db/database';
 import { unitLabel } from '../../constants/simpleTags';
@@ -20,7 +20,7 @@ import { RecipeServingsStep } from './RecipeServingsStep';
 // Planned entry with data already resolved (recipe, ingredient, ready meal)
 export interface DayMealItem {
   entry: MealPlanEntry;
-  recipe: Recipe | null;
+  recipe: RecipeSummary | null;
   ingredient: Ingredient | null;
   ready: ReadyMeal | null;
 }
@@ -51,7 +51,7 @@ export const PlannedItemCard = React.memo(function PlannedItemCard({
 }: {
   item: DayMealItem;
   color: string;
-  onView?: (recipe: Recipe) => void;
+  onView?: (recipe: RecipeSummary) => void;
   onDelete: (entryId: string) => void;
   // Planner only: without this function the card is not editable (e.g. in the picker)
   onUpdate?: (entryId: string, input: MealPlanDetailInput) => void;
@@ -187,7 +187,7 @@ export function MealRow({
   editing,
   editStep,
 }: {
-  recipe: Recipe;
+  recipe: RecipeSummary;
   servings: number;
   source: RecipeSource;
   categoryLabel: React.ReactNode;

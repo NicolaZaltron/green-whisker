@@ -6,14 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { SheetModal } from './SheetModal';
-import { getMealPlans, getShoppingItems } from '../db/database';
+import { getRecipeDetail, getShoppingItems, getShoppingPlanEntries } from '../db/database';
 import { listIngredients } from '../db/ingredientsDb';
 import { listReadyMeals } from '../db/readyMealsDb';
 import { listRecipeIngredients } from '../db/recipeIngredientsDb';
 import { catalogRecipes } from '../services/recipeCatalog';
 import { computeShoppingPreview, ShoppingPreviewRow } from '../services/shoppingPreview';
 import { saveShoppingSelection } from '../services/shoppingPlanSave';
-import type { MealPlanEntry, Recipe, ShoppingItem } from '../types/recipe';
+import type { MealPlanEntry, RecipeSummary, ShoppingItem } from '../types/recipe';
 import type { Ingredient, ReadyMeal } from '../types/catalog';
 import { AppTextField } from './ui/AppTextField';
 
@@ -68,15 +68,15 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
       try {
         const today = getLocalToday();
         const [plans, shoppingItems, ingredientList, readyList] = await Promise.all([
-          getMealPlans(),
+          getShoppingPlanEntries(today),
           getShoppingItems(),
           listIngredients(),
           listReadyMeals(),
         ]);
         if (cancelled) return;
 
-        const entries: MealPlanEntry[] = plans.filter(p => p.date >= today);
-        const recipes: Record<string, Recipe> = {};
+        const entries: MealPlanEntry[] = plans;
+        const recipes: Record<string, RecipeSummary> = {};
         catalogRecipes.forEach(r => { recipes[r.id] = r; });
         const ingredients: Record<string, Ingredient> = {};
         ingredientList.forEach(i => { ingredients[i.id] = i; });
@@ -87,13 +87,16 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
         ));
         const recipeRows = await Promise.all(recipeIds.map(id => listRecipeIngredients(id)));
         if (cancelled) return;
+        // Recipes without links in the database (created or imported before the links existed): the card's ingredients are used
+        const withoutLinks = recipeIds.filter((_, idx) => recipeRows[idx].length === 0);
+        const details = new Map(await Promise.all(withoutLinks.map(async id => [id, await getRecipeDetail(id)] as const)));
+        if (cancelled) return;
         const recipeIngredients: Record<string, { ingredient_name: string; amount: number | null; unit: string }[]> = {};
         recipeIds.forEach((id, idx) => {
-          // Recipes without links in the database (e.g. created or imported): the recipe's ingredients are used
           const linked = recipeRows[idx];
           recipeIngredients[id] = linked.length > 0
             ? linked
-            : (recipes[id]?.detailed_ingredients ?? []).map(item => ({
+            : (details.get(id)?.detailed_ingredients ?? []).map(item => ({
                 ingredient_name: item.ingredient,
                 amount: item.amount ?? null,
                 unit: item.unit ?? '',

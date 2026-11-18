@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { initDatabase } from '../db/database';
 import { loadCatalog } from '../services/recipeCatalog';
 import { seedIngredientsV2 } from '../services/ingredientsService';
-import { seedReadyMealsV2 } from '../services/catalogSeedService';
+import { seedBundledRecipesV1, seedReadyMealsV2 } from '../services/catalogSeedService';
+import { seedOutOfHomeOptions } from '../services/outOfHomeService';
 
 import { FavoritesProvider } from '../context/FavoritesContext';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
@@ -84,6 +85,16 @@ export default function RootLayout() {
           await seedReadyMealsV2();
         } catch (seedErr) {
           console.warn('Seed dei piatti pronti non riuscito:', seedErr);
+        }
+        try {
+          await seedOutOfHomeOptions();
+        } catch (seedErr) {
+          console.warn('Seed delle opzioni fuori casa non riuscito:', seedErr);
+        }
+        try {
+          await seedBundledRecipesV1();
+        } catch (seedErr) {
+          console.warn('Seed delle ricette predefinite non riuscito:', seedErr);
         }
       } catch (err) {
         console.warn('Errore durante l\'inizializzazione dell\'app:', err);

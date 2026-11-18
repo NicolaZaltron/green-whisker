@@ -43,6 +43,12 @@
     "emptyCatalogTitle": "Il ricettario è vuoto",
     "emptyCatalogSub": "Apri il menu (cappello in alto a destra), poi Ricettario, per importare un file JSON di ricette.",
     "advanced": {
+      "sortTitle": "Ordina per",
+      "sortAlpha": "Alfabetico",
+      "sortCreated": "Data creazione",
+      "sortUpdated": "Ultima modifica",
+      "sortAsc": "Crescente",
+      "sortDesc": "Decrescente",
       "title": "Filtri Avanzati",
       "subtitle": "Personalizza la ricerca delle ricette",
       "open": "Filtri avanzati",
@@ -65,7 +71,7 @@
       "originOptions": {
         "ai": "AI",
         "file": "File",
-        "manual": "A mano"
+        "bundled": "Predefinite"
       },
       "features": "Caratteristiche",
       "noCooking": "Senza cottura",
@@ -401,7 +407,74 @@
     "resetDataConfirm": "Cancella",
     "resetDataDone": "Dati cancellati. Chiudi e riapri l'app."
   },
+  "outOfHome": {
+    "title": "Fuori casa",
+    "editTitle": "Fuori casa: modifica voci",
+    "add": "Aggiungi",
+    "rename": "Rinomina",
+    "delete": "Elimina",
+    "deleteTitle": "Eliminare la voce?",
+    "deleteBody": "\"{{label}}\" non sarà più proposta nel planner. I pasti già pianificati restano invariati.",
+    "deleteConfirm": "Elimina",
+    "placeholder": "Nuova voce",
+    "errorEmpty": "Scrivi un nome.",
+    "errorDuplicate": "Esiste già una voce con questo nome.",
+    "save": "Salva",
+    "cancel": "Annulla"
+  },
+  "transfer": {
+    "readyMeals": {
+      "title": "Piatti pronti: importa ed esporta",
+      "body": "Esporta tutti i piatti pronti, anche quelli aggiunti da te, o importa un file. I piatti con lo stesso id vengono aggiornati.",
+      "export": "Esporta i piatti pronti",
+      "import": "Importa piatti pronti da file"
+    },
+    "backup": {
+      "title": "Backup e ripristino",
+      "body": "Crea un unico file con ricette, ingredienti, fuori casa, pianificazione, spesa, preferiti, note, impostazioni e chiavi IA. Il file contiene le chiavi IA: conservalo in un posto sicuro.",
+      "export": "Crea backup",
+      "import": "Ripristina da backup"
+    },
+    "backupExported": "Backup creato: {{count}} ricette",
+    "restoreTitle": "Ripristinare il backup?",
+    "restoreBody": "Pianificazione, spesa, preferiti, note e impostazioni saranno sostituiti da quelli del file. Ricette e ingredienti del file vengono aggiunti o aggiornati.",
+    "restoreConfirm": "Ripristina",
+    "restored": "Ripristino completato: {{recipes}} ricette, {{ingredients}} ingredienti, {{entries}} voci del planner ({{dropped}} scartate perché mancanti)",
+    "exported": "Esportati {{count}}",
+    "failed": "Operazione non riuscita: controlla il file",
+    "imported": "Importati {{count}}",
+    "importedWithErrors": "Importati {{count}}, non validi {{invalid}}",
+    "recipes": {
+      "title": "Ricettario: importa ed esporta",
+      "body": "Esporta le ricette selezionate in un file JSON, o importa un file di ricette.",
+      "export": "Esporta le ricette selezionate",
+      "import": "Importa ricette da file"
+    },
+    "ingredients": {
+      "title": "Ingredienti: importa ed esporta",
+      "body": "Esporta tutti gli ingredienti, anche quelli aggiunti da te, o importa un file. Gli ingredienti con lo stesso id vengono aggiornati.",
+      "export": "Esporta gli ingredienti",
+      "import": "Importa ingredienti da file"
+    },
+    "outOfHome": {
+      "title": "Fuori casa: importa ed esporta",
+      "body": "Esporta le voci Fuori casa o importa un file: le voci già presenti restano come sono.",
+      "export": "Esporta le voci",
+      "import": "Importa voci da file"
+    }
+  },
   "recipeBook": {
+    "checking": "Controllo {{total}} ricette…",
+    "progress": "Processate {{done}} su {{total}}",
+    "unresolved": {
+      "title": "Ingredienti non riconosciuti",
+      "body": "Questi {{count}} ingredienti del file non sono nel database. Collegali a un ingrediente esistente oppure aggiungili come nuovi. L'import parte solo quando tutti sono scelti.",
+      "usedIn": "Usato in {{count}} ricette: {{titles}}",
+      "linkExisting": "Collega a un ingrediente",
+      "addNew": "Aggiungi come nuovo",
+      "searchPlaceholder": "Cerca un ingrediente",
+      "confirm": "Importa"
+    },
     "title": "Ricettario",
     "description": "Scegli cosa esportare in un file JSON, oppure importa un ricettario.",
     "filterScope": "Ambito",
@@ -420,7 +493,7 @@
     },
     "originFile": "File",
     "originAi": "AI",
-    "originManual": "A mano",
+    "originBundled": "Predefinite",
     "selectedCount": "{{selected}} di {{total}} selezionate",
     "selectAll": "Seleziona tutte",
     "deselectAll": "Deseleziona tutte",
@@ -734,6 +807,9 @@
     }
   },
   "ingredients": {
+    "tabOutOfHome": "Fuori casa",
+    "newOutOfHome": "Nuova voce",
+    "transfer": "Esporta / importa",
     "title": "Prodotti e piatti pronti",
     "menuItem": "Prodotti e cibi pronti",
     "tabIngredients": "Prodotti",

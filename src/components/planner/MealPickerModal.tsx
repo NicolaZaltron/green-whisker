@@ -14,7 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
-import type { Recipe, RecipeSource } from '../../types/recipe';
+import { SheetModal } from '../SheetModal';
+import type { RecipeSummary, RecipeSource } from '../../types/recipe';
 import { INGREDIENT_TAGS, type Ingredient, type ReadyMeal } from '../../types/catalog';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
@@ -22,6 +23,7 @@ import { AppTextField } from '../../components/ui/AppTextField';
 import { formatTagLabel, unitLabel } from '../../constants/simpleTags';
 import { formatDayAndDate } from '../../utils/dates';
 import { OUT_OF_HOME_OPTIONS } from '../../constants/outOfHome';
+import { listOutOfHomeOptions } from '../../services/outOfHomeService';
 import { isRecipeForSlot } from '../../utils/recipeSlots';
 import { rankPickerMatches } from '../../utils/pickerRanking';
 import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits';
@@ -37,14 +39,14 @@ export interface MealPickerModalProps {
   targetDate: string;
   // Meals already planned in the slot (selected day), shown as read-only cards
   plannedForSlot: DayMealItem[];
-  allRecipes: Recipe[];
+  allRecipes: RecipeSummary[];
   // Ids of favorite recipes: shown with the heart and placed first in search results
   favoriteIds?: ReadonlySet<string>;
   ingredients: Ingredient[];
   readyMeals: ReadyMeal[];
   // Default servings to eat (planner setting): when preparing, the default is the recipe's
   eatServings: number;
-  onSelectRecipe: (recipe: Recipe, servings: number, source: RecipeSource) => void;
+  onSelectRecipe: (recipe: RecipeSummary, servings: number, source: RecipeSource) => void;
   onSelectIngredient: (ingredient: Ingredient, amount: number | null, unit: string) => void;
   onSelectReadyMeal: (meal: ReadyMeal, count: number) => void;
   onSelectOutOfHome: (label: string) => void;
@@ -64,12 +66,12 @@ const TABS: MealTab[] = ['all', 'ingredients', 'recipes', 'ready', 'out'];
 type TagFilter = string | null;
 
 type PendingItem =
-  | { kind: 'recipe'; recipe: Recipe }
+  | { kind: 'recipe'; recipe: RecipeSummary }
   | { kind: 'ingredient'; ingredient: Ingredient }
   | { kind: 'ready'; meal: ReadyMeal };
 
 type PickerRow =
-  | { kind: 'recipe'; key: string; recipe: Recipe }
+  | { kind: 'recipe'; key: string; recipe: RecipeSummary }
   | { kind: 'ingredient'; key: string; ingredient: Ingredient }
   | { kind: 'ready'; key: string; meal: ReadyMeal }
   | { kind: 'out'; key: string; label: string };
@@ -144,11 +146,11 @@ const PickerRecipeRow = React.memo(function PickerRecipeRow({
   onStart,
   onCollapse,
 }: {
-  recipe: Recipe;
+  recipe: RecipeSummary;
   isFavorite: boolean;
   expanded: boolean;
   step: React.ReactNode;
-  onStart: (recipe: Recipe) => void;
+  onStart: (recipe: RecipeSummary) => void;
   onCollapse: () => void;
 }) {
   const { t } = useTranslation();
@@ -274,7 +276,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   // until the data source (recipes, favorites, ingredients, ready meals) changes.
   const [listReady, setListReady] = useState(false);
   const preparedSourceRef = useRef<{
-    allRecipes: Recipe[];
+    allRecipes: RecipeSummary[];
     favoriteIds: ReadonlySet<string>;
     ingredients: Ingredient[];
     readyMeals: ReadyMeal[];
@@ -406,13 +408,25 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   const tagOptions: string[] =
     tab === 'ingredients' ? ingredientTagOptions : tab === 'ready' ? readyTagOptions : [];
 
-  // Out of home: fixed options, unlinked from ingredients, shopping list and ready meals
+  // Out of home: options from the table (seeded from the constant), unlinked from ingredients, shopping list and ready meals
+  const [outOfHomeOptions, setOutOfHomeOptions] = useState<readonly string[]>(OUT_OF_HOME_OPTIONS);
+  useEffect(() => {
+    let active = true;
+    listOutOfHomeOptions()
+      .then(list => {
+        if (active) setOutOfHomeOptions(list);
+      })
+      .catch(e => console.warn('Opzioni fuori casa non lette, uso quelle predefinite:', e));
+    return () => {
+      active = false;
+    };
+  }, []);
   const outOfHomeList = useMemo(() => {
     const q = deferredQuery.toLowerCase().trim();
-    return OUT_OF_HOME_OPTIONS.filter(option => !q || option.toLowerCase().includes(q));
-  }, [deferredQuery]);
+    return outOfHomeOptions.filter(option => !q || option.toLowerCase().includes(q));
+  }, [deferredQuery, outOfHomeOptions]);
 
-  // Recipe with the servings step open: its row expands in place
+  // RecipeSummary with the servings step open: its row expands in place
   const expandedRecipeId = pending?.kind === 'recipe' ? pending.recipe.id : null;
 
   const rows = useMemo<PickerRow[]>(() => {
@@ -457,7 +471,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   }, [tab, deferredQuery, visibleRecipes, ingredientList, readyList, outOfHomeList, favoriteIds, listReady, t, collator]);
 
   // To prepare: recipe servings. Already ready: planner servings to eat
-  const handleStartRecipe = useCallback((recipe: Recipe) => {
+  const handleStartRecipe = useCallback((recipe: RecipeSummary) => {
     setPending({ kind: 'recipe', recipe });
     setRecipeServings(recipe.servings || eatServings);
     setRecipeSource('prepare');
@@ -563,13 +577,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     : '';
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={handleClose}
-      onDismiss={resetAll}
-    >
+    <SheetModal visible={visible} onClose={handleClose} fullScreen>
       <SafeAreaView style={styles.pickerSafeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.pickerHeader}>
           <TouchableOpacity style={styles.pickerCloseBtn} onPress={handleClose}>
@@ -831,7 +839,7 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           </View>
         </Modal>
       </SafeAreaView>
-    </Modal>
+    </SheetModal>
   );
 };
 

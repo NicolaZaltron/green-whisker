@@ -1,8 +1,8 @@
-import type { Recipe } from '../types/recipe';
+import type { RecipeSummary } from '../types/recipe';
 import { orderWithFavoritesFirst } from '../utils/pickerRanking';
 
 // Without duplicates by id: the first occurrence wins
-export function uniquePickerRecipes(recipes: Recipe[]): Recipe[] {
+export function uniquePickerRecipes(recipes: RecipeSummary[]): RecipeSummary[] {
   const seen = new Set<string>();
   return recipes.filter(r => {
     if (!r || !r.id || seen.has(r.id)) return false;
@@ -12,10 +12,10 @@ export function uniquePickerRecipes(recipes: Recipe[]): Recipe[] {
 }
 
 interface SortedPickerCache {
-  recipes: Recipe[];
+  recipes: RecipeSummary[];
   favoriteIds: ReadonlySet<string>;
   collator: Intl.Collator;
-  result: Recipe[];
+  result: RecipeSummary[];
 }
 
 // Last result: the key is the identity of the recipes array and of the favorites Set
@@ -26,10 +26,10 @@ let sortedCache: SortedPickerCache | null = null;
  * The result is memoized and returned again until recipes and favorites change identity.
  */
 export function getSortedPickerRecipes(
-  recipes: Recipe[],
+  recipes: RecipeSummary[],
   favoriteIds: ReadonlySet<string>,
   collator: Intl.Collator
-): Recipe[] {
+): RecipeSummary[] {
   if (
     sortedCache &&
     sortedCache.recipes === recipes &&
