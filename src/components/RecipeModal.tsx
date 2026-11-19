@@ -1,9 +1,13 @@
 import { SheetModal } from './SheetModal';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+import { Toast } from './ui/Toast';
+import { Checkbox } from './ui/Checkbox';
+import { IconBadge } from './ui/IconBadge';
+import { SectionTitle } from './ui/SectionTitle';
 import { useCatalogVersion } from '../hooks/useCatalog';
 import type { RecipeSummary } from '../types/recipe';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Modal,
   View,
   Text,
   ScrollView,
@@ -12,7 +16,6 @@ import {
   Linking,
   StatusBar,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +32,7 @@ import { useFavoritesSafe } from '../context/FavoritesContext';
 import { getPlannerDays, getPlannerPreferences, MealSlot } from '../services/plannerService';
 import { VariantDiet, availableVariantDiets } from '../services/catalogFormat';
 import { classifyDiet } from '../utils/dietClassifier';
+import { formatTagLabel } from '../constants/simpleTags';
 import { scaleIngredient, getScalableIngredients, splitShoppingItemDisplay } from '../utils/servingsScaler';
 import {
   formatRecipeShareText,
@@ -41,6 +45,17 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
+import { cardRadius, radius, size as sizes, space, text, icon } from '../theme/tokens';
+import { brandColors, brandTextColors } from '../theme/brandColors';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { CircleButton } from './ui/CircleButton';
+import { FavoriteButton } from './ui/FavoriteButton';
+import { ModalHeader } from './ui/ModalHeader';
+import { Pill } from './ui/Pill';
+import { InlineNotice } from './ui/InlineNotice';
+import { capitalize } from '../utils/text';
 
 // Meal proposed when opening the recipe planning
 function recommendedPlanSlot(recipe: Recipe): MealSlot {
@@ -60,6 +75,9 @@ interface RecipeModalProps {
   onGenerateVariant?: (source: RecipeSummary, diet: VariantDiet) => void;
   // Diet of the variant being generated: shows the spinner on its button
   generatingDiet?: VariantDiet | null;
+  // Last variant generation error, shown above the version selector
+  variantError?: string | null;
+  onDismissVariantError?: () => void;
   onRegenerateVariant?: (variant: RecipeSummary) => void;
   onDeleteVariant?: (variant: RecipeSummary) => void;
 }
@@ -81,13 +99,16 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
   onEdit,
   onGenerateVariant,
   generatingDiet,
+  variantError,
+  onDismissVariantError,
   onRegenerateVariant,
   onDeleteVariant,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { width } = useResponsiveDimensions();
   const { colors, isDark } = useTheme();
   const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+  const brandText = isDark ? brandTextColors.dark : brandTextColors.light;
   // The chosen version applies only to the open recipe: changing recipe returns to the original
   const [versionChoice, setVersionChoice] = useState<{ baseId?: string; version: 'original' | VariantDiet }>({ version: 'original' });
   const version = versionChoice.baseId === baseRecipe?.id ? versionChoice.version : 'original';
@@ -128,7 +149,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
 
   // Days of the "plan" picker: saved calendar mode, 'week' until loaded (does not block the modal)
   const [calendarMode, setCalendarMode] = useState<'week' | 'rolling'>('week');
-  const weekDays = useMemo(() => getPlannerDays(calendarMode, 0).days, [calendarMode]);
+  const weekDays = useMemo(() => getPlannerDays(calendarMode, 0, i18n.language.startsWith('en') ? 'en' : 'it').days, [calendarMode, i18n.language]);
   const [selectedDates, setSelectedDates] = useState<string[]>(
     () => {
       const today = weekDays.find(d => d.isToday)?.dateString || weekDays[0]?.dateString;
@@ -312,7 +333,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
 
       setShowPlanPicker(false);
       const slotLabels = slots.map(slot => t(slotNames[slot]));
-      const dayLabels = days.map(d => `${d.dayName.slice(0, 3)} ${d.dayNumber}`);
+      const dayLabels = days.map(d => `${d.dayShort} ${d.dayNumber}`);
       setPlanDone(t('recipeDetail.plannedSummary', {
         count: planCount,
         slots: slotLabels.join(', '),
@@ -355,8 +376,8 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
   };
 
   const handleShareTelegram = async () => {
-    const text = getShareText();
-    const ok = await shareToTelegram(text);
+    const shareText = getShareText();
+    const ok = await shareToTelegram(shareText);
     if (ok) {
       setShowShareModal(false);
       showToast(t('recipeDetail.openingTelegram'));
@@ -364,8 +385,8 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
   };
 
   const handleShareWhatsApp = async () => {
-    const text = getShareText();
-    const ok = await shareToWhatsApp(text);
+    const shareText = getShareText();
+    const ok = await shareToWhatsApp(shareText);
     if (ok) {
       setShowShareModal(false);
       showToast(t('recipeDetail.openingWhatsApp'));
@@ -373,14 +394,14 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
   };
 
   const handleShareNative = async () => {
-    const text = getShareText();
+    const shareText = getShareText();
     setShowShareModal(false);
-    await shareNative(recipe.title, text);
+    await shareNative(recipe.title, shareText);
   };
 
   const handleCopyClipboard = async () => {
-    const text = getShareText();
-    const ok = await copyRecipeToClipboard(text);
+    const shareText = getShareText();
+    const ok = await copyRecipeToClipboard(shareText);
     if (ok) {
       setShowShareModal(false);
       showToast(t('recipeDetail.copiedToClipboard'));
@@ -407,33 +428,21 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
     setTimeout(() => setShowJson(true), 300);
   };
 
-  // Close and favorites next to the name, always available even when scrolling
-  const closeButton = (
-    <TouchableOpacity
-      style={styles.headerIconBtn}
-      onPress={onClose}
-      activeOpacity={0.8}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      accessibilityLabel={t('recipeDetail.closeRecipe')}
-    >
-      <Ionicons name="close" size={20} color={colors.text} />
-    </TouchableOpacity>
+  const favoriteButton = (
+    <FavoriteButton
+      isFavorite={favorite}
+      onPress={handleToggleFavorite}
+      accessibilityLabel={t('recipeDetail.favorites')}
+    />
   );
 
-  const favoriteButton = (
-    <TouchableOpacity
-      style={styles.headerIconBtn}
-      onPress={handleToggleFavorite}
-      activeOpacity={0.8}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      accessibilityLabel={t('recipeDetail.favorites')}
-    >
-      <Ionicons
-        name={favorite ? 'heart' : 'heart-outline'}
-        size={18}
-        color={favorite ? colors.danger : colors.primaryText}
-      />
-    </TouchableOpacity>
+  // Compact servings stepper (minus, number, plus), aligned to the right
+  const renderStepper = (value: number, onChange: (delta: number) => void) => (
+    <View style={styles.scalerControls}>
+      <CircleButton icon="remove" size="S" onPress={() => onChange(-1)} disabled={value <= 1} accessibilityLabel={t('recipeDetail.servingsLabel')} />
+      <Text style={styles.scaleNumber}>{value}</Text>
+      <CircleButton icon="add" size="S" onPress={() => onChange(1)} accessibilityLabel={t('recipeDetail.servingsLabel')} />
+    </View>
   );
 
   return (
@@ -441,106 +450,77 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
       <View style={styles.safeArea}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={[styles.modalWrapper, width >= 768 && styles.modalWrapperTablet]}>
-          {/* Recipe name above the photo, always visible */}
-          <View style={styles.recipeHeader}>
-            {closeButton}
-            <Text style={styles.recipeHeaderTitle} numberOfLines={2}>{recipe.title}</Text>
-            {favoriteButton}
-          </View>
+          <ModalHeader title={recipe.title} onClose={onClose} closeLabel={t('common.close')} titleMaxLines={3} />
+
+          {variantError ? (
+            <View style={styles.versionRow}>
+              <View style={styles.versionControl}>
+                <InlineNotice tone="danger" icon="alert-circle-outline" text={variantError} />
+              </View>
+              <CircleButton icon="close" size="S" onPress={() => onDismissVariantError?.()} accessibilityLabel={t('common.close')} />
+            </View>
+          ) : null}
 
           {/* Version selector: original, existing variants and those still to be generated (dashed) */}
           {recipe && baseRecipe && (variants.length > 0 || missingDiets.length > 0) && (
             <View style={styles.versionBar}>
               <View style={styles.versionRow}>
-                <View style={styles.versionTabs}>
-                  {(['original', ...variants.map(v => v.diet as VariantDiet)] as const).map(value => {
-                    const active = value === version;
-                    const label = value === 'original' ? originalLabel : t(VERSION_LABELS[value as VariantDiet]);
-                    return (
-                      <TouchableOpacity
-                        key={value}
-                        style={[styles.versionTab, active && styles.versionTabActive]}
-                        onPress={() => setVersionChoice({ baseId: baseRecipe.id, version: value })}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={[styles.versionTabText, active && styles.versionTabTextActive]} numberOfLines={1}>{label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {missingDiets.map(diet => {
-                    const isGenerating = generatingDiet === diet;
-                    return (
-                      <TouchableOpacity
-                        key={`missing-${diet}`}
-                        style={[styles.versionTab, styles.versionTabMissing]}
-                        onPress={() => setPendingVariantDiet(diet)}
-                        disabled={!!generatingDiet}
-                        activeOpacity={0.85}
-                        accessibilityState={{ busy: isGenerating, disabled: !!generatingDiet }}
-                      >
-                        {isGenerating ? (
-                          <ActivityIndicator size="small" color={colors.primaryText} />
-                        ) : (
-                          <Ionicons name="sparkles-outline" size={12} color={colors.primaryText} />
-                        )}
-                        <Text style={[styles.versionTabText, styles.versionTabMissingText]} numberOfLines={1}>
-                          {isGenerating ? t('recipeDetail.generating') : t(VERSION_LABELS[diet])}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                <View style={styles.versionControl}>
+                  <SegmentedControl
+                    accessibilityLabel={t('recipeDetail.versionSelector')}
+                    options={[
+                      { key: 'original', label: originalLabel },
+                      ...variants.map(v => ({ key: v.diet as VariantDiet, label: t(VERSION_LABELS[v.diet as VariantDiet]) })),
+                      // Not generated yet: a tap asks for confirmation, ignored while another one is generating
+                      ...missingDiets.map(diet => ({
+                        key: diet,
+                        label: generatingDiet === diet ? t('recipeDetail.generating') : t(VERSION_LABELS[diet]),
+                        icon: 'sparkles-outline' as const,
+                        dashed: true,
+                      })),
+                    ]}
+                    value={version}
+                    onChange={key => {
+                      if (missingDiets.includes(key as VariantDiet)) {
+                        if (!generatingDiet) setPendingVariantDiet(key as VariantDiet);
+                        return;
+                      }
+                      setVersionChoice({ baseId: baseRecipe.id, version: key as 'original' | VariantDiet });
+                    }}
+                  />
                 </View>
                 {activeVariant && (
-                  <TouchableOpacity
-                    style={styles.versionMenuBtn}
+                  <CircleButton
+                    icon="ellipsis-horizontal"
+                    size="M"
+                    variant="outline"
                     onPress={() => setVariantMenuOpen(true)}
-                    activeOpacity={0.8}
                     accessibilityLabel={t('recipeDetail.variantActions')}
-                  >
-                    <Ionicons name="ellipsis-horizontal" size={18} color={colors.primaryText} />
-                  </TouchableOpacity>
+                  />
                 )}
               </View>
             </View>
           )}
 
           {/* Confirmation before generating a variant: stays in addition to the original recipe */}
-          <Modal visible={pendingVariantDiet !== null} animationType="fade" transparent onRequestClose={() => setPendingVariantDiet(null)}>
-            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPendingVariantDiet(null)}>
-              <View style={styles.confirmSheet} onStartShouldSetResponder={() => true}>
-                <Text style={styles.confirmTitle}>
-                  {pendingVariantDiet ? t('recipeDetail.confirmVariantTitle', { diet: t(VERSION_LABELS[pendingVariantDiet]) }) : ''}
-                </Text>
-                <Text style={styles.confirmBody}>{t('recipeDetail.confirmVariantBody')}</Text>
-                <View style={styles.confirmActions}>
-                  <TouchableOpacity
-                    style={[styles.confirmBtn, styles.confirmBtnSecondary]}
-                    onPress={() => setPendingVariantDiet(null)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.confirmBtnTextSecondary}>{t('common.close')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.confirmBtn, styles.confirmBtnPrimary]}
-                    onPress={() => {
-                      const diet = pendingVariantDiet;
-                      setPendingVariantDiet(null);
-                      if (diet && baseRecipe) onGenerateVariant?.(baseRecipe, diet);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.confirmBtnTextPrimary}>{t('recipeDetail.generateVariantAction')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Modal>
+          <ConfirmDialog
+            visible={pendingVariantDiet !== null}
+            title={pendingVariantDiet ? t('recipeDetail.confirmVariantTitle', { diet: t(VERSION_LABELS[pendingVariantDiet]) }) : ''}
+            body={t('recipeDetail.confirmVariantBody')}
+            confirmLabel={t('recipeDetail.generateVariantAction')}
+            cancelLabel={t('common.close')}
+            onConfirm={() => {
+              const diet = pendingVariantDiet;
+              setPendingVariantDiet(null);
+              if (diet && baseRecipe) onGenerateVariant?.(baseRecipe, diet);
+            }}
+            onCancel={() => setPendingVariantDiet(null)}
+          />
 
           {/* Actions on the active variant: regenerate and delete */}
           {activeVariant && (
-            <Modal visible={variantMenuOpen} animationType="fade" transparent onRequestClose={() => setVariantMenuOpen(false)}>
-              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVariantMenuOpen(false)}>
-                <View style={styles.variantMenu} onStartShouldSetResponder={() => true}>
+            <SheetModal visible={variantMenuOpen} onClose={() => setVariantMenuOpen(false)}>
+                <View style={styles.variantMenu}>
                   <TouchableOpacity
                     style={styles.variantMenuItem}
                     onPress={() => {
@@ -549,7 +529,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="refresh" size={18} color={colors.primaryText} />
+                    <Ionicons name="refresh" size={icon.md} color={colors.primaryText} />
                     <Text style={styles.variantMenuText}>{t('recipeDetail.regenerateVariant')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -560,20 +540,16 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                     }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    <Ionicons name="trash-outline" size={icon.md} color={colors.danger} />
                     <Text style={[styles.variantMenuText, { color: colors.danger }]}>{t('recipeDetail.deleteVariant')}</Text>
                   </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-            </Modal>
+            </SheetModal>
           )}
 
           {/* Feedback Toast */}
           {feedbackMessage && (
-            <View style={styles.toastBanner}>
-              <Ionicons name="checkmark-circle" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
-              <Text style={styles.toastText}>{feedbackMessage}</Text>
-            </View>
+            <Toast message={feedbackMessage} position="top" />
           )}
 
           {!planOpen && (
@@ -594,71 +570,75 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                 />
                 {dietBadge && (
                   <View style={styles.plantBadge}>
-                    <Ionicons name="leaf" size={13} color={colors.primaryText} style={{ marginRight: 4 }} />
-                    <Text style={styles.plantBadgeText}>{dietBadge}</Text>
+                    <Pill size="S" variant="primary" icon="leaf" label={capitalize(dietBadge)} />
                   </View>
                 )}
+                {/* Favorite in the photo corner, as in the home cards */}
+                <View style={styles.favoriteOnImage}>{favoriteButton}</View>
               </View>
             ) : (
               dietBadge && (
                 <View style={styles.plantBadgeRow}>
-                  <View style={[styles.plantBadge, styles.plantBadgeInline]}>
-                    <Ionicons name="leaf" size={13} color={colors.primaryText} style={{ marginRight: 4 }} />
-                    <Text style={styles.plantBadgeText}>{dietBadge}</Text>
-                  </View>
+                  <Pill size="S" variant="primary" icon="leaf" label={capitalize(dietBadge)} />
                 </View>
               )
             )}
 
             {/* Content Body */}
             <View style={styles.content}>
+              <View style={styles.badgeLine}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 style={styles.badgeScroll}
                 contentContainerStyle={styles.badgeRow}
               >
-                <View style={styles.categoryBadge}>
-                  <Text style={styles.categoryBadgeText}>
-                    {t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category })}
-                  </Text>
-                </View>
+                <Pill
+                  size="S"
+                  variant="primary"
+                  label={capitalize(t('categories.' + (recipe.subcategory || recipe.category), { defaultValue: recipe.subcategory || recipe.category }))}
+                />
                 {!!recipe.macro_category && recipe.macro_category !== recipe.category && (
-                  <View style={[styles.categoryBadge, { backgroundColor: colors.primarySoft, borderColor: colors.borderStrong }]}>
-                    <Text style={[styles.categoryBadgeText, { color: colors.primaryText }]}>
-                      {t('categories.' + recipe.macro_category, { defaultValue: recipe.macro_category })}
-                    </Text>
-                  </View>
+                  <Pill
+                    size="S"
+                    variant="primary"
+                    label={capitalize(t('categories.' + recipe.macro_category, { defaultValue: recipe.macro_category }))}
+                  />
                 )}
-                <View style={styles.diffBadge}>
-                  <Ionicons name="speedometer-outline" size={12} color="#D97757" style={{ marginRight: 3 }} />
-                  <Text style={styles.diffBadgeText}>{recipe.difficulty}</Text>
-                </View>
+                <Pill
+                  size="S"
+                  variant="accent"
+                  icon="speedometer-outline"
+                  label={capitalize(t(`explore.advanced.difficultyLevel.${recipe.difficulty}`, { defaultValue: recipe.difficulty }))}
+                />
               </ScrollView>
+              {/* Without a photo the favorite sits at the right of the badges */}
+              {!recipe.image && <View style={styles.favoriteInline}>{favoriteButton}</View>}
+              </View>
 
               {/* Quick Metrics Bar */}
-              <View style={styles.metricsBar}>
+              <Card style={styles.metricsBar}>
                 <View style={styles.metricItem}>
-                  <Ionicons name="time-outline" size={20} color={colors.primaryText} />
+                  <Ionicons name="time-outline" size={icon.lg} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricTime')}</Text>
                   <Text style={styles.metricValue}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
-                  <Ionicons name="people-outline" size={20} color={colors.primaryText} />
+                  <Ionicons name="people-outline" size={icon.lg} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricServings')}</Text>
                   <Text style={styles.metricValue}>{currentServings}</Text>
                 </View>
                 <View style={styles.metricDivider} />
                 <View style={styles.metricItem}>
-                  <Ionicons name="bar-chart-outline" size={20} color={colors.primaryText} />
+                  <Ionicons name="bar-chart-outline" size={icon.lg} color={colors.primaryText} />
                   <Text style={styles.metricLabel}>{t('recipeDetail.metricLevel')}</Text>
-                  <Text style={styles.metricValue}>{recipe.difficulty}</Text>
+                  <Text style={styles.metricValue}>{t(`explore.advanced.difficultyLevel.${recipe.difficulty}`, { defaultValue: recipe.difficulty })}</Text>
                 </View>
-              </View>
+              </Card>
 
               {/* Dynamic Servings Scaler with Quick Presets */}
-              <View style={styles.scalerCard}>
+              <Card style={styles.scalerCard}>
                 <View style={styles.scalerInfo}>
                   <Text style={styles.scalerTitle}>{t('recipeDetail.ingredientsTitle')}</Text>
                   <Text style={styles.scalerSub}>
@@ -670,39 +650,19 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                 <View style={styles.scalerRightCol}>
                   <View style={styles.scalerPresetsRow}>
                     {[1, 2, 4, 6].map(num => (
-                      <TouchableOpacity
+                      <Pill
                         key={num}
-                        style={[styles.presetChip, currentServings === num && styles.presetChipActive]}
+                        size="S"
+                        label={t('recipeDetail.presetShort', { n: num })}
+                        selected={currentServings === num}
                         onPress={() => setCurrentServings(num)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.presetChipText, currentServings === num && styles.presetChipTextActive]}>
-                          {t('recipeDetail.presetShort', { n: num })}
-                        </Text>
-                      </TouchableOpacity>
+                      />
                     ))}
                   </View>
 
-                  <View style={styles.scalerControls}>
-                    <TouchableOpacity
-                      style={[styles.scaleBtn, currentServings <= 1 && styles.scaleBtnDisabled]}
-                      onPress={() => changeServings(-1)}
-                      disabled={currentServings <= 1}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color={currentServings <= 1 ? colors.textMuted : colors.primaryText} />
-                    </TouchableOpacity>
-                    <Text style={styles.scaleNumber}>{currentServings}</Text>
-                    <TouchableOpacity
-                      style={styles.scaleBtn}
-                      onPress={() => changeServings(1)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color={colors.primaryText} />
-                    </TouchableOpacity>
-                  </View>
+                  {renderStepper(currentServings, changeServings)}
                 </View>
-              </View>
+              </Card>
 
               {/* Ingredients Sections */}
               <View style={styles.ingredientsContainer}>
@@ -723,8 +683,12 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                             onPress={() => toggleIngredient(key)}
                             activeOpacity={0.6}
                           >
-                            <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                              {isChecked && <Ionicons name="checkmark" size={14} color={colors.onPrimary} />}
+                            <View style={styles.checkbox}>
+                              <Checkbox
+                                checked={isChecked}
+                                onToggle={() => toggleIngredient(key)}
+                                accessibilityLabel={displayName}
+                              />
                             </View>
                             <Text style={[styles.ingredientText, isChecked && styles.ingredientTextChecked]}>
                               {displayName}
@@ -744,7 +708,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
 
               {/* Instructions */}
               <View style={styles.instructionsSection}>
-                <Text style={styles.sectionTitle}>{t('recipeDetail.preparation')}</Text>
+                <SectionTitle title={t('recipeDetail.preparation')} />
                 {(recipe.instructions || []).map((step, idx) => {
                   const isDone = !!completedSteps[idx];
                   return (
@@ -754,12 +718,8 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                       onPress={() => toggleStep(idx)}
                       activeOpacity={0.8}
                     >
-                      <View style={[styles.stepBadge, isDone && styles.stepBadgeDone]}>
-                        {isDone ? (
-                          <Ionicons name="checkmark" size={14} color={colors.onPrimary} />
-                        ) : (
-                          <Text style={styles.stepBadgeNumber}>{idx + 1}</Text>
-                        )}
+                      <View style={styles.stepBadge}>
+                        <IconBadge size="S" icon={isDone ? 'checkmark' : undefined} text={String(idx + 1)} />
                       </View>
                       <Text style={[styles.stepText, isDone && styles.stepTextDone]}>
                         {step}
@@ -773,14 +733,11 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
               <View style={styles.notesCard}>
                 <View style={styles.notesHeader}>
                   <View style={styles.notesTitleRow}>
-                    <Ionicons name="journal-outline" size={18} color={colors.primaryText} />
+                    <Ionicons name="journal-outline" size={icon.md} color={colors.primaryText} />
                     <Text style={styles.notesTitle}>{t('recipeDetail.notesTitle')}</Text>
                   </View>
                   {savedNoteStatus && (
-                    <View style={styles.savedNoteBadge}>
-                      <Ionicons name="checkmark-circle" size={13} color={colors.primaryText} style={{ marginRight: 3 }} />
-                      <Text style={styles.savedNoteBadgeText}>{savedNoteStatus}</Text>
-                    </View>
+                    <Pill size="S" variant="primary" icon="checkmark-circle" label={capitalize(savedNoteStatus)} />
                   )}
                 </View>
                 <AppTextField
@@ -801,14 +758,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                 />
                 {isEditingNote && (
                   <View style={styles.notesActionRow}>
-                    <TouchableOpacity
-                      style={styles.notesSaveBtn}
-                      onPress={handleSaveNote}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="checkmark" size={15} color={colors.onPrimary} style={{ marginRight: 4 }} />
-                      <Text style={styles.notesSaveBtnText}>{t('recipeDetail.saveNote')}</Text>
-                    </TouchableOpacity>
+                    <Button label={t('recipeDetail.saveNote')} icon="checkmark" onPress={handleSaveNote} />
                   </View>
                 )}
               </View>
@@ -817,7 +767,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
               {recipe.tips && recipe.tips.length > 0 && (
                 <View style={styles.tipsBox}>
                   <View style={styles.tipsHeader}>
-                    <Ionicons name="bulb-outline" size={20} color={colors.primaryText} />
+                    <Ionicons name="bulb-outline" size={icon.lg} color={colors.primaryText} />
                     <Text style={styles.tipsTitle}>{t('recipeDetail.tipsTitle')}</Text>
                   </View>
                   {recipe.tips.map((sugg, idx) => (
@@ -831,9 +781,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
               {recipe.tags.length > 0 && (
                 <View style={styles.tagsContainer}>
                   {recipe.tags.map((tag, idx) => (
-                    <View key={idx} style={styles.tagPill}>
-                      <Text style={styles.tagPillText}>#{tag}</Text>
-                    </View>
+                    <Pill key={idx} size="S" label={`#${capitalize(formatTagLabel(tag, t))}`} />
                   ))}
                 </View>
               )}
@@ -874,21 +822,12 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
               <View style={styles.planSection}>
                 <Text style={styles.planQuestion}>{t('mealPicker.recipeSourceQuestion')}</Text>
                 <View style={styles.planChipRow}>
-                  {(['prepare', 'ready'] as RecipeSource[]).map(option => {
-                    const active = planSource === option;
-                    return (
-                      <TouchableOpacity
-                        key={option}
-                        style={[styles.planChip, active && styles.planChipActive]}
-                        onPress={() => setPlanSource(option)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
-                          {t(`mealPicker.recipeSource.${option}`)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  <SegmentedControl
+                    accessibilityLabel={t('mealPicker.recipeSourceQuestion')}
+                    options={(['prepare', 'ready'] as RecipeSource[]).map(option => ({ key: option, label: t(`mealPicker.recipeSource.${option}`) }))}
+                    value={planSource}
+                    onChange={key => setPlanSource(key as RecipeSource)}
+                  />
                 </View>
               </View>
 
@@ -897,24 +836,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   <Text style={styles.planLabel}>
                     {t(planSource === 'prepare' ? 'mealPicker.servingsToPrepare' : 'mealPicker.servingsToEat')}
                   </Text>
-                  <View style={styles.scalerControls}>
-                    <TouchableOpacity
-                      style={[styles.scaleBtn, planServings <= 1 && styles.scaleBtnDisabled]}
-                      onPress={() => changePlanServings(-1)}
-                      disabled={planServings <= 1}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color={planServings <= 1 ? colors.textMuted : colors.primaryText} />
-                    </TouchableOpacity>
-                    <Text style={styles.scaleNumber}>{planServings}</Text>
-                    <TouchableOpacity
-                      style={styles.scaleBtn}
-                      onPress={() => changePlanServings(1)}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color={colors.primaryText} />
-                    </TouchableOpacity>
-                  </View>
+                  {renderStepper(planServings, changePlanServings)}
                 </View>
               </View>
 
@@ -922,79 +844,23 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                 <Text style={styles.planQuestion}>{t('recipeDetail.choosePlanTime')}</Text>
 
               <View style={styles.slotToggleRow}>
-                <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlots.includes('colazione') && styles.slotToggleActive]}
-                  onPress={() => toggleSlot('colazione')}
-                >
-                  <Ionicons name="cafe-outline" size={13} color={selectedSlots.includes('colazione') ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlots.includes('colazione') && styles.slotToggleTextActive]}>
-                    {t('recipeDetail.slotBreakfast')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlots.includes('pranzo') && styles.slotToggleActive]}
-                  onPress={() => toggleSlot('pranzo')}
-                >
-                  <Ionicons name="sunny-outline" size={13} color={selectedSlots.includes('pranzo') ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlots.includes('pranzo') && styles.slotToggleTextActive]}>
-                    {t('recipeDetail.slotLunch')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.slotToggle, (selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) && styles.slotToggleActive]}
-                  onPress={() => toggleSlot('spuntino_pomeriggio')}
-                >
-                  <Ionicons name="nutrition-outline" size={13} color={(selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, (selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio')) && styles.slotToggleTextActive]}>
-                    {t('recipeDetail.slotSnack')}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.slotToggle, selectedSlots.includes('cena') && styles.slotToggleActive]}
-                  onPress={() => toggleSlot('cena')}
-                >
-                  <Ionicons name="moon-outline" size={13} color={selectedSlots.includes('cena') ? colors.onPrimary : colors.primaryText} />
-                  <Text style={[styles.slotToggleText, selectedSlots.includes('cena') && styles.slotToggleTextActive]}>
-                    {t('recipeDetail.slotDinner')}
-                  </Text>
-                </TouchableOpacity>
+                <Pill fill size="M" icon="cafe-outline" label={t('recipeDetail.slotBreakfast')} selected={selectedSlots.includes('colazione')} onPress={() => toggleSlot('colazione')} />
+                <Pill fill size="M" icon="sunny-outline" label={t('recipeDetail.slotLunch')} selected={selectedSlots.includes('pranzo')} onPress={() => toggleSlot('pranzo')} />
+                <Pill fill size="M" icon="nutrition-outline" label={t('recipeDetail.slotSnack')} selected={(selectedSlots.includes('spuntino_mattina') || selectedSlots.includes('spuntino_pomeriggio'))} onPress={() => toggleSlot('spuntino_pomeriggio')} />
+                <Pill fill size="M" icon="moon-outline" label={t('recipeDetail.slotDinner')} selected={selectedSlots.includes('cena')} onPress={() => toggleSlot('cena')} />
               </View>
 
               <View style={styles.daysRow}>
-                {weekDays.map(d => {
-                  const isSelected = selectedDates.includes(d.dateString);
-                  return (
-                    <TouchableOpacity
-                      key={d.dateString}
-                      style={[
-                        styles.dayCard,
-                        d.isToday && styles.dayCardToday,
-                        isSelected && styles.dayCardSelected
-                      ]}
-                      onPress={() => toggleDate(d.dateString)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[
-                          styles.dayCardName,
-                          d.isToday && styles.dayCardNameToday,
-                          isSelected && styles.dayCardNameSelected
-                        ]}
-                      >
-                        {d.dayName.slice(0, 3)}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.dayCardNum,
-                          d.isToday && styles.dayCardNumToday,
-                          isSelected && styles.dayCardNumSelected
-                        ]}
-                      >
-                        {d.dayNumber}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {weekDays.map(d => (
+                  <Pill
+                    key={d.dateString}
+                    size="M"
+                    variant={d.isToday ? 'primary' : 'neutral'}
+                    label={`${d.dayShort} ${d.dayNumber}`}
+                    selected={selectedDates.includes(d.dateString)}
+                    onPress={() => toggleDate(d.dateString)}
+                  />
+                ))}
               </View>
               </View>
 
@@ -1002,57 +868,31 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                 {/* Always present, with the same height: when they do not apply they are disabled, so the content does not shift */}
                 <Text style={styles.planQuestion}>{t('recipeDetail.planBatchQuestion')}</Text>
                 <View style={[styles.planChipRow, !batchApplies && styles.planDisabled]}>
-                  {(['each', 'once'] as const).map(option => {
-                    const active = planBatch === option;
-                    return (
-                      <TouchableOpacity
-                        key={option}
-                        style={[styles.planChip, active && styles.planChipActive]}
-                        onPress={() => setPlanBatch(option)}
-                        disabled={!batchApplies}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={[styles.planChipText, active && styles.planChipTextActive]}>
-                          {t(option === 'each' ? 'recipeDetail.planBatchEach' : 'recipeDetail.planBatchOnce')}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  <SegmentedControl
+                    accessibilityLabel={t('recipeDetail.planBatchQuestion')}
+                    options={(['each', 'once'] as const).map(option => ({ key: option, label: t(option === 'each' ? 'recipeDetail.planBatchEach' : 'recipeDetail.planBatchOnce') }))}
+                    value={planBatch}
+                    onChange={key => setPlanBatch(key as typeof planBatch)}
+                    disabled={!batchApplies}
+                  />
                 </View>
                 {cookOnce && (
                   <View style={styles.planRow}>
                     <Text style={styles.planLabel}>{t('recipeDetail.planServingsPerMeal')}</Text>
-                    <View style={styles.scalerControls}>
-                      <TouchableOpacity
-                        style={[styles.scaleBtn, planEatServings <= 1 && styles.scaleBtnDisabled]}
-                        onPress={() => changePlanEatServings(-1)}
-                        disabled={planEatServings <= 1}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="remove" size={16} color={planEatServings <= 1 ? colors.textMuted : colors.primaryText} />
-                      </TouchableOpacity>
-                      <Text style={styles.scaleNumber}>{planEatServings}</Text>
-                      <TouchableOpacity
-                        style={styles.scaleBtn}
-                        onPress={() => changePlanEatServings(1)}
-                          activeOpacity={0.7}
-                      >
-                        <Ionicons name="add" size={16} color={colors.primaryText} />
-                      </TouchableOpacity>
-                    </View>
+                    {renderStepper(planEatServings, changePlanEatServings)}
                   </View>
                 )}
                 <View style={styles.planNoticeSlot}>
                   {!batchApplies ? (
                     <View style={styles.planNotice}>
-                      <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                      <Ionicons name="information-circle-outline" size={icon.sm} color={colors.textMuted} />
                       <Text style={styles.planNoticeTextMuted}>
                         {t(planSource === 'prepare' ? 'recipeDetail.planBatchNeedsMeals' : 'recipeDetail.planBatchNeedsPrepare')}
                       </Text>
                     </View>
                   ) : cookOnce && plannedServings > planServings && (
                     <View style={styles.planNotice}>
-                      <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+                      <Ionicons name="information-circle-outline" size={icon.sm} color={colors.textSecondary} />
                       <Text style={styles.planNoticeText}>
                         {t('recipeDetail.planServingsExceed', { planned: plannedServings, prepared: planServings })}
                       </Text>
@@ -1069,126 +909,75 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
           {/* Bottom bar: plan (with the X next to the confirmation) and secondary actions below */}
           <View style={styles.stickyActionBar}>
             <View style={styles.stickyPlanRow}>
-              <TouchableOpacity
-                style={[styles.stickyPlanBtnPrimary, showPlanPicker && planCount === 0 && styles.stickyPlanBtnDisabled]}
-                onPress={() => {
-                  if (planDone) {
-                    setPlanDone(null);
-                  } else if (showPlanPicker) {
-                    handleScheduleMeal();
-                  } else {
-                    openPlanPicker();
-                  }
-                }}
-                disabled={showPlanPicker && planCount === 0}
-                activeOpacity={0.88}
-              >
-                <Text style={styles.stickyPlanBtnText}>
-                  {planDone
+              <View style={styles.stickyPlanBtn}>
+                <Button
+                  size="XL"
+                  label={planDone
                     ? t('recipeDetail.plannedDone')
                     : showPlanPicker
                       ? t('recipeDetail.confirmInPlanCount', { count: planCount })
                       : t('recipeDetail.addToPlan', { servings: currentServings })}
-                </Text>
-                {!showPlanPicker && !planDone && (
-                  <Ionicons
-                    name="chevron-up"
-                    size={18}
-                    color={colors.onPrimary}
-                    style={{ marginLeft: 6 }}
-                  />
-                )}
-              </TouchableOpacity>
+                  icon={!showPlanPicker && !planDone ? 'chevron-up' : undefined}
+                  disabled={showPlanPicker && planCount === 0}
+                  onPress={() => {
+                    if (planDone) {
+                      setPlanDone(null);
+                    } else if (showPlanPicker) {
+                      handleScheduleMeal();
+                    } else {
+                      openPlanPicker();
+                    }
+                  }}
+                />
+              </View>
               {showPlanPicker && (
-                <TouchableOpacity
-                  style={styles.stickyCloseBtn}
-                  onPress={() => setShowPlanPicker(false)}
-                  activeOpacity={0.7}
-                  accessibilityLabel={t('common.close')}
-                >
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                <CircleButton icon="close" variant="plain" onPress={() => setShowPlanPicker(false)} accessibilityLabel={t('common.close')} />
               )}
             </View>
             <View style={styles.stickyToolsRow}>
               {onEdit && (
-                <TouchableOpacity
-                  style={styles.stickySecondaryBtn}
-                  onPress={() => onEdit(recipe)}
-                  activeOpacity={0.8}
-                  accessibilityLabel={t('recipeDetail.edit')}
-                >
-                  <Ionicons name="create-outline" size={18} color={colors.primaryText} />
-                  <Text style={styles.stickySecondaryText}>{t('recipeDetail.edit')}</Text>
-                </TouchableOpacity>
+                <View style={styles.stickyToolBtn}>
+                  <Button variant="secondary" icon="create-outline" label={t('recipeDetail.edit')} onPress={() => onEdit(recipe)} />
+                </View>
               )}
-              <TouchableOpacity
-                style={styles.stickySecondaryBtn}
-                onPress={() => setShowShareModal(true)}
-                activeOpacity={0.8}
-                accessibilityLabel={t('recipeDetail.shareRecipe')}
-              >
-                <Ionicons name="share-social-outline" size={18} color={colors.primaryText} />
-                <Text style={styles.stickySecondaryText}>{t('recipeDetail.shareRecipe')}</Text>
-              </TouchableOpacity>
+              <View style={styles.stickyToolBtn}>
+                <Button variant="secondary" icon="share-social-outline" label={t('recipeDetail.shareRecipe')} onPress={() => setShowShareModal(true)} />
+              </View>
               {hasExternalLink && (
-                <TouchableOpacity
-                  style={styles.stickySecondaryBtn}
-                  onPress={() => Linking.openURL(recipe.url)}
-                  activeOpacity={0.8}
-                  accessibilityLabel={t('recipeDetail.openOnWeb')}
-                >
-                  <Ionicons name="open-outline" size={18} color={colors.primaryText} />
-                  <Text style={styles.stickySecondaryText}>{t('recipeDetail.openOnWeb')}</Text>
-                </TouchableOpacity>
+                <View style={styles.stickyToolBtn}>
+                  <Button variant="secondary" icon="open-outline" label={t('recipeDetail.openOnWeb')} onPress={() => Linking.openURL(recipe.url)} />
+                </View>
               )}
             </View>
           </View>
         </View>
 
         {/* Share Modal Dialog */}
-        <Modal visible={showJson} animationType="fade" transparent onRequestClose={() => setShowJson(false)}>
-          <View style={styles.jsonBackdrop}>
+        <SheetModal visible={showJson} onClose={() => setShowJson(false)}>
             <View style={styles.jsonCard}>
               <View style={styles.jsonHeader}>
                 <Text style={styles.jsonTitle}>{t('recipeDetail.recipeJson')}</Text>
-                <TouchableOpacity onPress={() => setShowJson(false)} hitSlop={12} accessibilityLabel={t('recipeDetail.close')}>
-                  <Ionicons name="close" size={22} color={colors.text} />
-                </TouchableOpacity>
+                <CircleButton icon="close" variant="plain" onPress={() => setShowJson(false)} accessibilityLabel={t('recipeDetail.close')} />
               </View>
               <ScrollView style={styles.jsonScroll} contentContainerStyle={styles.jsonScrollContent}>
                 <Text selectable style={styles.jsonText}>{JSON.stringify(recipe, null, 2)}</Text>
               </ScrollView>
-              <TouchableOpacity
-                style={styles.jsonCopyBtn}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(JSON.stringify(recipe, null, 2));
-                  setJsonCopied(true);
-                }}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={jsonCopied ? 'checkmark' : 'copy-outline'} size={16} color={colors.onPrimary} />
-                <Text style={styles.jsonCopyText}>{jsonCopied ? t('recipeDetail.copied') : t('recipeDetail.copyToClipboard')}</Text>
-              </TouchableOpacity>
+              <View style={styles.jsonCopyBtn}>
+                <Button
+                  size="XL"
+                  icon={jsonCopied ? 'checkmark' : 'copy-outline'}
+                  label={jsonCopied ? t('recipeDetail.copied') : t('recipeDetail.copyToClipboard')}
+                  onPress={async () => {
+                    await Clipboard.setStringAsync(JSON.stringify(recipe, null, 2));
+                    setJsonCopied(true);
+                  }}
+                />
+              </View>
             </View>
-          </View>
-        </Modal>
+        </SheetModal>
 
-        <Modal
-          visible={showShareModal}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setShowShareModal(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowShareModal(false)}
-          >
-            <View
-              style={[styles.shareSheet, width >= 768 && styles.shareSheetTablet]}
-              onStartShouldSetResponder={() => true}
-            >
+        <SheetModal visible={showShareModal} onClose={() => setShowShareModal(false)}>
+            <View style={styles.shareSheet}>
               <View style={styles.shareSheetHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.shareSheetTitle}>{t('recipeDetail.shareRecipeTitle')}</Text>
@@ -1196,13 +985,7 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                     {t('recipeDetail.shareSubtitle', { title: recipe.title, count: currentServings })}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.shareCloseBtn}
-                  onPress={() => setShowShareModal(false)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={20} color={colors.text} />
-                </TouchableOpacity>
+                <CircleButton icon="close" variant="plain" onPress={() => setShowShareModal(false)} accessibilityLabel={t('common.close')} />
               </View>
 
               {/* Note inclusion toggle if note exists */}
@@ -1212,12 +995,13 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   onPress={() => setIncludeNotesInShare(!includeNotesInShare)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons
-                    name={includeNotesInShare ? 'checkbox' : 'square-outline'}
-                    size={20}
-                    color={includeNotesInShare ? colors.primaryText : colors.textMuted}
-                    style={{ marginRight: 8 }}
-                  />
+                  <View style={styles.includeNotesBox}>
+                    <Checkbox
+                      checked={includeNotesInShare}
+                      onToggle={() => setIncludeNotesInShare(!includeNotesInShare)}
+                      accessibilityLabel={t('recipeDetail.includeNotes')}
+                    />
+                  </View>
                   <Text style={styles.includeNotesText}>{t('recipeDetail.includeNotes')}</Text>
                 </TouchableOpacity>
               )}
@@ -1230,14 +1014,14 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   onPress={handleShareTelegram}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.shareIconCircle, { backgroundColor: '#2AABEE' }]}>
-                    <Ionicons name="paper-plane" size={19} color={colors.onPrimary} />
+                  <View style={[styles.shareIconCircle, { backgroundColor: brandColors.telegram }]}>
+                    <Ionicons name="paper-plane" size={icon.md} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#8ED3F5' : '#0E73A6') }]}>Telegram</Text>
+                    <Text style={[styles.shareOptionTitle, { color: brandText.telegram }]}>Telegram</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.telegramSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#2AABEE" />
+                  <Ionicons name="chevron-forward" size={icon.md} color={brandColors.telegram} />
                 </TouchableOpacity>
 
                 {/* WhatsApp */}
@@ -1246,14 +1030,14 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   onPress={handleShareWhatsApp}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.shareIconCircle, { backgroundColor: '#25D366' }]}>
-                    <Ionicons name="logo-whatsapp" size={19} color={colors.onPrimary} />
+                  <View style={[styles.shareIconCircle, { backgroundColor: brandColors.whatsapp }]}>
+                    <Ionicons name="logo-whatsapp" size={icon.md} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#7FD39C' : '#1B8742') }]}>WhatsApp</Text>
+                    <Text style={[styles.shareOptionTitle, { color: brandText.whatsapp }]}>WhatsApp</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.whatsappSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color="#25D366" />
+                  <Ionicons name="chevron-forward" size={icon.md} color={brandColors.whatsapp} />
                 </TouchableOpacity>
 
                 {/* Native System Share */}
@@ -1263,13 +1047,13 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.shareIconCircle, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="share-outline" size={19} color={colors.onPrimary} />
+                    <Ionicons name="share-outline" size={icon.md} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
                     <Text style={[styles.shareOptionTitle, { color: colors.primaryText }]}>{t('recipeDetail.otherApps')}</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.systemShareSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.primaryText} />
+                  <Ionicons name="chevron-forward" size={icon.md} color={colors.primaryText} />
                 </TouchableOpacity>
 
                 {/* Copy to Clipboard */}
@@ -1278,14 +1062,14 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   onPress={handleCopyClipboard}
                   activeOpacity={0.8}
                 >
-                  <View style={[styles.shareIconCircle, { backgroundColor: (isDark ? '#455A64' : '#607D8B') }]}>
-                    <Ionicons name="copy-outline" size={19} color={colors.onPrimary} />
+                  <View style={[styles.shareIconCircle, { backgroundColor: colors.neutralStrong }]}>
+                    <Ionicons name="copy-outline" size={icon.md} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
-                    <Text style={[styles.shareOptionTitle, { color: (isDark ? '#CFD8DC' : '#37474F') }]}>{t('recipeDetail.copyRecipeTitle')}</Text>
+                    <Text style={[styles.shareOptionTitle, { color: colors.neutralText }]}>{t('recipeDetail.copyRecipeTitle')}</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.copyRecipeSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={(isDark ? '#90A4AE' : '#607D8B')} />
+                  <Ionicons name="chevron-forward" size={icon.md} color={colors.neutralIcon} />
                 </TouchableOpacity>
 
                 {/* View JSON */}
@@ -1295,125 +1079,53 @@ const RecipeModalCard: React.FC<RecipeModalCardProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.shareIconCircle, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="code-slash-outline" size={19} color={colors.onPrimary} />
+                    <Ionicons name="code-slash-outline" size={icon.md} color={colors.onPrimary} />
                   </View>
                   <View style={styles.shareOptionTextCol}>
                     <Text style={[styles.shareOptionTitle, { color: colors.primaryText }]}>{t('recipeDetail.showRecipeJson')}</Text>
                     <Text style={styles.shareOptionSub}>{t('recipeDetail.jsonSub')}</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={colors.primaryText} />
+                  <Ionicons name="chevron-forward" size={icon.md} color={colors.primaryText} />
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
-        </Modal>
+        </SheetModal>
       </View>
     </SheetModal>
   );
 };
 
 const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
-  jsonBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 16 },
-  jsonCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, maxHeight: '85%' },
-  jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  jsonTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  jsonCard: { padding: space.xxl },
+  jsonHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.lg },
+  jsonTitle: { fontSize: text.page, fontWeight: '700', color: colors.text },
   // Scrollable area with height limited by the card: the JSON scrolls inside it
-  jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: colors.surfaceAlt, borderRadius: 10 },
-  jsonScrollContent: { padding: 10 },
+  jsonScroll: { flexShrink: 1, minHeight: 200, backgroundColor: colors.surfaceAlt, borderRadius: radius.sm },
+  jsonScrollContent: { padding: space.lg },
   jsonText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
-    fontSize: 11,
+    fontSize: text.label,
     color: colors.text,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: radius.sm,
+    padding: space.lg,
     textAlignVertical: 'top',
   },
-  jsonCopyBtn: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
-  },
-  jsonCopyText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
-  versionBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4, gap: 8 },
-  versionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  versionTabs: { flex: 1, flexDirection: 'row', padding: 4, borderRadius: 14, backgroundColor: colors.primarySoft },
-  versionTab: { flex: 1, paddingVertical: 7, borderRadius: 11, alignItems: 'center' },
-  versionTabActive: { backgroundColor: colors.surface },
-  versionTabText: { fontSize: 13, fontWeight: '700', color: colors.textSecondary },
-  versionTabTextActive: { color: colors.primaryText },
-  versionActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  versionActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  versionTabMissing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-  },
-  versionTabMissingText: { color: colors.primaryText },
-  versionMenuBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  variantMenu: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 8,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
+  jsonCopyBtn: { marginTop: space.lg },
+  versionBar: { paddingHorizontal: space.xxxl, paddingTop: space.md, paddingBottom: space.xs, gap: space.md },
+  versionRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  // Takes the row space left by the menu button; the segmented control fills it
+  versionControl: { flex: 1, minWidth: 0 },
+  variantMenu: { padding: space.md },
   variantMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    gap: space.xl,
+    paddingVertical: space.xxl,
+    paddingHorizontal: space.xl,
+    borderRadius: radius.md,
   },
-  variantMenuText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  confirmSheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    gap: 10,
-  },
-  confirmTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
-  confirmBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary },
-  confirmActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
-  confirmBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  confirmBtnSecondary: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.borderStrong },
-  confirmBtnPrimary: { backgroundColor: colors.primary },
-  confirmBtnTextSecondary: { fontSize: 15, fontWeight: '700', color: colors.text },
-  confirmBtnTextPrimary: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
+  variantMenuText: { fontSize: text.title, fontWeight: '600', color: colors.text },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1426,38 +1138,27 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   modalWrapperTablet: {
     maxWidth: 1200,
     alignSelf: 'center',
-    borderRadius: 20,
+    borderRadius: cardRadius,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
   },
-  toastBanner: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  toastText: {
-    color: colors.onPrimary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  // Same structure as the settings page, which renders aligned on Android: no explicit width on the scroller
   scroll: {
     flex: 1,
-    width: '100%',
   },
+  // Top space goes on the scroll content, not on the photo: on Android a margin on the aspect-ratio photo shifts it
   scrollContent: {
-    paddingBottom: 20,
+    paddingTop: space.md,
+    paddingBottom: space.huge,
   },
   imageContainer: {
-    marginHorizontal: 16,
-    marginTop: 8,
+    alignSelf: 'stretch',
+    marginHorizontal: space.huge,
     aspectRatio: 16 / 10,
     maxHeight: 400,
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
+    borderRadius: cardRadius,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -1465,110 +1166,40 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  plantBadgeRow: { paddingHorizontal: 16, paddingTop: 8 },
-  plantBadgeInline: { position: 'relative', top: 0, left: 0, right: 0, bottom: 0, alignSelf: 'flex-start' },
-  recipeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    backgroundColor: colors.background,
-  },
-  recipeHeaderTitle: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    lineHeight: 28,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.14,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
   plantBadge: {
     position: 'absolute',
     bottom: 16,
     left: 16,
-    backgroundColor: (isDark ? 'rgba(27, 35, 28, 0.95)' : 'rgba(255, 255, 255, 0.95)'),
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  plantBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryText,
-  },
+  plantBadgeRow: { paddingHorizontal: space.xxxl, paddingTop: space.md, alignItems: 'flex-start' },
   content: {
-    padding: 20,
+    padding: space.huge,
   },
+  badgeLine: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md },
+  favoriteOnImage: { position: 'absolute', top: space.md, right: space.md },
+  favoriteInline: { marginLeft: 'auto' },
   badgeScroll: {
-    flexGrow: 0,
-    marginBottom: 8,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  categoryBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  categoryBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryText,
-    textTransform: 'uppercase',
-  },
-  diffBadge: {
-    backgroundColor: (isDark ? '#3A2A22' : '#FBEFEA'),
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  diffBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#D97757',
+    gap: space.md,
   },
   title: {
-    fontSize: 24,
+    fontSize: text.page,
     fontWeight: '800',
     color: colors.text,
     lineHeight: 32,
-    marginBottom: 16,
+    marginBottom: space.xxxl,
   },
   metricsBar: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
+    paddingVertical: space.xxl,
+    paddingHorizontal: space.xl,
+    marginBottom: space.xxxl,
     alignItems: 'center',
     justifyContent: 'space-around',
   },
@@ -1577,13 +1208,13 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   metricLabel: {
-    fontSize: 10,
+    fontSize: text.label,
     fontWeight: '700',
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: space.xs,
   },
   metricValue: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.text,
     marginTop: 2,
@@ -1596,268 +1227,109 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   // Sticky Action Bar & Plan Drawer Styles
   stickyPlanRow: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  stickyCloseBtn: {
-    width: 52,
-    borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    gap: space.md,
   },
+  stickyPlanBtn: { flex: 1 },
   stickyToolsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.md,
   },
-  stickySecondaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  stickySecondaryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primaryText,
-  },
+  stickyToolBtn: { flex: 1 },
   stickyActionBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.xl,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    gap: 10,
-  },
-  stickyPlanBtnPrimary: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.18,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  stickyPlanBtnText: {
-    color: colors.onPrimary,
-    fontSize: 15,
-    fontWeight: '700',
+    gap: space.lg,
   },
   planDoneHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 14,
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    gap: space.xl,
+    marginBottom: space.xxl,
+    paddingHorizontal: space.xxxl,
+    paddingTop: space.md,
   },
   planDoneText: { flex: 1 },
-  planDoneTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
-  planDoneBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginTop: 2 },
-  stickyPlanBtnDisabled: { opacity: 0.5 },
+  planDoneTitle: { fontSize: text.title, fontWeight: '800', color: colors.text },
+  planDoneBody: { fontSize: text.body, lineHeight: 20, color: colors.textSecondary, marginTop: 2 },
   // Planning panel: scrollable if the sections do not fit on the screen
   planScreen: { flex: 1, backgroundColor: colors.background },
   // Gray container that comes out of the footer: planning sits inside it, the rest of the screen stays above
   planSheet: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: cardRadius,
+    borderTopRightRadius: cardRadius,
     borderTopWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
   },
   planScroll: { flex: 1 },
-  planScrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
-  planSection: { gap: 8, marginBottom: 16 },
-  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  planLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-  planQuestion: { fontSize: 15, fontWeight: '700', color: colors.text },
-  planChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  planScrollContent: { paddingHorizontal: space.xxxl, paddingTop: space.md, paddingBottom: 24 },
+  planSection: { gap: space.md, marginBottom: space.xxxl },
+  planRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.lg },
+  planLabel: { flex: 1, fontSize: text.title, fontWeight: '700', color: colors.text },
+  planQuestion: { fontSize: text.title, fontWeight: '700', color: colors.text },
+  planChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
   planDisabled: { opacity: 0.4 },
   planNoticeSlot: { minHeight: 34, justifyContent: 'center' },
-  planNotice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  planNotice: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   // Handle at the top of the card: indicates that planning comes out of the bottom button
   planDoneWrap: { flex: 1, justifyContent: 'flex-end' },
-  planSheetTitle: { fontSize: 22, fontWeight: '800', color: colors.text, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
-  planGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.borderStrong, marginTop: 8 },
-  planNoticeText: { flex: 1, fontSize: 12, lineHeight: 16, color: colors.textSecondary },
-  planNoticeTextMuted: { flex: 1, fontSize: 12, lineHeight: 16, color: colors.textMuted },
+  planSheetTitle: { fontSize: text.page, fontWeight: '700', color: colors.text, paddingHorizontal: space.xxxl, paddingTop: space.md, paddingBottom: space.md },
+  planGrabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: radius.full, backgroundColor: colors.borderStrong, marginTop: space.md },
+  planNoticeText: { flex: 1, fontSize: text.caption, lineHeight: 16, color: colors.textSecondary },
+  planNoticeTextMuted: { flex: 1, fontSize: text.caption, lineHeight: 16, color: colors.textMuted },
   // Chips with long labels: more padding, centered and wrapped text, no flex squeezing them
-  planChip: {
-    flexGrow: 1,
-    flexBasis: '45%',
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceAlt,
-  },
-  planChipActive: { backgroundColor: colors.primary },
-  planChipText: { fontSize: 14, lineHeight: 18, fontWeight: '600', textAlign: 'center', color: colors.textSecondary },
-  planChipTextActive: { color: colors.onPrimary, fontWeight: '700' },
   slotToggleRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.md,
   },
-  slotToggle: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceAlt,
-  },
-  slotToggleActive: {
-    backgroundColor: colors.primary,
-  },
-  slotToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  slotToggleTextActive: {
-    color: colors.onPrimary,
-  },
+  // Day pills wrap on narrow screens (no fill: seven equal columns would truncate "Mon 12")
   daysRow: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  dayCard: {
-    flex: 1,
-    minWidth: 0,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dayCardToday: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primarySoft,
-  },
-  dayCardSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayCardName: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  dayCardNameToday: {
-    color: colors.primaryText,
-  },
-  dayCardNameSelected: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-  },
-  dayCardNum: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 2,
-  },
-  dayCardNumToday: {
-    color: colors.primaryText,
-  },
-  dayCardNumSelected: {
-    color: colors.onPrimary,
-    fontWeight: '800',
+    flexWrap: 'wrap',
+    gap: space.md,
   },
   scalerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 20,
+    marginBottom: space.huge,
   },
   scalerInfo: {
     flex: 1,
   },
   scalerTitle: {
-    fontSize: 16,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
   },
   scalerSub: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 2,
   },
   scalerRightCol: {
     alignItems: 'flex-end',
-    gap: 8,
+    gap: space.md,
   },
   scalerPresetsRow: {
     flexDirection: 'row',
-    gap: 4,
-  },
-  presetChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  presetChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  presetChipText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  presetChipTextActive: {
-    color: colors.onPrimary,
-    fontWeight: '700',
+    alignSelf: 'flex-end',
+    gap: space.xs,
   },
   scalerControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 12,
-    padding: 4,
-  },
-  scaleBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  scaleBtnDisabled: {
-    backgroundColor: colors.surfaceMuted,
-    opacity: 0.6,
+    alignSelf: 'flex-end',
+    gap: space.xs,
   },
   scaleNumber: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
     minWidth: 32,
@@ -1867,25 +1339,25 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginBottom: 24,
   },
   sectionBlock: {
-    marginBottom: 16,
+    marginBottom: space.xxxl,
   },
   sectionHeading: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.primaryText,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
-    marginTop: 4,
+    marginBottom: space.md,
+    marginTop: space.xs,
   },
   ingredientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: space.md,
+    paddingHorizontal: space.xl,
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    marginBottom: 6,
+    borderRadius: radius.md,
+    marginBottom: space.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1894,41 +1366,23 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  singleAddBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceAlt,
-    marginLeft: 8,
-  },
   ingredientRowChecked: {
     backgroundColor: colors.surfaceMuted,
     opacity: 0.6,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
+  checkbox: { marginRight: space.xl },
+  includeNotesBox: { marginRight: space.md },
   ingredientText: {
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.text,
     flex: 1,
     lineHeight: 20,
   },
   ingredientQuantity: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '600',
     color: colors.textMuted,
-    marginLeft: 12,
+    marginLeft: space.xl,
     textAlign: 'right',
   },
   ingredientTextChecked: {
@@ -1938,19 +1392,13 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   instructionsSection: {
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
   stepCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: cardRadius,
+    padding: space.xxl,
+    marginBottom: space.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1958,26 +1406,9 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     opacity: 0.65,
   },
-  stepBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  stepBadgeDone: {
-    backgroundColor: colors.primary,
-  },
-  stepBadgeNumber: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primaryText,
-  },
+  stepBadge: { marginRight: space.xl, marginTop: 2 },
   stepText: {
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.text,
     lineHeight: 22,
     flex: 1,
@@ -1988,83 +1419,59 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   },
   tipsBox: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: cardRadius,
+    padding: space.xxxl,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 20,
+    marginBottom: space.huge,
   },
   tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: space.md,
+    marginBottom: space.md,
   },
   tipsTitle: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.primaryText,
   },
   tipsText: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textSecondary,
     lineHeight: 20,
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  tagPill: {
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tagPillText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    gap: space.md,
+    marginTop: space.md,
   },
   // Notes Section Styles
   notesCard: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: cardRadius,
+    padding: space.xxxl,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: 20,
+    marginBottom: space.huge,
   },
   notesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: space.lg,
   },
   notesTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.md,
   },
   notesTitle: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
-  },
-  savedNoteBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  savedNoteBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primaryText,
   },
   notesField: {
     minHeight: 70,
@@ -2072,96 +1479,59 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   notesActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 10,
-  },
-  notesSaveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-  },
-  notesSaveBtnText: {
-    color: colors.onPrimary,
-    fontSize: 13,
-    fontWeight: '600',
+    marginTop: space.lg,
   },
   // Share Modal & Sheet Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'flex-end',
-  },
   shareSheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    padding: space.huge,
     paddingBottom: 32,
-  },
-  shareSheetTablet: {
-    maxWidth: 520,
-    width: '100%',
-    alignSelf: 'center',
-    borderRadius: 24,
-    marginBottom: 'auto',
-    marginTop: 'auto',
   },
   shareSheetHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: space.xxxl,
   },
   shareSheetTitle: {
-    fontSize: 18,
+    fontSize: text.page,
     fontWeight: '700',
     color: colors.text,
   },
   shareSheetSub: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 2,
-  },
-  shareCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   includeNotesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceMuted,
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 16,
+    padding: space.lg,
+    borderRadius: radius.sm,
+    marginBottom: space.xxxl,
   },
   includeNotesText: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.text,
     fontWeight: '500',
   },
   shareGrid: {
-    gap: 10,
+    gap: space.lg,
   },
   shareOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 14,
+    padding: space.xl,
+    borderRadius: cardRadius,
     borderWidth: 1,
   },
   shareOptionTelegram: {
-    backgroundColor: (isDark ? '#132630' : '#F0F8FD'),
-    borderColor: (isDark ? '#1E3A48' : '#D1EAF8'),
+    backgroundColor: colors.infoSoft,
+    borderColor: colors.infoBorder,
   },
   shareOptionWhatsapp: {
-    backgroundColor: (isDark ? '#13261A' : '#F0FAF3'),
-    borderColor: (isDark ? '#1F3D2A' : '#D2F2DD'),
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successBorder,
   },
   shareOptionNative: {
     backgroundColor: colors.surfaceAlt,
@@ -2172,22 +1542,22 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     borderColor: colors.border,
   },
   shareIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: sizes.circle.M,
+    height: sizes.circle.M,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: space.xl,
   },
   shareOptionTextCol: {
     flex: 1,
   },
   shareOptionTitle: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
   },
   shareOptionSub: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 1,
   },

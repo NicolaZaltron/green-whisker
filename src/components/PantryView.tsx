@@ -26,6 +26,14 @@ import { addShoppingItems } from '../db/database';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
+import { Button } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { Toast } from './ui/Toast';
+import { Pill } from './ui/Pill';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { Card } from './ui/Card';
+import { SectionLabel } from './ui/SectionLabel';
+import { cardRadius, radius, space, text, icon } from '../theme/tokens';
 
 interface PantryViewProps {
   onSelectRecipe: (recipe: RecipeSummary) => void;
@@ -179,7 +187,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       {/* Header Info */}
       <View style={styles.headerBox}>
         <View style={styles.headerTitleRow}>
-          <MaterialCommunityIcons name="fridge-outline" size={20} color={colors.primaryText} style={{ marginRight: 6 }} />
+          <MaterialCommunityIcons name="fridge-outline" size={icon.lg} color={colors.primaryText} style={{ marginRight: space.sm }} />
           <Text style={styles.headerTitle}>{t('pantry.title')}</Text>
         </View>
         <Text style={styles.headerSubtitle}>
@@ -188,12 +196,13 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
       </View>
 
       {/* Input Box with Autocomplete */}
-      <View style={styles.inputCard}>
+      <Card elevation={1} padding="xxl" style={styles.inputCard}>
         <View style={styles.inputRow}>
           <AppTextField
             variant="search"
+            size="M"
             style={styles.textInput}
-            leftIcon={<Ionicons name="add-circle-outline" size={20} color={colors.textMuted} />}
+            leftIcon={<Ionicons name="add-circle-outline" size={icon.lg} color={colors.textMuted} />}
             placeholder={t('pantry.inputPlaceholder')}
             value={inputText}
             onChangeText={setInputText}
@@ -201,27 +210,23 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             returnKeyType="done"
           />
           {inputText.length > 0 && (
-            <TouchableOpacity onPress={() => handleAddIngredient(inputText)} style={styles.addBtn}>
-              <Text style={styles.addBtnText}>{t('pantry.addBtn')}</Text>
-            </TouchableOpacity>
+            <Button label={t('pantry.addBtn')} onPress={() => handleAddIngredient(inputText)} />
           )}
         </View>
 
         {/* Dropdown Suggestions */}
         {suggestions.length > 0 && (
           <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>{t('pantry.suggestions')}</Text>
+            <SectionLabel text={t('pantry.suggestions')} />
             <View style={styles.suggestionsRow}>
               {suggestions.map((item, idx) => (
-                <TouchableOpacity
+                <Pill
                   key={`sug-${idx}`}
-                  style={styles.suggestionChip}
+                  icon="add"
+                  label={item}
+                  size="M"
                   onPress={() => handleAddIngredient(item)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="add" size={12} color={colors.primaryText} style={{ marginRight: 2 }} />
-                  <Text style={styles.suggestionChipText}>{item}</Text>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           </View>
@@ -241,16 +246,14 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
 
             <View style={styles.selectedChipsWrap}>
               {selectedIngredients.map((item, idx) => (
-                <View key={`sel-${idx}`} style={styles.selectedChip}>
-                  <Text style={styles.selectedChipText}>{item}</Text>
-                  <TouchableOpacity
-                    onPress={() => handleRemoveIngredient(item)}
-                    style={styles.removeChipBtn}
-                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="close" size={14} color={colors.onPrimary} />
-                  </TouchableOpacity>
-                </View>
+                <Pill
+                  key={`sel-${idx}`}
+                  icon="close"
+                  label={item}
+                  size="M"
+                  selected
+                  onPress={() => handleRemoveIngredient(item)}
+                />
               ))}
             </View>
           </View>
@@ -265,15 +268,13 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             contentContainerStyle={styles.quickScroll}
           >
             {quickChips.map((chip, idx) => (
-              <TouchableOpacity
+              <Pill
                 key={`qc-${idx}`}
-                style={styles.quickChip}
+                icon="add"
+                label={chip}
+                size="M"
                 onPress={() => handleAddIngredient(chip)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add" size={12} color={colors.textSecondary} style={{ marginRight: 3 }} />
-                <Text style={styles.quickChipText}>{chip}</Text>
-              </TouchableOpacity>
+              />
             ))}
           </ScrollView>
         </View>
@@ -286,15 +287,15 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
         >
           <Ionicons
             name={assumeStaples ? 'checkbox' : 'square-outline'}
-            size={18}
+            size={icon.md}
             color={assumeStaples ? colors.primaryText : colors.textMuted}
-            style={{ marginRight: 8 }}
+            style={{ marginRight: space.md }}
           />
           <Text style={styles.staplesText}>
             {t('pantry.staplesText')}
           </Text>
         </TouchableOpacity>
-      </View>
+      </Card>
 
       {/* Results Header & Tabs */}
       {selectedIngredients.length > 0 && (
@@ -305,7 +306,7 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
             </Text>
             {readyCount > 0 && (
               <View style={styles.readyBadge}>
-                <Ionicons name="checkmark-circle" size={12} color={colors.primaryText} style={{ marginRight: 3 }} />
+                <Ionicons name="checkmark-circle" size={icon.xs} color={colors.primaryText} style={{ marginRight: 3 }} />
                 <Text style={styles.readyBadgeText}>{t('pantry.readyBadge', { count: readyCount })}</Text>
               </View>
             )}
@@ -313,32 +314,16 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
 
           {/* Filter Pills */}
           <View style={styles.filtersRow}>
-            <TouchableOpacity
-              style={[styles.filterPill, activeFilter === 'all' && styles.filterPillActive]}
-              onPress={() => setActiveFilter('all')}
-            >
-              <Text style={[styles.filterPillText, activeFilter === 'all' && styles.filterPillTextActive]}>
-                {t('pantry.filterAll', { count: allResults.length })}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.filterPill, activeFilter === 'ready' && styles.filterPillActive]}
-              onPress={() => setActiveFilter('ready')}
-            >
-              <Text style={[styles.filterPillText, activeFilter === 'ready' && styles.filterPillTextActive]}>
-                {t('pantry.filterReady', { count: readyCount })}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.filterPill, activeFilter === 'almost' && styles.filterPillActive]}
-              onPress={() => setActiveFilter('almost')}
-            >
-              <Text style={[styles.filterPillText, activeFilter === 'almost' && styles.filterPillTextActive]}>
-                {t('pantry.filterAlmost', { count: almostCount + readyCount })}
-              </Text>
-            </TouchableOpacity>
+            <SegmentedControl
+              accessibilityLabel={t('pantry.filtersLabel')}
+              options={[
+                { key: 'all', label: t('pantry.filterAll', { count: allResults.length }) },
+                { key: 'ready', label: t('pantry.filterReady', { count: readyCount }) },
+                { key: 'almost', label: t('pantry.filterAlmost', { count: almostCount + readyCount }) },
+              ]}
+              value={activeFilter}
+              onChange={key => setActiveFilter(key as typeof activeFilter)}
+            />
           </View>
         </View>
       )}
@@ -347,41 +332,26 @@ export const PantryView: React.FC<PantryViewProps> = ({ onSelectRecipe, onToastM
 
   // Empty state element
   const listEmptyElement = selectedIngredients.length === 0 ? (
-    <View style={styles.emptyContainer}>
-      <View style={styles.emptyIconCircle}>
-        <Ionicons name="basket-outline" size={42} color={colors.textMuted} />
-      </View>
-      <Text style={styles.emptyTitle}>{t('pantry.emptyTitle')}</Text>
-      <Text style={styles.emptySubtitle}>
-        {t('pantry.emptySub')}
-      </Text>
-    </View>
+    <Card style={styles.emptyCard}>
+      <EmptyState icon="basket-outline" title={t('pantry.emptyTitle')} subtitle={t('pantry.emptySub')} />
+    </Card>
   ) : filteredResults.length === 0 ? (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="search-outline" size={38} color={colors.textMuted} />
-      <Text style={styles.emptyTitle}>{t('pantry.noResultsFilterTitle')}</Text>
-      <Text style={styles.emptySubtitle}>
-        {t('pantry.noResultsFilterSub')}
-      </Text>
-    </View>
+    <Card style={styles.emptyCard}>
+      <EmptyState icon="search-outline" title={t('pantry.noResultsFilterTitle')} subtitle={t('pantry.noResultsFilterSub')} />
+    </Card>
   ) : null;
 
   return (
     <View style={styles.root}>
       {/* Feedback Toast Notification */}
-      {feedbackToast && (
-        <View style={styles.toastBanner}>
-          <Ionicons name="cart" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
-          <Text style={styles.toastText}>{feedbackToast}</Text>
-        </View>
-      )}
+      {feedbackToast && <Toast position="top" message={feedbackToast} />}
 
       <FlatList
         key={`pantry-grid-${numColumns}`}
         data={filteredResults}
         keyExtractor={item => item.recipe.id}
         numColumns={numColumns}
-        columnWrapperStyle={numColumns > 1 ? { gap: 16 } : undefined}
+        columnWrapperStyle={numColumns > 1 ? { gap: space.xxxl } : undefined}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -402,124 +372,61 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: space.huge,
     paddingBottom: 40,
   },
   headerContainer: {
-    paddingBottom: 4,
-  },
-  toastBanner: {
-    position: 'absolute',
-    top: 10,
-    left: 20,
-    right: 20,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 999,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  toastText: {
-    color: colors.onPrimary,
-    fontSize: 13,
-    fontWeight: '700',
+    paddingBottom: space.xs,
   },
   headerBox: {
     backgroundColor: colors.primarySoft,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    borderRadius: cardRadius,
+    padding: space.xxl,
+    marginBottom: space.xxl,
     borderWidth: 1,
     borderColor: colors.border,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: space.xs,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textSecondary,
     lineHeight: 18,
   },
   inputCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    marginBottom: space.xxxl,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.md,
   },
   textInput: {
     flex: 1,
   },
-  addBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  addBtnText: {
-    color: colors.onPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
   suggestionsContainer: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: space.lg,
+    paddingTop: space.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-  },
-  suggestionsTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: 6,
-    textTransform: 'uppercase',
   },
   suggestionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-  },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  suggestionChipText: {
-    fontSize: 12,
-    color: colors.primaryText,
-    fontWeight: '600',
+    gap: space.sm,
+    marginTop: space.sm,
   },
   selectedSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: space.xl,
+    paddingTop: space.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -527,98 +434,62 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: space.md,
   },
   selectedCountText: {
-    fontSize: 12,
+    fontSize: text.caption,
     fontWeight: '700',
     color: colors.primaryText,
   },
   clearAllText: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '600',
     color: colors.danger,
   },
   selectedChipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-  },
-  selectedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingLeft: 10,
-    paddingRight: 6,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  selectedChipText: {
-    color: colors.onPrimary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginRight: 4,
-  },
-  removeChipBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 10,
-    width: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: space.sm,
   },
   quickSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: space.xl,
+    paddingTop: space.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   quickTitle: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '700',
     color: colors.textMuted,
-    marginBottom: 6,
+    marginBottom: space.sm,
   },
   quickScroll: {
-    gap: 6,
-  },
-  quickChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  quickChipText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    gap: space.sm,
   },
   staplesToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: space.xl,
+    paddingTop: space.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
   staplesText: {
-    fontSize: 11,
+    fontSize: text.label,
     color: colors.textSecondary,
     flex: 1,
   },
   resultsHeader: {
-    marginBottom: 12,
+    marginBottom: space.xl,
   },
   resultsTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: space.md,
   },
   resultsCount: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.text,
   },
@@ -626,71 +497,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
+    paddingHorizontal: space.md,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: radius.sm,
   },
   readyBadgeText: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '700',
     color: colors.primaryText,
   },
   filtersRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.md,
   },
-  filterPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  filterPillTextActive: {
-    color: colors.onPrimary,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginTop: 8,
-  },
-  emptyIconCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
+  emptyCard: {
+    marginTop: space.md,
+    padding: 0,
   },
 });

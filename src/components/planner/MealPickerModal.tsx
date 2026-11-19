@@ -1,10 +1,8 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   View,
-  Modal,
   FlatList,
   ScrollView,
   TouchableOpacity,
@@ -20,6 +18,8 @@ import { INGREDIENT_TAGS, type Ingredient, type ReadyMeal } from '../../types/ca
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
 import { AppTextField } from '../../components/ui/AppTextField';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { Spinner } from '../ui/Spinner';
 import { formatTagLabel, unitLabel } from '../../constants/simpleTags';
 import { formatDayAndDate } from '../../utils/dates';
 import { OUT_OF_HOME_OPTIONS } from '../../constants/outOfHome';
@@ -32,6 +32,12 @@ import { SLOT_COLORS, type MealSlot } from '../../services/plannerService';
 import { PlannedItemCard, plannedItemLabel, type DayMealItem } from './PlannedItemCards';
 import { RecipeServingsStep } from './RecipeServingsStep';
 import { ingredientDisplayName } from '../../utils/ingredientNames';
+import { ModalHeader } from '../ui/ModalHeader';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Select } from '../ui/Select';
+import { cardRadius, display, radius, space, text, icon } from '../../theme/tokens';
+import { SegmentedControl } from '../ui/SegmentedControl';
 
 export interface MealPickerModalProps {
   visible: boolean;
@@ -96,7 +102,7 @@ const PickerIngredientRow = React.memo(function PickerIngredientRow({ ingredient
           {quantity ? ` • ${quantity}` : ''}
         </Text>
       </View>
-      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+      <Ionicons name="add-circle" size={icon.xl} color={colors.primaryText} />
     </TouchableOpacity>
   );
 });
@@ -109,7 +115,7 @@ const PickerOutRow = React.memo(function PickerOutRow({ label, onSelect }: { lab
       <View style={{ flex: 1 }}>
         <Text style={styles.pickerItemTitle} numberOfLines={2}>{label}</Text>
       </View>
-      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+      <Ionicons name="add-circle" size={icon.xl} color={colors.primaryText} />
     </TouchableOpacity>
   );
 });
@@ -131,7 +137,7 @@ const PickerReadyRow = React.memo(function PickerReadyRow({ meal, onStart }: { m
           </Text>
         )}
       </View>
-      <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+      <Ionicons name="add-circle" size={icon.xl} color={colors.primaryText} />
     </TouchableOpacity>
   );
 });
@@ -177,7 +183,7 @@ const PickerRecipeRow = React.memo(function PickerRecipeRow({
           />
         ) : (
           <View style={[styles.recipeThumb, styles.recipeThumbPlaceholder]}>
-            <Ionicons name="restaurant-outline" size={20} color={colors.textMuted} />
+            <Ionicons name="restaurant-outline" size={icon.lg} color={colors.textMuted} />
           </View>
         )}
         <View style={{ flex: 1 }}>
@@ -186,7 +192,7 @@ const PickerRecipeRow = React.memo(function PickerRecipeRow({
             <View style={styles.recipeMeta}>
               {minutes > 0 && (
                 <>
-                  <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+                  <Ionicons name="time-outline" size={icon.xs} color={colors.textMuted} style={{ marginRight: 3 }} />
                   <Text style={styles.pickerItemMeta}>{t('common.minutes', { count: minutes })}</Text>
                 </>
               )}
@@ -195,17 +201,17 @@ const PickerRecipeRow = React.memo(function PickerRecipeRow({
               )}
               {servings > 0 && (
                 <>
-                  <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+                  <Ionicons name="people-outline" size={icon.xs} color={colors.textMuted} style={{ marginRight: 3 }} />
                   <Text style={styles.pickerItemMeta}>{t('common.servings', { count: servings })}</Text>
                 </>
               )}
               {isFavorite && (
-                <Ionicons name="heart" size={14} color={colors.primary} style={{ marginLeft: 6 }} />
+                <Ionicons name="heart" size={icon.xs} color={colors.primary} style={{ marginLeft: space.sm }} />
               )}
             </View>
           )}
         </View>
-        <Ionicons name="add-circle" size={24} color={colors.primaryText} />
+        <Ionicons name="add-circle" size={icon.xl} color={colors.primaryText} />
       </TouchableOpacity>
       {step}
     </View>
@@ -255,7 +261,6 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   const [pending, setPending] = useState<PendingItem | null>(null);
   const [amountText, setAmountText] = useState('');
   const [unitText, setUnitText] = useState('');
-  const [unitMenuOpen, setUnitMenuOpen] = useState(false);
   const [countText, setCountText] = useState('1');
   const [recipeServings, setRecipeServings] = useState(eatServings);
   const [recipeSource, setRecipeSource] = useState<RecipeSource>('prepare');
@@ -313,7 +318,6 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setPending(null);
     setAmountText('');
     setUnitText('');
-    setUnitMenuOpen(false);
     setCountText('1');
     setAdded(null);
   }, []);
@@ -498,7 +502,6 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
     setAmountText(ingredient.default_amount != null ? String(ingredient.default_amount) : '');
     // Portion unit (default_unit) for consistency with the quantity; purchase_unit only as a fallback
     setUnitText(toSelectableUnit(ingredient.default_unit) || toSelectableUnit(ingredient.purchase_unit));
-    setUnitMenuOpen(false);
   }, []);
 
   const handleStartReady = useCallback((meal: ReadyMeal) => {
@@ -579,15 +582,11 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
   return (
     <SheetModal visible={visible} onClose={handleClose} fullScreen>
       <SafeAreaView style={styles.pickerSafeArea} edges={['top', 'bottom', 'left', 'right']}>
-        <View style={styles.pickerHeader}>
-          <TouchableOpacity style={styles.pickerCloseBtn} onPress={handleClose}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.pickerHeaderTitle}>
-            {t('planner.pickerModal.titleWithDate', { slot: t(`planner.slots.${targetSlot}`), day: formatDayAndDate(targetDate, i18n.language) })}
-          </Text>
-          <View style={{ width: 36 }} />
-        </View>
+        <ModalHeader
+          title={t('planner.pickerModal.titleWithDate', { slot: t(`planner.slots.${targetSlot}`), day: formatDayAndDate(targetDate, i18n.language) })}
+          onClose={handleClose}
+          closeLabel={t('common.close')}
+        />
 
         {plannedForSlot.length > 0 && (
           <View style={styles.pickerPlanned}>
@@ -612,120 +611,77 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
         )}
 
         {/* Tabs: Recipes / Ingredients / Ready / Out of home */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.pickerFilterScroll}
-          contentContainerStyle={styles.pickerFilterBar}
-          keyboardShouldPersistTaps="handled"
-        >
-          {TABS.map(item => {
-            const active = tab === item;
-            return (
-              <TouchableOpacity
-                key={item}
-                style={[styles.pickerFilterChip, active && styles.pickerFilterChipActive]}
-                onPress={() => handleTabChange(item)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.pickerFilterChipText, active && styles.pickerFilterChipTextActive]}>
-                  {t(`mealPicker.${item}`)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        <View style={styles.pickerFilterRow}>
+          <SegmentedControl
+            accessibilityLabel={t('mealPicker.filtersLabel')}
+            options={TABS.map(item => ({ key: item, label: t(`mealPicker.${item}`) }))}
+            value={tab}
+            onChange={key => handleTabChange(key as typeof tab)}
+          />
+        </View>
 
-        <AppTextField
-          variant="search"
+        <SearchBar
+          size="M"
           style={styles.pickerSearch}
-          leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
           placeholder={t('mealPicker.search')}
           value={query}
           onChangeText={setQuery}
         />
 
         {(tab === 'recipes' || tab === 'ready') && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.pickerFilterScroll}
-            contentContainerStyle={styles.pickerFilterBar}
-            keyboardShouldPersistTaps="handled"
-          >
-            {([false, true] as const).map(all => {
-              const showAll = tab === 'recipes' ? showAllRecipes : showAllReady;
-              const active = showAll === all;
-              return (
-                <TouchableOpacity
-                  key={all ? 'all' : 'slot'}
-                  style={[styles.pickerFilterChip, active && styles.pickerFilterChipActive]}
-                  onPress={() => (tab === 'recipes' ? setShowAllRecipes : setShowAllReady)(all)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pickerFilterChipText, active && styles.pickerFilterChipTextActive]}>
-                    {all ? t(tab === 'recipes' ? 'mealPicker.allRecipes' : 'mealPicker.allReady') : t(tab === 'recipes' ? 'mealPicker.suggestedRecipesForMeal' : 'mealPicker.suggestedReadyForMeal')}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.pickerFilterRow}>
+            <SegmentedControl
+              accessibilityLabel={t('mealPicker.filtersLabel')}
+              options={[
+                { key: 'slot', label: t(tab === 'recipes' ? 'mealPicker.suggestedRecipesForMeal' : 'mealPicker.suggestedReadyForMeal') },
+                { key: 'all', label: t(tab === 'recipes' ? 'mealPicker.allRecipes' : 'mealPicker.allReady') },
+              ]}
+              value={(tab === 'recipes' ? showAllRecipes : showAllReady) ? 'all' : 'slot'}
+              onChange={key => (tab === 'recipes' ? setShowAllRecipes : setShowAllReady)(key === 'all')}
+            />
+          </View>
         )}
 
         {tab !== 'recipes' && tagOptions.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.pickerTagScroll}
-            contentContainerStyle={styles.pickerTagBar}
-            keyboardShouldPersistTaps="handled"
-          >
-            {([null, ...tagOptions] as TagFilter[]).map(tag => {
-              const active = tagFilter === tag;
-              return (
-                <TouchableOpacity
-                  key={tag ?? 'all'}
-                  style={[styles.pickerFilterChip, active && styles.pickerFilterChipActive]}
-                  onPress={() => setTagFilter(tag)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pickerFilterChipText, active && styles.pickerFilterChipTextActive]}>
-                    {tag === null ? t('mealPicker.all') : formatTagLabel(tag, t)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.pickerTagRow}>
+            <SegmentedControl
+              accessibilityLabel={t('mealPicker.all')}
+              options={([null, ...tagOptions] as TagFilter[]).map(tag => ({ key: tag ?? 'all', label: tag === null ? t('mealPicker.all') : formatTagLabel(tag, t) }))}
+              value={tagFilter ?? 'all'}
+              onChange={key => setTagFilter(key === 'all' ? null : (key as TagFilter))}
+            />
+          </View>
         )}
 
         {pending && pending.kind !== 'recipe' && (
-          <View style={styles.pickerStep}>
+          <Card padding="xl" style={styles.pickerStep}>
             <Text style={styles.pickerStepTitle} numberOfLines={2}>{pendingName}</Text>
             <View style={styles.pickerStepInputs}>
               {pending.kind === 'ingredient' ? (
                 <>
                   <AppTextField
                     style={styles.pickerStepInputAmount}
+                    size="M"
                     value={amountText}
                     onChangeText={setAmountText}
                     keyboardType="decimal-pad"
                     placeholder={t('mealPicker.count')}
                   />
-                  <TouchableOpacity
-                    style={[styles.pickerStepInput, styles.pickerStepInputUnit, styles.qtyUnitSelect]}
-                    onPress={() => setUnitMenuOpen(open => !open)}
-                    activeOpacity={0.7}
-                    accessibilityLabel={t('shopping.quantityUnit')}
-                  >
-                    <Text style={styles.qtyUnitText} numberOfLines={1}>
-                      {unitLabel(unitText, t, parseFloat(amountText.replace(',', '.')) || 1) || t('shopping.unitNone')}
-                    </Text>
-                    <Ionicons name={unitMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-                  </TouchableOpacity>
+                  <View style={styles.pickerStepInputUnit}>
+                    <Select
+                      key={pending.ingredient.id}
+                      value={unitText}
+                      options={['', ...SHOPPING_UNITS].map(unit => ({ value: unit, label: unitLabel(unit, t) || t('shopping.unitNone') }))}
+                      onChange={setUnitText}
+                      accessibilityLabel={t('shopping.quantityUnit')}
+                      size="M"
+                    />
+                  </View>
                 </>
               ) : (
                 <AppTextField
                   style={styles.pickerStepInputAmount}
+                  size="M"
                   value={countText}
                   onChangeText={setCountText}
                   keyboardType="number-pad"
@@ -733,52 +689,18 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
                 />
               )}
             </View>
-            {pending.kind === 'ingredient' && unitMenuOpen && (
-              <ScrollView style={styles.unitMenu} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                {['', ...SHOPPING_UNITS].map(unit => {
-                  const active = unitText === unit;
-                  return (
-                    <TouchableOpacity
-                      key={unit || 'none'}
-                      style={[styles.unitOption, active && styles.unitOptionActive]}
-                      onPress={() => {
-                        setUnitText(unit);
-                        setUnitMenuOpen(false);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.unitOptionText, active && styles.unitOptionTextActive]}>
-                        {unitLabel(unit, t) || t('shopping.unitNone')}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
             <View style={styles.pickerStepButtons}>
-              <TouchableOpacity
-                style={[styles.pickerStepButton, styles.pickerStepButtonSecondary]}
-                onPress={handleCancelPending}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.pickerStepButtonSecondaryText}>{t('mealPicker.cancel')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pickerStepButton, styles.pickerStepButtonPrimary]}
-                onPress={handleConfirmPending}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.pickerStepButtonPrimaryText}>{t('mealPicker.add')}</Text>
-              </TouchableOpacity>
+              <Button size="M" variant="secondary" label={t('mealPicker.cancel')} onPress={handleCancelPending} />
+              <Button size="M" variant="primary" label={t('mealPicker.add')} onPress={handleConfirmPending} />
             </View>
-          </View>
+          </Card>
         )}
 
         {listReady ? (
           <FlatList
             data={rows}
             keyExtractor={keyExtractor}
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={{ padding: space.xxxl }}
             keyboardShouldPersistTaps="handled"
             initialNumToRender={12}
             maxToRenderPerBatch={12}
@@ -791,21 +713,15 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
           />
         ) : (
           <View style={styles.pickerLoading}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <Spinner size="large" />
             <Text style={styles.pickerLoadingText}>{t('mealPicker.loading')}</Text>
           </View>
         )}
 
         {/* Notice after an addition: does not close by itself, choose one of the two actions */}
-        <Modal
-          visible={added !== null}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAdded(null)}
-        >
-          <View style={styles.alertBackdrop}>
+        <SheetModal visible={added !== null} onClose={() => setAdded(null)}>
             <View style={styles.alertCard}>
-              <Ionicons name="checkmark-circle" size={32} color={colors.primary} style={styles.alertIcon} />
+              <Ionicons name="checkmark-circle" size={display.sm} color={colors.primary} style={styles.alertIcon} />
               <Text style={styles.alertMessage}>{t('mealPicker.added', { name: alertName })}</Text>
 
               <Text style={styles.alertSummary}>{t('mealPicker.alertSummary')}</Text>
@@ -820,24 +736,11 @@ const MealPickerModal: React.FC<MealPickerModalProps> = ({
               )}
 
               <View style={styles.alertButtons}>
-                <TouchableOpacity
-                  style={[styles.alertButton, styles.pickerStepButtonPrimary]}
-                  onPress={handleClose}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.pickerStepButtonPrimaryText}>{t('mealPicker.mealComplete')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.alertButton, styles.pickerStepButtonSecondary]}
-                  onPress={() => setAdded(null)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.pickerStepButtonSecondaryText}>{t('mealPicker.addMore')}</Text>
-                </TouchableOpacity>
+                <Button size="M" variant="primary" label={t('mealPicker.mealComplete')} onPress={handleClose} />
+                <Button size="M" variant="secondary" label={t('mealPicker.addMore')} onPress={() => setAdded(null)} />
               </View>
             </View>
-          </View>
-        </Modal>
+        </SheetModal>
       </SafeAreaView>
     </SheetModal>
   );
@@ -850,75 +753,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  pickerHeader: {
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  pickerCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  // A single horizontally scrollable row: tabs do not wrap
-  pickerFilterScroll: {
-    flexGrow: 0,
-    flexShrink: 0,
-    minHeight: 50,
-  },
-  pickerFilterBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 10,
+  // Rows with a SegmentedControl: it scrolls horizontally, tabs do not wrap
+  pickerFilterRow: {
+    paddingHorizontal: space.xxxl,
+    paddingTop: space.lg,
     paddingBottom: 2,
-    gap: 8,
-  },
-  pickerFilterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 34,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pickerFilterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pickerFilterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  pickerFilterChipTextActive: {
-    color: colors.onPrimary,
-    fontWeight: '700',
   },
   pickerPlanned: {
-    paddingTop: 10,
+    paddingTop: space.lg,
   },
   pickerPlannedCaption: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '600',
     color: colors.textMuted,
-    paddingHorizontal: 16,
-    marginBottom: 6,
+    paddingHorizontal: space.xxxl,
+    marginBottom: space.sm,
   },
   // A single horizontally scrollable row of tabs, height given by the content
   // Full-width vertical list, with max height and vertical scrolling
@@ -928,170 +777,86 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     maxHeight: 260,
   },
   pickerPlannedBar: {
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: space.xxxl,
+    gap: space.md,
   },
   pickerPlannedCard: {
     width: '100%',
   },
-  alertBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  alertCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 6,
-  },
+  alertCard: { padding: space.huge, gap: space.md },
   alertIcon: {
     alignSelf: 'center',
   },
   alertMessage: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
     textAlign: 'center',
   },
   alertSummary: {
-    fontSize: 12,
+    fontSize: text.caption,
     fontWeight: '600',
     color: colors.textMuted,
-    marginTop: 8,
+    marginTop: space.md,
   },
   alertList: {
     flexGrow: 0,
     maxHeight: 240,
   },
   alertListItem: {
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.text,
-    paddingVertical: 4,
+    paddingVertical: space.xs,
   },
   alertButtons: {
-    gap: 8,
-    marginTop: 12,
-  },
-  alertButton: {
-    minHeight: 44,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: space.md,
+    marginTop: space.xl,
   },
   pickerSearch: {
-    marginTop: 10,
-    marginHorizontal: 16,
-    marginVertical: 12,
+    marginTop: space.lg,
+    marginHorizontal: space.xxxl,
+    marginVertical: space.xl,
   },
-  // Minimum height for tag chips: without it the row gets squashed and the text is cut off
-  pickerTagScroll: {
-    flexGrow: 0,
-    flexShrink: 0,
-    minHeight: 52,
-  },
-  pickerTagBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
+  pickerTagRow: {
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.md,
   },
   pickerStep: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
+    marginHorizontal: space.xxxl,
+    marginBottom: space.md,
     borderColor: colors.borderStrong,
-    gap: 10,
+    gap: space.lg,
   },
   pickerStepTitle: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.text,
   },
   pickerStepInputs: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  pickerStepInput: {
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    color: colors.text,
+    gap: space.md,
   },
   pickerStepInputAmount: {
     flex: 1,
   },
   pickerStepInputUnit: {
     flex: 1,
-    height: 44,
   },
-  qtyUnitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  qtyUnitText: { fontSize: 14, color: colors.text, flexShrink: 1 },
-  unitMenu: { maxHeight: 240, marginTop: 0, marginBottom: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  unitOption: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  unitOptionActive: { backgroundColor: colors.primarySoft },
-  unitOptionText: { fontSize: 14, color: colors.text },
-  unitOptionTextActive: { fontWeight: '700', color: colors.primaryText },
   pickerStepButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
-  },
-  pickerStepButton: {
-    minHeight: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerStepButtonSecondary: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  pickerStepButtonSecondaryText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  pickerStepButtonPrimary: {
-    backgroundColor: colors.primary,
-  },
-  pickerStepButtonPrimaryText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.onPrimary,
+    gap: space.md,
   },
   pickerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 10,
-    marginBottom: 8,
+    borderRadius: cardRadius,
+    padding: space.lg,
+    marginBottom: space.md,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 12,
+    gap: space.xl,
   },
   pickerItemExpanded: {
     marginBottom: 0,
@@ -1101,26 +866,26 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     borderColor: colors.borderStrong,
   },
   pickerItemCat: {
-    fontSize: 10,
+    fontSize: text.label,
     fontWeight: '700',
     color: colors.primaryText,
     textTransform: 'uppercase',
   },
   pickerItemTitle: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.text,
     marginTop: 1,
   },
   pickerItemMeta: {
-    fontSize: 11,
+    fontSize: text.label,
     color: colors.textMuted,
     marginTop: 2,
   },
   recipeThumb: {
     width: 52,
     height: 52,
-    borderRadius: 10,
+    borderRadius: radius.sm,
   },
   recipeThumbPlaceholder: {
     backgroundColor: colors.surfaceMuted,
@@ -1133,12 +898,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     marginTop: 2,
   },
   recipeMetaDivider: {
-    fontSize: 11,
+    fontSize: text.label,
     color: colors.textMuted,
-    marginHorizontal: 4,
+    marginHorizontal: space.xs,
   },
   pickerEmpty: {
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.textMuted,
     textAlign: 'center',
     marginTop: 24,
@@ -1147,10 +912,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: space.xl,
   },
   pickerLoadingText: {
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.textMuted,
   },
 });

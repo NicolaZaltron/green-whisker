@@ -28,7 +28,10 @@ export function formatRecipeShareText(
   } else if (recipe.times?.total_minutes) {
     metaParts.push(`⏱️ ${i18n.t('common.minutes', { count: recipe.times.total_minutes })}`);
   }
-  if (recipe.difficulty) metaParts.push(`📊 ${i18n.t('share.difficulty')}: ${recipe.difficulty}`);
+  if (recipe.difficulty) {
+    const difficulty = i18n.t(`explore.advanced.difficultyLevel.${recipe.difficulty}`, { defaultValue: recipe.difficulty });
+    metaParts.push(`📊 ${i18n.t('share.difficulty')}: ${difficulty}`);
+  }
 
   if (metaParts.length > 0) {
     lines.push(metaParts.join(' • '));

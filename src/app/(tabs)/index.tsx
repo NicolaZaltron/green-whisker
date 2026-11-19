@@ -3,15 +3,13 @@ import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity,
   ScrollView,
   Keyboard,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SheetModal } from '../../components/SheetModal';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { Recipe, RecipeSummary, RecipeOrigin } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
 import { TabFlatList } from '../../components/TabScrollViews';
@@ -33,8 +31,34 @@ import { useTranslation } from 'react-i18next';
 import { useShareIntent } from 'expo-share-intent';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
-import { AppTextField } from '../../components/ui/AppTextField';
-import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { CircleButton } from '../../components/ui/CircleButton';
+import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Spinner } from '../../components/ui/Spinner';
+import { elevation, radius, space, text, icon } from '../../theme/tokens';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
+
+// Options of the advanced filters (value null = no filter)
+const MAX_TIME_OPTIONS = [{ value: null }, { value: 20 }, { value: 35 }, { value: 50 }] as const;
+const DIFFICULTY_OPTIONS = [
+  { value: null, labelKey: 'explore.advanced.all' },
+  { value: 'Facile', labelKey: 'explore.advanced.difficultyLevel.easy' },
+  { value: 'Media', labelKey: 'explore.advanced.difficultyLevel.medium' },
+  { value: 'Difficile', labelKey: 'explore.advanced.difficultyLevel.hard' },
+] as const;
+// Known error codes from the variant service, mapped to translation keys
+const VARIANT_ERROR_KEYS: Record<string, string> = {
+  recipe_not_found: 'variants.recipeNotFound',
+};
+// AI service unavailable (HTTP 503 in the error message)
+const isServiceUnavailable = (message?: string) => !!message && /\b503\b/.test(message);
+const FEATURE_OPTIONS = [
+  { value: null, labelKey: 'explore.advanced.all' },
+  { value: 'Senza Glutine', labelKey: 'explore.filters.glutenFree' },
+  { value: 'Al forno', labelKey: 'explore.filters.baked' },
+  { value: 'Senza cottura', labelKey: 'explore.advanced.noCooking' },
+] as const;
 
 const CATEGORIES = ['Tutte', ...MACRO_CATEGORIES];
 
@@ -67,6 +91,7 @@ export default function ExploreScreen() {
   const [reviewRequest, setReviewRequest] = useState<ReviewRequest | null>(null);
   const [variantBusy, setVariantBusy] = useState(false);
   // Variant being generated: the button in the card shows the spinner
+  const [variantError, setVariantError] = useState<string | null>(null);
   const [generating, setGenerating] = useState<{ baseId: string; diet: VariantDiet } | null>(null);
   const [dietFilter, setDietFilter] = useState<DietFilter>('all');
   const [originFilter, setOriginFilter] = useState<'all' | RecipeOrigin>('all');
@@ -129,11 +154,12 @@ export default function ExploreScreen() {
     if (filters.difficolta) count++;
     if (filters.tag) count++;
     if (filters.sottocategoria && filters.sottocategoria !== 'Tutte') count++;
+    if (selectedCategory !== 'Tutte') count++;
     if (selectedSubCategory !== 'Tutte') count++;
     if (dietFilter !== 'all') count++;
     if (originFilter !== 'all') count++;
     return count;
-  }, [filters, selectedSubCategory, dietFilter, originFilter]);
+  }, [filters, selectedCategory, selectedSubCategory, dietFilter, originFilter]);
 
   const handleResetFilters = () => {
     setFilters({
@@ -142,6 +168,7 @@ export default function ExploreScreen() {
       tag: null,
       sottocategoria: null,
     });
+    setSelectedCategory('Tutte');
     setSelectedSubCategory('Tutte');
     setDietFilter('all');
     setOriginFilter('all');
@@ -152,11 +179,15 @@ export default function ExploreScreen() {
     setSelectedSubCategory('Tutte');
   };
 
+  // With "all" macro categories selected, every subcategory is offered (they are unique across macros)
   const currentSubcategories = useMemo(() => {
-    if (selectedCategory === 'Tutte' || !RECIPE_TAXONOMY[selectedCategory as MacroCategory]) {
+    if (selectedCategory === 'Tutte') {
+      return ['Tutte', ...MACRO_CATEGORIES.flatMap(macro => RECIPE_TAXONOMY[macro])];
+    }
+    if (!RECIPE_TAXONOMY[selectedCategory as MacroCategory]) {
       return [];
     }
-    return ['Tutte', ...(RECIPE_TAXONOMY[selectedCategory as MacroCategory] || [])];
+    return ['Tutte', ...RECIPE_TAXONOMY[selectedCategory as MacroCategory]];
   }, [selectedCategory]);
 
   // Debounced search query for butter-smooth typing on mobile
@@ -250,11 +281,14 @@ export default function ExploreScreen() {
       return;
     }
     setVariantBusy(true);
+    setVariantError(null);
     setGenerating({ baseId: source.id, diet });
     generateVariant(source, diet)
       .then(generated => openVariantReview(source, diet, generated, rest))
       .catch((e: any) => {
-        Alert.alert(t('variants.notGenerated'), e.message || t('variants.generationError'));
+        // Shown inside the recipe modal: a native Alert would stay hidden behind it
+        const errorKey = isServiceUnavailable(e.message) ? 'variants.serviceUnavailable' : VARIANT_ERROR_KEYS[e.message];
+        setVariantError(errorKey ? t(errorKey) : e.message || t('variants.generationError'));
         runVariantQueue(source, rest);
       })
       .finally(() => {
@@ -302,152 +336,76 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.mainWrapper}>
-        {/* Header: icon, title and menu */}
         <View style={styles.header}>
-          <ScreenHeader
-            icon="leaf"
-            title={t('tabs.explore')}
-            subtitle={t('explore.subtitle')}
-            actions={<HeaderMenu onRecipesChanged={refreshCatalog} />}
-          />
-
-          {/* Mode Switcher: Catalog vs Fridge cleanout */}
-          <View style={styles.modeToggleContainer}>
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, viewMode === 'catalog' && styles.modeToggleBtnActive]}
-              onPress={() => setViewMode('catalog')}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name="book-outline"
-                size={14}
-                color={viewMode === 'catalog' ? colors.onPrimary : colors.textSecondary}
-                style={{ marginRight: 6 }}
+          {/* Mode Switcher: Catalog vs Fridge cleanout, with the settings button on its right */}
+          <View style={styles.modeRow}>
+            <View style={styles.modeToggle}>
+              <SegmentedControl
+                size="XL"
+                accessibilityLabel={t('explore.viewModes.label')}
+                options={[
+                  { key: 'catalog', label: t('explore.viewModes.recipes'), icon: 'book-outline' },
+                  { key: 'pantry', label: t('explore.viewModes.pantry'), icon: 'file-tray-outline' },
+                ]}
+                value={viewMode}
+                onChange={key => setViewMode(key as 'catalog' | 'pantry')}
               />
-              <Text style={[styles.modeToggleText, viewMode === 'catalog' && styles.modeToggleTextActive]}>
-                {t('explore.viewModes.recipes')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, viewMode === 'pantry' && styles.modeToggleBtnActive]}
-              onPress={() => setViewMode('pantry')}
-              activeOpacity={0.85}
-            >
-              <MaterialCommunityIcons
-                name="fridge-outline"
-                size={15}
-                color={viewMode === 'pantry' ? colors.onPrimary : colors.textSecondary}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.modeToggleText, viewMode === 'pantry' && styles.modeToggleTextActive]}>
-                {t('explore.viewModes.pantry')}
-              </Text>
-            </TouchableOpacity>
+            </View>
+            <HeaderMenu onRecipesChanged={refreshCatalog} />
           </View>
+        </View>
 
           {viewMode === 'catalog' && (
             <View style={styles.searchRow}>
-              <AppTextField
-                variant="search"
+              <SearchBar
                 style={styles.searchField}
-                leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
                 placeholder={t('explore.searchPlaceholder')}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                returnKeyType="search"
               />
 
-              <TouchableOpacity
-                style={[styles.filterBtn, activeFiltersCount > 0 && styles.filterBtnActive]}
-                onPress={() => setShowFilterSheet(true)}
-                activeOpacity={0.8}
-                accessibilityLabel={t('explore.advanced.open')}
-              >
-                <Ionicons
-                  name={activeFiltersCount > 0 ? 'options' : 'options-outline'}
-                  size={20}
-                  color={activeFiltersCount > 0 ? colors.onPrimary : colors.primaryText}
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="danger"
+                  size="M"
+                  icon="close"
+                  label={t('explore.advanced.activeFilters', { count: activeFiltersCount })}
+                  onPress={handleResetFilters}
                 />
-                {activeFiltersCount > 0 && (
-                  <View style={styles.filterBadge}>
-                    <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              )}
+
+              <CircleButton
+                icon={activeFiltersCount > 0 ? 'options' : 'options'}
+                variant={activeFiltersCount > 0 ? 'filled' : 'neutral'}
+                onPress={() => setShowFilterSheet(true)}
+                accessibilityLabel={t('explore.advanced.open')}
+              />
             </View>
           )}
-        </View>
 
         {viewMode === 'catalog' ? (
           <>
             {/* Level 1: Macro-Categories Bar */}
             <View style={styles.categoriesSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoriesContainer}
-              >
-                {/* Active Filters Reset Chip (if any active) */}
-                {activeFiltersCount > 0 && (
-                  <TouchableOpacity
-                    style={styles.activeFiltersPill}
-                    onPress={handleResetFilters}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="close-circle" size={14} color={colors.onPrimary} style={{ marginRight: 4 }} />
-                    <Text style={styles.activeFiltersPillText}>
-                      {t('explore.advanced.activeFilters', { count: activeFiltersCount })}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
-                {CATEGORIES.map(cat => {
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                      onPress={() => handleSelectCategory(cat)}
-                      activeOpacity={0.8}
-                    >
-                      <Text
-                        style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-                      >
-                        {cat === 'Tutte' ? t('explore.allCategories') : t('categories.' + cat, { defaultValue: cat })}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              <SegmentedControl
+                accessibilityLabel={t('explore.categoriesLabel')}
+                options={CATEGORIES.map(cat => ({ key: cat, label: cat === 'Tutte' ? t('explore.allCategories') : t('categories.' + cat, { defaultValue: cat }) }))}
+                pinnedKey="Tutte"
+                value={selectedCategory}
+                onChange={handleSelectCategory}
+              />
             </View>
 
             {/* Level 2: Subcategories Bar (shown when a Macro Category is active) */}
             {currentSubcategories.length > 0 && (
               <View style={styles.subcategoriesSection}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.subcategoriesContainer}
-                >
-                  {currentSubcategories.map(sub => {
-                    const isSelected = selectedSubCategory === sub;
-                    return (
-                      <TouchableOpacity
-                        key={sub}
-                        style={[styles.subCategoryChip, isSelected && styles.subCategoryChipSelected]}
-                        onPress={() => setSelectedSubCategory(sub)}
-                        activeOpacity={0.8}
-                      >
-                        <Text
-                          style={[styles.subCategoryChipText, isSelected && styles.subCategoryChipTextSelected]}
-                        >
-                          {sub === 'Tutte' ? t('explore.allCategories') : t('categories.' + sub, { defaultValue: sub })}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                <SegmentedControl
+                  accessibilityLabel={t('explore.subcategoriesLabel')}
+                  options={currentSubcategories.map(sub => ({ key: sub, label: sub === 'Tutte' ? t('explore.allCategories') : t('categories.' + sub, { defaultValue: sub }) }))}
+                  pinnedKey="Tutte"
+                  value={selectedSubCategory}
+                  onChange={setSelectedSubCategory}
+                />
               </View>
             )}
 
@@ -474,15 +432,11 @@ export default function ExploreScreen() {
               removeClippedSubviews={true}
               renderItem={renderRecipeItem}
               ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-                  <Text style={styles.emptyTitle}>
-                    {catalogRecipes.length === 0 ? t('explore.emptyCatalogTitle') : t('explore.noRecipesTitle')}
-                  </Text>
-                  <Text style={styles.emptySubtitle}>
-                    {catalogRecipes.length === 0 ? t('explore.emptyCatalogSub') : t('explore.noRecipesSub')}
-                  </Text>
-                </View>
+                <EmptyState
+                  icon="search-outline"
+                  title={catalogRecipes.length === 0 ? t('explore.emptyCatalogTitle') : t('explore.noRecipesTitle')}
+                  subtitle={catalogRecipes.length === 0 ? t('explore.emptyCatalogSub') : t('explore.noRecipesSub')}
+                />
               }
             />
           </>
@@ -497,6 +451,8 @@ export default function ExploreScreen() {
           visible={!!selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
           onGenerateVariant={handleGenerateVariant}
+          variantError={selectedRecipe ? variantError : null}
+          onDismissVariantError={() => setVariantError(null)}
           generatingDiet={selectedRecipe && generating?.baseId === selectedRecipe.id ? generating.diet : null}
           onRegenerateVariant={handleRegenerateVariant}
           onDeleteVariant={handleDeleteVariant}
@@ -516,244 +472,156 @@ export default function ExploreScreen() {
                   <Text style={styles.sheetTitle}>{t('explore.advanced.title')}</Text>
                   <Text style={styles.sheetSub}>{t('explore.advanced.subtitle')}</Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.sheetCloseBtn}
+                <CircleButton
+                  variant="plain"
+                  icon="close"
                   onPress={() => setShowFilterSheet(false)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={20} color={colors.text} />
-                </TouchableOpacity>
+                  accessibilityLabel={t('common.close')}
+                />
               </View>
 
               <ScrollView style={styles.sheetScroll} showsVerticalScrollIndicator={false}>
                 {/* Sort order of the lists */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="swap-vertical-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Ionicons name="swap-vertical-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.sortTitle')}</Text>
                   </View>
-                  <View style={[styles.sheetChipsRow, styles.sortRowGap]}>
-                    {([
-                      { label: t('explore.advanced.sortAlpha'), key: 'alpha' },
-                      { label: t('explore.advanced.sortCreated'), key: 'created' },
-                      { label: t('explore.advanced.sortUpdated'), key: 'updated' },
-                    ] as const).map(opt => {
-                      const isSel = recipeSort.key === opt.key;
-                      return (
-                        <TouchableOpacity
-                          key={opt.key}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setRecipeSort(prev => ({ ...prev, key: opt.key }))}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+                  <View style={styles.sortSpacing}>
+                    <SegmentedControl
+                      accessibilityLabel={t('explore.advanced.sortTitle')}
+                      options={[
+                        { key: 'alpha', label: t('explore.advanced.sortAlpha') },
+                        { key: 'created', label: t('explore.advanced.sortCreated') },
+                        { key: 'updated', label: t('explore.advanced.sortUpdated') },
+                      ]}
+                      value={recipeSort.key}
+                      onChange={key => setRecipeSort(prev => ({ ...prev, key: key as typeof prev.key }))}
+                    />
                   </View>
-                  <View style={styles.sheetChipsRow}>
-                    {([
-                      { label: t('explore.advanced.sortAsc'), direction: 'asc' },
-                      { label: t('explore.advanced.sortDesc'), direction: 'desc' },
-                    ] as const).map(opt => {
-                      const isSel = recipeSort.direction === opt.direction;
-                      return (
-                        <TouchableOpacity
-                          key={opt.direction}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setRecipeSort(prev => ({ ...prev, direction: opt.direction }))}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SegmentedControl
+                    accessibilityLabel={t('explore.advanced.sortTitle')}
+                    options={[
+                      { key: 'asc', label: t('explore.advanced.sortAsc') },
+                      { key: 'desc', label: t('explore.advanced.sortDesc') },
+                    ]}
+                    value={recipeSort.direction}
+                    onChange={direction => setRecipeSort(prev => ({ ...prev, direction: direction as typeof prev.direction }))}
+                  />
                 </View>
 
                 {/* Max Time */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="time-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Ionicons name="time-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.maxTime')}</Text>
                   </View>
-                  <View style={styles.sheetChipsRow}>
-                    {[
-                      { label: t('explore.advanced.any'), value: null },
-                      { label: t('explore.advanced.under', { n: 20 }), value: 20 },
-                      { label: t('explore.advanced.under', { n: 35 }), value: 35 },
-                      { label: t('explore.advanced.under', { n: 50 }), value: 50 },
-                    ].map(opt => {
-                      const isSel = filters.maxMinutes === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.label}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setFilters(prev => ({ ...prev, maxMinutes: opt.value }))}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
-                            {opt.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SegmentedControl
+                    accessibilityLabel={t('explore.advanced.maxTime')}
+                    options={MAX_TIME_OPTIONS.map(opt => ({ key: String(opt.value), label: opt.value === null ? t('explore.advanced.any') : t('explore.advanced.under', { n: opt.value }) }))}
+                    value={String(filters.maxMinutes)}
+                    onChange={key => setFilters(prev => ({ ...prev, maxMinutes: MAX_TIME_OPTIONS.find(o => String(o.value) === key)?.value ?? null }))}
+                  />
                 </View>
 
                 {/* Difficulty */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="speedometer-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Ionicons name="speedometer-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.difficulty')}</Text>
                   </View>
-                  <View style={styles.sheetChipsRow}>
-                    {[
-                      { label: t('explore.advanced.all'), value: null },
-                      { label: t('explore.advanced.difficultyLevel.easy'), value: 'Facile' },
-                      { label: t('explore.advanced.difficultyLevel.medium'), value: 'Media' },
-                      { label: t('explore.advanced.difficultyLevel.hard'), value: 'Difficile' },
-                    ].map(opt => {
-                      const isSel = filters.difficolta === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.label}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setFilters(prev => ({ ...prev, difficolta: opt.value as any }))}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
-                            {opt.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SegmentedControl
+                    accessibilityLabel={t('explore.advanced.difficulty')}
+                    options={DIFFICULTY_OPTIONS.map(opt => ({ key: String(opt.value), label: t(opt.labelKey) }))}
+                    value={String(filters.difficolta)}
+                    onChange={key => setFilters(prev => ({ ...prev, difficolta: DIFFICULTY_OPTIONS.find(o => String(o.value) === key)?.value as any }))}
+                  />
                 </View>
 
                 {/* Diet: includes recipes that have a compatible variant */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="nutrition-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Ionicons name="nutrition-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.diet')}</Text>
                   </View>
-                  <View style={styles.sheetChipsRow}>
-                    {([
-                      { label: t('explore.advanced.all'), value: 'all' },
-                      { label: t('explore.advanced.dietOptions.vegetarian'), value: 'vegetarian' },
-                      { label: t('explore.advanced.dietOptions.vegan'), value: 'vegan' },
-                    ] as const).map(opt => {
-                      const isSel = dietFilter === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.value}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setDietFilter(opt.value)}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{opt.label}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SegmentedControl
+                    accessibilityLabel={t('explore.advanced.diet')}
+                    options={[
+                      { key: 'all', label: t('explore.advanced.all') },
+                      { key: 'vegetarian', label: t('explore.advanced.dietOptions.vegetarian') },
+                      { key: 'vegan', label: t('explore.advanced.dietOptions.vegan') },
+                    ]}
+                    value={dietFilter}
+                    onChange={key => setDietFilter(key as typeof dietFilter)}
+                  />
                 </View>
 
                 {/* Origin: only if the catalog contains recipes from more than one origin */}
                 {availableOrigins.length > 1 && (
                   <View style={styles.sheetSection}>
                     <View style={styles.sectionLabelRow}>
-                      <Ionicons name="library-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                      <Ionicons name="library-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                       <Text style={styles.sheetSectionTitle}>{t('explore.advanced.origin')}</Text>
                     </View>
-                    <View style={styles.sheetChipsRow}>
-                      {[{ labelKey: 'explore.advanced.all', value: 'all' as const }, ...availableOrigins].map(opt => {
-                        const isSel = originFilter === opt.value;
-                        return (
-                          <TouchableOpacity
-                            key={opt.value}
-                            style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                            onPress={() => setOriginFilter(opt.value)}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>{t(opt.labelKey)}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
+                    <SegmentedControl
+                      accessibilityLabel={t('explore.advanced.origin')}
+                      options={[{ labelKey: 'explore.advanced.all', value: 'all' as const }, ...availableOrigins].map(opt => ({ key: opt.value, label: t(opt.labelKey) }))}
+                      value={originFilter}
+                      onChange={key => setOriginFilter(key as typeof originFilter)}
+                    />
                   </View>
                 )}
 
                 {/* Features */}
                 <View style={styles.sheetSection}>
                   <View style={styles.sectionLabelRow}>
-                    <Ionicons name="leaf-outline" size={16} color={colors.primaryText} style={{ marginRight: 6 }} />
+                    <Ionicons name="leaf-outline" size={icon.sm} color={colors.primaryText} style={{ marginRight: space.sm }} />
                     <Text style={styles.sheetSectionTitle}>{t('explore.advanced.features')}</Text>
                   </View>
-                  <View style={styles.sheetChipsRow}>
-                    {[
-                      { label: t('explore.advanced.all'), value: null },
-                      { label: t('explore.filters.glutenFree'), value: 'Senza Glutine' },
-                      { label: t('explore.filters.baked'), value: 'Al forno' },
-                      { label: t('explore.advanced.noCooking'), value: 'Senza cottura' },
-                    ].map(opt => {
-                      const isSel = filters.tag === opt.value;
-                      return (
-                        <TouchableOpacity
-                          key={opt.label}
-                          style={[styles.sheetChip, isSel && styles.sheetChipSelected]}
-                          onPress={() => setFilters(prev => ({ ...prev, tag: opt.value }))}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={[styles.sheetChipText, isSel && styles.sheetChipTextSelected]}>
-                            {opt.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <SegmentedControl
+                    accessibilityLabel={t('explore.advanced.features')}
+                    options={FEATURE_OPTIONS.map(opt => ({ key: String(opt.value), label: t(opt.labelKey) }))}
+                    value={String(filters.tag)}
+                    onChange={key => setFilters(prev => ({ ...prev, tag: FEATURE_OPTIONS.find(o => String(o.value) === key)?.value ?? null }))}
+                  />
                 </View>
               </ScrollView>
 
               {/* Sheet Footer */}
               <View style={styles.sheetFooter}>
                 {activeFiltersCount > 0 ? (
-                  <TouchableOpacity
-                    style={styles.sheetResetBtn}
+                  <Button
+                    variant="ghost"
+                    icon="refresh-outline"
+                    label={t('explore.advanced.reset')}
                     onPress={handleResetFilters}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="refresh-outline" size={15} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text style={styles.sheetResetText}>{t('explore.advanced.reset')}</Text>
-                  </TouchableOpacity>
+                  />
                 ) : (
                   <View />
                 )}
 
-                <TouchableOpacity
-                  style={styles.sheetApplyBtn}
-                  onPress={() => setShowFilterSheet(false)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.sheetApplyText}>
-                    {t('explore.advanced.showResults', { count: filteredRecipes.length })}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.sheetApply}>
+                  <Button
+                    label={t('explore.advanced.showResults', { count: filteredRecipes.length })}
+                    onPress={() => setShowFilterSheet(false)}
+                  />
+                </View>
               </View>
           </View>
         </SheetModal>
 
         {/* Floating Action Button: Importa AI */}
         {viewMode === 'catalog' && (
-          <TouchableOpacity
-            style={[styles.fabImportBtn, { bottom: fabBottom, right: fabRight }]}
-            onPress={() => setShowMagicImporter(true)}
-            activeOpacity={0.88}
-            accessibilityRole="button"
-            accessibilityLabel={t('explore.importAi')}
-          >
-            <Ionicons name="sparkles" size={20} color={colors.onPrimary} />
-            <Text style={styles.fabImportText}>{t('explore.importButton')}</Text>
-          </TouchableOpacity>
+          <View style={[styles.fabImportBtn, { bottom: fabBottom, right: fabRight }]}>
+            <CircleButton
+              size="XL"
+              variant="filled"
+              icon="sparkles"
+              label={t('explore.importButton')}
+              onPress={() => setShowMagicImporter(true)}
+              accessibilityLabel={t('explore.importAi')}
+            />
+          </View>
         )}
 
         {/* Magic RecipeSummary Importer AI Modal */}
@@ -776,7 +644,7 @@ export default function ExploreScreen() {
 
         {variantBusy && (
           <View style={styles.busyOverlay} pointerEvents="none">
-            <ActivityIndicator size="large" color={colors.primary} />
+            <Spinner size="large" />
             <Text style={styles.busyText}>{t('explore.variantGenerating')}</Text>
           </View>
         )}
@@ -790,10 +658,10 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: isDark ? 'rgba(17, 22, 17, 0.7)' : 'rgba(247, 249, 246, 0.7)',
-    gap: 12,
+    backgroundColor: colors.surfaceAltGlass,
+    gap: space.xl,
   },
-  busyText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
+  busyText: { fontSize: text.body, fontWeight: '700', color: colors.primaryText },
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -806,201 +674,63 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingBottom: 6,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    marginHorizontal: space.xxxl,
+    marginBottom: space.sm,
   },
   fabImportBtn: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 75,
-    height: 75,
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 37.5,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
-    elevation: 6,
     zIndex: 10,
+    borderRadius: radius.full,
+    ...elevation(3, colors),
   },
-  fabImportText: {
-    color: colors.onPrimary,
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 2,
-    letterSpacing: 0.2,
-  },
-  modeToggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: colors.border,
-    borderRadius: 14,
-    padding: 3,
-    marginBottom: 12,
-    // Aligned with the ScreenHeader title text
-    marginHorizontal: 16,
-  },
-  modeToggleBtn: {
+  modeToggle: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 9,
-    borderRadius: 11,
   },
-  modeToggleBtnActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  modeToggleTextActive: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-  },
+  // Search, category and subcategory rows are separated by the same vertical gap (space.md)
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
+    gap: space.md,
+    marginHorizontal: space.xxxl,
+    marginBottom: space.lg,
   },
   searchField: {
     flex: 1,
   },
-  filterBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  filterBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#D97757',
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  filterBadgeText: {
-    color: colors.onPrimary,
-    fontSize: 10,
-    fontWeight: '800',
+  sheetApply: {
+    marginLeft: 'auto',
   },
   categoriesSection: {
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  categoriesContainer: {
-    paddingHorizontal: 20,
-    gap: 8,
-    paddingVertical: 2,
-  },
-  activeFiltersPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#D97757',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 18,
-  },
-  activeFiltersPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.onPrimary,
-  },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  categoryChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  categoryChipTextSelected: {
-    color: colors.onPrimary,
+    marginBottom: space.lg,
+    paddingHorizontal: space.huge,
+    gap: space.md,
   },
   subcategoriesSection: {
-    marginBottom: 4,
-    paddingTop: 2,
-  },
-  subcategoriesContainer: {
-    paddingHorizontal: 16,
-    gap: 6,
-    paddingVertical: 2,
-  },
-  subCategoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  subCategoryChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  subCategoryChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  subCategoryChipTextSelected: {
-    color: colors.onPrimary,
-    fontWeight: '700',
+    marginBottom: space.none,
+    paddingHorizontal: space.huge,
   },
   counterRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 6,
+    paddingHorizontal: space.huge,
+    paddingVertical: space.sm,
   },
   counterText: {
-    fontSize: 12,
+    fontSize: text.caption,
     fontWeight: '600',
     color: colors.textMuted,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: space.xxxl,
     paddingBottom: 24,
   },
   columnWrapper: {
-    gap: 16,
+    gap: space.xxxl,
   },
   gridItem: {
     flex: 1,
@@ -1008,126 +738,54 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   fullWidthItem: {
     width: '100%',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 14,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: 6,
-    lineHeight: 18,
-  },
   // Filter Bottom Sheet Styles
-  filterBody: { flex: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
+  filterBody: { flex: 1, paddingHorizontal: space.huge, paddingTop: space.xxxl, paddingBottom: space.xxxl },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingBottom: 12,
+    marginBottom: space.xxxl,
+    paddingBottom: space.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: text.page,
     fontWeight: '700',
     color: colors.text,
   },
   sheetSub: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 2,
-  },
-  sheetCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sheetScroll: {
     flex: 1,
   },
   sheetSection: {
-    marginBottom: 20,
+    marginBottom: space.huge,
   },
   sectionLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: space.lg,
   },
   sheetSectionTitle: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '700',
     color: colors.text,
   },
-  sortRowGap: { marginBottom: 12 },
-  sheetChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  sheetChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sheetChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  sheetChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  sheetChipTextSelected: {
-    color: colors.onPrimary,
+  // Space between the two sort controls
+  sortSpacing: {
+    marginBottom: space.xl,
   },
   sheetFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
+    paddingTop: space.xxxl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    marginTop: 8,
-  },
-  sheetResetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  sheetResetText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  sheetApplyBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    marginLeft: 'auto',
-  },
-  sheetApplyText: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '700',
+    marginTop: space.md,
   },
 });

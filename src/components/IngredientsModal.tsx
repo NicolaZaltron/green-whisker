@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SheetModal } from './SheetModal';
 import { useTheme } from '../context/ThemeContext';
@@ -24,6 +23,8 @@ import { ALL_SIMPLE_SLOTS } from '../utils/simpleSlots';
 import { deleteIngredient, listIngredients, saveIngredient } from '../db/ingredientsDb';
 import { deleteReadyMeal, listReadyMeals, saveReadyMeal } from '../db/readyMealsDb';
 import { AppTextField } from './ui/AppTextField';
+import { CircleButton } from './ui/CircleButton';
+import { Select } from './ui/Select';
 import { OutOfHomeList } from './OutOfHomeList';
 import { TransferModal, type TransferKind } from './TransferModal';
 import { exportIngredientsFile, importIngredientsFile } from '../services/ingredientTransfer';
@@ -37,7 +38,12 @@ import {
   renameOutOfHomeOption,
   type OutOfHomeEntry,
 } from '../services/outOfHomeService';
-import { ConfirmModal } from './ui/ConfirmModal';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+import { Button } from './ui/Button';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { InlineNotice } from './ui/InlineNotice';
+import { Toggle } from './ui/Toggle';
+import { cardRadius, space, text } from '../theme/tokens';
 
 interface IngredientsModalProps {
   visible: boolean;
@@ -77,10 +83,6 @@ function parseNumber(text: string): number | null {
   if (!normalized) return null;
   const value = Number(normalized);
   return Number.isFinite(value) ? value : null;
-}
-
-function toggleItem<T>(list: T[], item: T): T[] {
-  return list.includes(item) ? list.filter(current => current !== item) : [...list, item];
 }
 
 function nutrientTexts(source: Partial<Record<Nutrient, number>>): Record<Nutrient, string> {
@@ -183,8 +185,6 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const [pendingDelete, setPendingDelete] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Dropdown open in the editor: only one at a time
-  const [unitMenu, setUnitMenu] = useState<'default' | 'purchase' | null>(null);
 
   // Tab "Fuori casa": its add field, and the import/export dialog shared by the three tabs
   const [outEntries, setOutEntries] = useState<OutOfHomeEntry[]>([]);
@@ -323,7 +323,6 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   }, [readyMeals, query, categoryFilter, readyTagFilter]);
 
   const resetEditors = () => {
-    setUnitMenu(null);
     setIngEditing(null);
     setReadyEditing(null);
     setOutEditing(null);
@@ -360,7 +359,6 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
   const openIngredient = useCallback((target: Ingredient | 'new') => {
     setError('');
-    setUnitMenu(null);
     setPendingDelete(false);
     setIngForm(ingredientToForm(target === 'new' ? null : target));
     setIngEditing(target);
@@ -484,63 +482,24 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
     }
   };
 
-  const renderChip = (key: string, label: string, active: boolean, onPress: () => void) => (
-    <TouchableOpacity
-      key={key}
-      style={[styles.chip, active && styles.chipActive]}
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
+  // Unit dropdown (shared Select); the saved value stays even if out of list
+  const renderUnitDropdown = (label: string, value: string, onSelect: (unit: string) => void) => (
+    <View style={styles.fieldSpacing}>
+      <Select
+        value={value}
+        options={['', ...SHOPPING_UNITS].map(unit => ({ value: unit, label: unitLabel(unit, t) || t('shopping.unitNone') }))}
+        onChange={onSelect}
+        accessibilityLabel={label}
+        size="M"
+      />
+    </View>
   );
-
-  // Unit dropdown (same pattern as the shopping list); the saved value stays even if out of list
-  const renderUnitDropdown = (menu: 'default' | 'purchase', value: string, onSelect: (unit: string) => void) => {
-    const open = unitMenu === menu;
-    return (
-      <>
-        <TouchableOpacity
-          style={[styles.input, styles.unitSelect]}
-          onPress={() => setUnitMenu(open ? null : menu)}
-          activeOpacity={0.7}
-          accessibilityLabel={menu === 'default' ? t('ingredients.defaultUsageUnit') : t('ingredients.defaultPurchaseUnit')}
-        >
-          <Text style={styles.unitSelectText} numberOfLines={1}>
-            {unitLabel(value, t) || t('shopping.unitNone')}
-          </Text>
-          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-        </TouchableOpacity>
-        {open && (
-          <ScrollView style={styles.unitMenu} nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            {['', ...SHOPPING_UNITS].map(unit => {
-              const active = value === unit;
-              return (
-                <TouchableOpacity
-                  key={unit || 'none'}
-                  style={[styles.unitOption, active && styles.unitOptionActive]}
-                  onPress={() => {
-                    onSelect(unit);
-                    setUnitMenu(null);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.unitOptionText, active && styles.unitOptionTextActive]}>
-                    {unitLabel(unit, t) || t('shopping.unitNone')}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
-      </>
-    );
-  };
 
   const searchField = (
     <View style={styles.searchFieldRow}>
       <AppTextField
         variant="search"
+        size="M"
         style={styles.searchFieldInput}
         value={query}
         onChangeText={setQuery}
@@ -553,71 +512,47 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
   const header = (
     <View style={styles.header}>
       <Text style={styles.title}>{t('ingredients.title')}</Text>
-      <TouchableOpacity onPress={handleDismiss} style={styles.closeBtn} accessibilityLabel={t('common.close')}>
-        <Ionicons name="close" size={24} color={colors.primaryText} />
-      </TouchableOpacity>
+      <CircleButton variant="plain" icon="close" onPress={handleDismiss} accessibilityLabel={t('common.close')} />
     </View>
   );
 
   const tabRow = (
     <View style={styles.tabRow}>
-      {(['ingredients', 'ready', 'outOfHome'] as const).map(key => {
-        const active = tab === key;
-        return (
-          <TouchableOpacity
-            key={key}
-            style={[styles.tab, active && styles.tabActive]}
-            onPress={() => switchTab(key)}
-            activeOpacity={0.8}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-          >
-            <Text style={[styles.tabText, active && styles.tabTextActive]}>
-              {key === 'ingredients' ? t('ingredients.tabIngredients') : key === 'ready' ? t('ingredients.tabReady') : t('ingredients.tabOutOfHome')}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <SegmentedControl
+        accessibilityLabel={t('ingredients.title')}
+        options={[
+          { key: 'ingredients', label: t('ingredients.tabIngredients') },
+          { key: 'ready', label: t('ingredients.tabReady') },
+          { key: 'outOfHome', label: t('ingredients.tabOutOfHome') },
+        ]}
+        value={tab}
+        onChange={key => switchTab(key as Tab)}
+      />
     </View>
   );
 
   const renderConfirm = (title: string, body: string, onConfirm: () => void) => (
-    <View style={styles.confirmOverlay}>
-      <View style={styles.confirmCard}>
-        <Text style={styles.confirmTitle}>{title}</Text>
-        <Text style={styles.confirmBody}>{body}</Text>
-        <View style={styles.footerRow}>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setPendingDelete(false)} activeOpacity={0.85}>
-            <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.dangerBtn} onPress={onConfirm} activeOpacity={0.85}>
-            <Text style={styles.dangerBtnText}>{t('common.delete')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
+    <ConfirmDialog
+      visible
+      variant="destructive"
+      title={title}
+      body={body}
+      confirmLabel={t('common.delete')}
+      cancelLabel={t('common.cancel')}
+      onConfirm={onConfirm}
+      onCancel={() => setPendingDelete(false)}
+    />
   );
 
   const editorFooter = (isNew: boolean, onSave: () => void) => (
     <View style={styles.footer}>
-      {error !== '' && <Text style={styles.errorText}>{error}</Text>}
+      {error !== '' && <InlineNotice tone="danger" text={error} />}
       <View style={styles.footerRow}>
         {!isNew && (
-          <TouchableOpacity style={styles.dangerBtn} onPress={() => setPendingDelete(true)} activeOpacity={0.85}>
-            <Text style={styles.dangerBtnText}>{t('common.delete')}</Text>
-          </TouchableOpacity>
+          <Button label={t('common.delete')} onPress={() => setPendingDelete(true)} size="M" variant="danger" />
         )}
-        <TouchableOpacity style={styles.secondaryBtn} onPress={backToList} activeOpacity={0.85}>
-          <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.primaryBtn, styles.footerBtn, saving && styles.disabled]}
-          onPress={onSave}
-          disabled={saving}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.primaryBtnText}>{t('common.save')}</Text>
-        </TouchableOpacity>
+        <Button label={t('common.cancel')} onPress={backToList} size="M" variant="secondary" />
+        <View style={styles.footerBtn}><Button label={t('common.save')} onPress={onSave} size="M" variant="primary" disabled={saving} /></View>
       </View>
     </View>
   );
@@ -630,6 +565,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContent}>
           <Text style={styles.label}>{t('ingredients.name')}</Text>
           <AppTextField
+            size="M"
             style={styles.fieldSpacing}
             value={ingForm.name}
             onChangeText={name => patchIng({ name })}
@@ -638,30 +574,32 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
           <Text style={styles.label}>{t('ingredients.typeLabel')}</Text>
           <View style={styles.chipWrap}>
-            {INGREDIENT_TYPES.map(type =>
-              renderChip(type, t(`ingredients.type.${type}`), ingForm.type === type, () => patchIng({ type })),
-            )}
+            <SegmentedControl
+              accessibilityLabel={t('ingredients.typeLabel')}
+              options={INGREDIENT_TYPES.map(type => ({ key: type, label: t(`ingredients.type.${type}`) }))}
+              value={ingForm.type ?? ''}
+              onChange={type => patchIng({ type: type as typeof ingForm.type })}
+            />
           </View>
 
           <Text style={styles.label}>{t('ingredients.tags')}</Text>
           <View style={styles.chipWrap}>
-            {INGREDIENT_TAGS.map(tag =>
-              renderChip(tag, formatTagLabel(tag, t), ingForm.tags.includes(tag), () =>
-                patchIng({ tags: toggleItem(ingForm.tags, tag) }),
-              ),
-            )}
+            <SegmentedControl
+              multiple
+              accessibilityLabel={t('ingredients.tags')}
+              options={INGREDIENT_TAGS.map(tag => ({ key: tag, label: formatTagLabel(tag, t) }))}
+              values={ingForm.tags}
+              onChange={tags => patchIng({ tags: tags as typeof ingForm.tags })}
+            />
           </View>
 
           <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>{t('ingredients.edibleAlone')}</Text>
-            <Switch
+            <Toggle
+              label={t('ingredients.edibleAlone')}
               value={ingForm.edibleAlone}
               onValueChange={edibleAlone => {
                 patchIng({ edibleAlone });
-                if (!edibleAlone) setUnitMenu(null);
               }}
-              trackColor={{ false: colors.borderStrong, true: colors.primary }}
-              thumbColor={colors.surface}
             />
           </View>
 
@@ -669,6 +607,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
             <>
               <Text style={styles.label}>{t('ingredients.portionLabel')}</Text>
               <AppTextField
+                size="M"
                 style={styles.fieldSpacing}
                 value={ingForm.amount}
                 onChangeText={amount => patchIng({ amount })}
@@ -676,12 +615,13 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
               />
 
               <Text style={styles.label}>{t('ingredients.defaultUsageUnit')}</Text>
-              {renderUnitDropdown('default', ingForm.unit, unit => patchIng({ unit }))}
+              {renderUnitDropdown(t('ingredients.defaultUsageUnit'), ingForm.unit, unit => patchIng({ unit }))}
             </>
           )}
 
           <Text style={styles.label}>{t('ingredients.purchaseLabel')}</Text>
           <AppTextField
+            size="M"
             style={styles.fieldSpacing}
             value={ingForm.purchaseAmount}
             onChangeText={purchaseAmount => patchIng({ purchaseAmount })}
@@ -689,10 +629,11 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
           />
 
           <Text style={styles.label}>{t('ingredients.defaultPurchaseUnit')}</Text>
-          {renderUnitDropdown('purchase', ingForm.purchaseUnit, unit => patchIng({ purchaseUnit: unit }))}
+          {renderUnitDropdown(t('ingredients.defaultPurchaseUnit'), ingForm.purchaseUnit, unit => patchIng({ purchaseUnit: unit }))}
 
           <Text style={styles.label}>{t('ingredients.density')}</Text>
           <AppTextField
+            size="M"
             style={styles.fieldSpacing}
             value={ingForm.density}
             onChangeText={density => patchIng({ density })}
@@ -704,6 +645,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
             <View key={key}>
               <Text style={styles.label}>{t(`ingredients.nutrient.${key}`)}</Text>
               <AppTextField
+                size="M"
                 style={styles.fieldSpacing}
                 value={ingForm.nutrients[key]}
                 onChangeText={text => changeNutrient(key, text)}
@@ -726,6 +668,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContent}>
           <Text style={styles.label}>{t('ingredients.name')}</Text>
           <AppTextField
+            size="M"
             style={styles.fieldSpacing}
             value={readyForm.name}
             onChangeText={name => patchReady({ name })}
@@ -734,33 +677,39 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
           <Text style={styles.label}>{t('ingredients.categoryLabel')}</Text>
           <View style={styles.chipWrap}>
-            {READY_MEAL_CATEGORIES.map(category =>
-              renderChip(category, t(`ingredients.category.${category}`), readyForm.category === category, () =>
-                patchReady({ category }),
-              ),
-            )}
+            <SegmentedControl
+              accessibilityLabel={t('ingredients.categoryLabel')}
+              options={READY_MEAL_CATEGORIES.map(category => ({ key: category, label: t(`ingredients.category.${category}`) }))}
+              value={readyForm.category}
+              onChange={category => patchReady({ category: category as typeof readyForm.category })}
+            />
           </View>
 
           <Text style={styles.label}>{t('ingredients.tags')}</Text>
           <View style={styles.chipWrap}>
-            {INGREDIENT_TAGS.map(tag =>
-              renderChip(tag, formatTagLabel(tag, t), readyForm.tags.includes(tag), () =>
-                patchReady({ tags: toggleItem(readyForm.tags, tag) }),
-              ),
-            )}
+            <SegmentedControl
+              multiple
+              accessibilityLabel={t('ingredients.tags')}
+              options={INGREDIENT_TAGS.map(tag => ({ key: tag, label: formatTagLabel(tag, t) }))}
+              values={readyForm.tags}
+              onChange={tags => patchReady({ tags: tags as typeof readyForm.tags })}
+            />
           </View>
 
           <Text style={styles.label}>{t('ingredients.slots')}</Text>
           <View style={styles.chipWrap}>
-            {ALL_SIMPLE_SLOTS.map(slot =>
-              renderChip(slot, t(`planner.slots.${slot}`), readyForm.slots.includes(slot), () =>
-                patchReady({ slots: toggleItem(readyForm.slots, slot) }),
-              ),
-            )}
+            <SegmentedControl
+              multiple
+              accessibilityLabel={t('ingredients.slots')}
+              options={ALL_SIMPLE_SLOTS.map(slot => ({ key: slot, label: t(`planner.slots.${slot}`) }))}
+              values={readyForm.slots}
+              onChange={slots => patchReady({ slots: slots as typeof readyForm.slots })}
+            />
           </View>
 
           <Text style={styles.label}>{t('ingredients.defaultCount')}</Text>
           <AppTextField
+            size="M"
             style={styles.fieldSpacing}
             value={readyForm.count}
             onChangeText={count => patchReady({ count })}
@@ -790,23 +739,22 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
           ListHeaderComponent={
             <View style={styles.stickyHeader}>
               {searchField}
-              <ScrollView key="ingredient-filters" horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-                {renderChip('all', t('ingredients.all'), typeFilter === null, () => setTypeFilter(null))}
-                {INGREDIENT_TYPES.map(type =>
-                  renderChip(type, t(`ingredients.type.${type}`), typeFilter === type, () => setTypeFilter(type)),
-                )}
-              </ScrollView>
+              <View key="ingredient-filters" style={styles.filterRow}>
+                <SegmentedControl
+                  accessibilityLabel={t('ingredients.typeLabel')}
+                  options={[{ key: 'all', label: t('ingredients.all') }, ...INGREDIENT_TYPES.map(type => ({ key: type, label: t(`ingredients.type.${type}`) }))]}
+                  pinnedKey="all"
+                  value={typeFilter ?? 'all'}
+                  onChange={key => setTypeFilter(key === 'all' ? null : (key as IngredientType))}
+                />
+              </View>
             </View>
           }
           renderItem={({ item }) => <IngredientListRow item={item} onOpen={openIngredient} />}
         />
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => openIngredient('new')} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>{t('ingredients.newIngredient')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
-            <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
-          </TouchableOpacity>
+          <Button label={t('ingredients.newIngredient')} onPress={() => openIngredient('new')} size="M" variant="primary" />
+          <Button label={t('ingredients.transfer')} onPress={() => setTransferOpen(true)} size="M" variant="secondary" />
         </View>
         {transferModal}
       </SheetModal>
@@ -821,25 +769,19 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         {header}
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContent}>
           <Text style={styles.label}>{t('ingredients.name')}</Text>
-          <AppTextField style={styles.fieldSpacing} value={outName} onChangeText={setOutName} autoCorrect={false} />
+          <AppTextField size="M" style={styles.fieldSpacing} value={outName} onChangeText={setOutName} autoCorrect={false} />
         </ScrollView>
         <View style={styles.footer}>
-          {outError !== '' && <Text style={styles.outError}>{outError}</Text>}
+          {outError !== '' && <InlineNotice tone="danger" text={outError} />}
           <View style={styles.footerRow}>
             {!isNew && (
-              <TouchableOpacity style={styles.dangerBtn} onPress={() => setOutConfirmDelete(true)} activeOpacity={0.85}>
-                <Text style={styles.dangerBtnText}>{t('common.delete')}</Text>
-              </TouchableOpacity>
+              <Button label={t('common.delete')} onPress={() => setOutConfirmDelete(true)} size="M" variant="danger" />
             )}
-            <TouchableOpacity style={styles.secondaryBtn} onPress={resetEditors} activeOpacity={0.85}>
-              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryBtn, styles.footerBtn]} onPress={saveOutOfHome} activeOpacity={0.85}>
-              <Text style={styles.primaryBtnText}>{t('common.save')}</Text>
-            </TouchableOpacity>
+            <Button label={t('common.cancel')} onPress={resetEditors} size="M" variant="secondary" />
+            <View style={styles.footerBtn}><Button label={t('common.save')} onPress={saveOutOfHome} size="M" variant="primary" /></View>
           </View>
         </View>
-        <ConfirmModal
+        <ConfirmDialog
           visible={outConfirmDelete}
           icon="trash-outline"
           title={t('outOfHome.deleteTitle')}
@@ -848,7 +790,7 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
           cancelLabel={t('outOfHome.cancel')}
           onCancel={() => setOutConfirmDelete(false)}
           onConfirm={deleteOutOfHome}
-          destructive
+          variant="destructive"
         />
       </SheetModal>
     );
@@ -860,17 +802,13 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
       <SheetModal visible={visible} onClose={handleDismiss} fullScreen>
         {header}
         {tabRow}
-        <View style={[styles.stickyHeader, { paddingHorizontal: 16 }]}>{searchField}</View>
+        <View style={[styles.stickyHeader, { paddingHorizontal: space.xxxl }]}>{searchField}</View>
         <View style={styles.outList}>
           <OutOfHomeList entries={visibleOutEntries} onOpen={openOutOfHome} />
         </View>
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => openOutOfHome('new')} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>{t('ingredients.newOutOfHome')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
-            <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
-          </TouchableOpacity>
+          <Button label={t('ingredients.newOutOfHome')} onPress={() => openOutOfHome('new')} size="M" variant="primary" />
+          <Button label={t('ingredients.transfer')} onPress={() => setTransferOpen(true)} size="M" variant="secondary" />
         </View>
         {transferModal}
       </SheetModal>
@@ -891,30 +829,35 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
         ListHeaderComponent={
           <View style={styles.stickyHeader}>
             {searchField}
-            <ScrollView key="ready-filters" horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-              {renderChip('all', t('ingredients.all'), categoryFilter === null, () => setCategoryFilter(null))}
-              {READY_MEAL_CATEGORIES.map(category =>
-                renderChip(category, t(`ingredients.category.${category}`), categoryFilter === category, () =>
-                  setCategoryFilter(category),
-                ),
+            <View key="ready-filters" style={styles.filterRow}>
+              <SegmentedControl
+                accessibilityLabel={t('ingredients.categoryLabel')}
+                options={[{ key: 'all', label: t('ingredients.all') }, ...READY_MEAL_CATEGORIES.map(category => ({ key: category, label: t(`ingredients.category.${category}`) }))]}
+                value={categoryFilter ?? 'all'}
+                onChange={key => setCategoryFilter(key === 'all' ? null : (key as ReadyMealCategory))}
+              />
+              {readyTags.length > 0 && (
+                <View style={styles.filterGap}>
+                  <SegmentedControl
+                    accessibilityLabel={t('ingredients.tags')}
+                    options={[
+                      { key: 'all', label: t('explore.allCategories') },
+                      ...readyTags.map(tag => ({ key: tag, label: formatTagLabel(tag, t) })),
+                    ]}
+                    pinnedKey="all"
+                    value={readyTagFilter ?? 'all'}
+                    onChange={key => setReadyTagFilter(key === 'all' || readyTagFilter === key ? null : key)}
+                  />
+                </View>
               )}
-              {readyTags.map(tag =>
-                renderChip(`tag-${tag}`, formatTagLabel(tag, t), readyTagFilter === tag, () =>
-                  setReadyTagFilter(readyTagFilter === tag ? null : tag),
-                ),
-              )}
-            </ScrollView>
+            </View>
           </View>
         }
         renderItem={({ item }) => <ReadyListRow item={item} onOpen={openReady} />}
       />
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => openReady('new')} activeOpacity={0.85}>
-          <Text style={styles.primaryBtnText}>{t('ingredients.newReady')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} activeOpacity={0.85}>
-          <Text style={styles.secondaryBtnText}>{t('ingredients.transfer')}</Text>
-        </TouchableOpacity>
+        <Button label={t('ingredients.newReady')} onPress={() => openReady('new')} size="M" variant="primary" />
+        <Button label={t('ingredients.transfer')} onPress={() => setTransferOpen(true)} size="M" variant="secondary" />
       </View>
       {transferModal}
     </SheetModal>
@@ -923,154 +866,60 @@ export default function IngredientsModal({ visible, onClose, onChanged }: Ingred
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   outList: { flex: 1 },
-  outError: { fontSize: 13, color: colors.danger, textAlign: 'center' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.xl,
   },
-  title: { flex: 1, fontSize: 20, fontWeight: '800', color: colors.text },
-  closeBtn: { padding: 4 },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
-  tabTextActive: { color: colors.onPrimary },
-  listContent: { paddingHorizontal: 16, paddingBottom: 16 },
-  label: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 12, marginBottom: 6 },
+  title: { flex: 1, fontSize: text.page, fontWeight: '700', color: colors.text },
+  tabRow: { paddingHorizontal: space.xxxl, paddingBottom: space.xs },
+  listContent: { paddingHorizontal: space.xxxl, paddingBottom: space.xxxl },
+  label: { fontSize: text.caption, fontWeight: '700', color: colors.textSecondary, marginTop: space.xl, marginBottom: space.sm },
   searchFieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.md,
   },
   searchFieldInput: {
     flex: 1,
   },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  fieldSpacing: { marginBottom: 4 },
-  filterRow: { marginTop: 8, marginBottom: 8 },
+  fieldSpacing: { marginBottom: space.xs },
+  filterRow: { marginTop: space.md, marginBottom: space.md },
+  filterGap: { marginTop: space.md },
   // Opaque, so the list scrolls under it without showing through
-  stickyHeader: { backgroundColor: colors.background, paddingTop: 8 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginRight: 8,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.primaryText },
-  chipTextActive: { color: colors.onPrimary },
+  stickyHeader: { backgroundColor: colors.background, paddingTop: space.md },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginBottom: space.xs },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingVertical: 4,
+    marginTop: space.xl,
+    paddingVertical: space.xs,
   },
-  toggleLabel: { fontSize: 14, fontWeight: '600', color: colors.text },
-  unitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  unitSelectText: { fontSize: 14, color: colors.text, flexShrink: 1 },
-  unitMenu: { maxHeight: 240, marginBottom: 8, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  unitOption: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  unitOptionActive: { backgroundColor: colors.primarySoft },
-  unitOptionText: { fontSize: 14, color: colors.text },
-  unitOptionTextActive: { fontWeight: '700', color: colors.primaryText },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderRadius: 14,
+    paddingVertical: space.xl,
+    paddingHorizontal: space.xl,
+    marginBottom: space.md,
+    borderRadius: cardRadius,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
   rowMain: { flex: 1 },
-  rowName: { fontSize: 15, fontWeight: '700', color: colors.text },
-  rowMeta: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  rowName: { fontSize: text.title, fontWeight: '700', color: colors.text },
+  rowMeta: { fontSize: text.caption, color: colors.textSecondary, marginTop: 2 },
   footer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    gap: 10,
+    paddingHorizontal: space.xxxl,
+    paddingTop: space.lg,
+    paddingBottom: space.lg,
+    gap: space.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  footerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   footerBtn: { flex: 1 },
-  primaryBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-  primaryBtnText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
-  secondaryBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  secondaryBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryText },
-  dangerBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.dangerSoft,
-  },
-  dangerBtnText: { fontSize: 15, fontWeight: '700', color: colors.danger },
-  disabled: { opacity: 0.6 },
-  errorText: { fontSize: 13, fontWeight: '600', color: colors.danger, marginBottom: 8 },
-  confirmOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  confirmCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-  },
-  confirmTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  confirmBody: { fontSize: 14, color: colors.textSecondary, marginBottom: 16 },
 });

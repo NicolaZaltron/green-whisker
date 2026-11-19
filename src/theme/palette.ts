@@ -17,6 +17,25 @@ export interface Palette {
   dangerSoft: string; // background of destructive actions
   overlay: string; // scrim behind modals and sheets
   shadow: string; // shadows
+  accent: string; // warm accent (terracotta): highlights, small icons
+  accentSoft: string; // soft background behind accent
+  dangerBorder: string; // border of destructive actions
+  warningText: string; // warning text and icons
+  warningSoft: string; // warning background
+  infoSoft: string; // info panel background
+  infoBorder: string; // info panel border
+  successSoft: string; // success panel background
+  successBorder: string; // success panel border
+  neutralStrong: string; // neutral action background (e.g. copy)
+  neutralText: string; // text on neutral action rows
+  neutralIcon: string; // icons on neutral action rows
+  surfaceGlass: string; // translucent surface over content
+  surfaceAltGlass: string; // translucent field background over content
+  onPrimaryFaint: string; // translucent light layer on primary
+  surfaceNeutral: string; // neutral grey badge background
+  cautionText: string; // text on caution notices
+  cautionSoft: string; // caution notice background
+  controlTrack: string; // track behind segmented controls
 }
 
 export const lightPalette: Palette = {
@@ -37,6 +56,25 @@ export const lightPalette: Palette = {
   dangerSoft: '#FDF0EE',
   overlay: 'rgba(0, 0, 0, 0.45)',
   shadow: '#1A2E1F',
+  accent: '#D97757',
+  accentSoft: '#FBEFEA',
+  dangerBorder: '#E8B4B1',
+  warningText: '#995200',
+  warningSoft: '#FFF4E5',
+  infoSoft: '#F0F8FD',
+  infoBorder: '#D1EAF8',
+  successSoft: '#F0FAF3',
+  successBorder: '#D2F2DD',
+  neutralStrong: '#607D8B',
+  neutralText: '#37474F',
+  neutralIcon: '#607D8B',
+  surfaceGlass: 'rgba(255, 255, 255, 0.95)',
+  surfaceAltGlass: 'rgba(247, 249, 246, 0.7)',
+  onPrimaryFaint: 'rgba(255, 255, 255, 0.25)',
+  surfaceNeutral: '#F3F5F3',
+  cautionText: '#B45309',
+  cautionSoft: '#FEF3C7',
+  controlTrack: '#E6EAE6',
 };
 
 export const darkPalette: Palette = {
@@ -57,4 +95,23 @@ export const darkPalette: Palette = {
   dangerSoft: '#3A2423',
   overlay: 'rgba(0, 0, 0, 0.6)',
   shadow: '#000000',
+  accent: '#E8957A',
+  accentSoft: '#3A2A22',
+  dangerBorder: '#5A3634',
+  warningText: '#F2B66D',
+  warningSoft: '#3A2E1C',
+  infoSoft: '#132630',
+  infoBorder: '#1E3A48',
+  successSoft: '#13261A',
+  successBorder: '#1F3D2A',
+  neutralStrong: '#455A64',
+  neutralText: '#CFD8DC',
+  neutralIcon: '#90A4AE',
+  surfaceGlass: 'rgba(27, 35, 28, 0.95)',
+  surfaceAltGlass: 'rgba(17, 22, 17, 0.7)',
+  onPrimaryFaint: 'rgba(255, 255, 255, 0.25)',
+  surfaceNeutral: '#27302A',
+  cautionText: '#FCD34D',
+  cautionSoft: '#3D2E0E',
+  controlTrack: '#222C23',
 };

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { elevation, icon, space, text } from '../../theme/tokens';
 
 // Floating navigation bar in Material You style
 const BAR_HEIGHT = 64;
@@ -28,14 +29,14 @@ function tabContent(
   if (!focused) {
     return (
       <View style={styles.inactive}>
-        <Ionicons name={name} color={color} size={22} />
+        <Ionicons name={name} color={color} size={icon.xl} />
         <Text style={[styles.inactiveText, { color }]} numberOfLines={1}>{title}</Text>
       </View>
     );
   }
   return (
     <View style={styles.pill}>
-      <Ionicons name={name} color={colors.primaryText} size={20} />
+      <Ionicons name={name} color={colors.primaryText} size={icon.lg} />
       <Text style={styles.pillText} numberOfLines={1}>{title}</Text>
     </View>
   );
@@ -186,11 +187,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     right: BAR_SIDE_MARGIN,
     borderRadius: BAR_HEIGHT / 2,
     backgroundColor: colors.surface,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
+    ...elevation(3, colors),
   },
   inactive: {
     minWidth: 72,
@@ -198,7 +195,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   },
   inactiveText: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '600',
     marginTop: 2,
   },
@@ -208,13 +205,13 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
     minWidth: 72,
     height: 52,
-    paddingHorizontal: 8,
+    paddingHorizontal: space.md,
     // Same radius as the bar: capsule shape
     borderRadius: BAR_HEIGHT / 2,
     backgroundColor: colors.primarySoft,
   },
   pillText: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '700',
     color: colors.primaryText,
   },

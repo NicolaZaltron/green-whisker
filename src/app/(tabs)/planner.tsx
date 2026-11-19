@@ -6,14 +6,19 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ActivityIndicator,
   Animated,
   Platform,
 } from 'react-native';
 import { TabScrollView } from '../../components/TabScrollViews';
-import { ScreenHeader, HeaderIconButton } from '../../components/ui/ScreenHeader';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Button } from '../../components/ui/Button';
+import { CircleButton } from '../../components/ui/CircleButton';
+import { ProgressBar } from '../../components/ui/ProgressBar';
+import { Spinner } from '../../components/ui/Spinner';
+import { Toast } from '../../components/ui/Toast';
+import { cardRadius, radius, size as sizes, space, text, icon as iconSize } from '../../theme/tokens';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
@@ -38,7 +43,6 @@ import {
   PlannerPreferences,
   type MealSlot,
   SLOT_ORDER,
-  SLOT_LABELS,
   SLOT_ICONS,
   SLOT_COLORS,
 } from '../../services/plannerService';
@@ -74,7 +78,7 @@ export default function PlannerScreen() {
   const { t, i18n } = useTranslation();
   const { colors, isDark } = useTheme();
   const { favoriteIds } = useFavorites();
-  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [prefs, setPrefs] = useState<PlannerPreferences | null>(null);
   // Calendar mode from preferences ('week' until they are loaded)
@@ -259,7 +263,7 @@ export default function PlannerScreen() {
       });
 
       loadPlans();
-      showToast(`Pianificato per ${SLOT_LABELS[targetSlot]}!`);
+      showToast(t('planner.scheduledFor', { slot: t(`planner.slots.${targetSlot}`) }));
   };
 
   const handleSelectIngredientForSlot = async (ingredient: Ingredient, amount: number | null, unit: string) => {
@@ -361,22 +365,17 @@ export default function PlannerScreen() {
         {/* ─── Header ─── */}
         <View style={styles.header}>
           <ScreenHeader
-            icon="calendar"
             title={t('planner.title')}
             subtitle={weekLabel}
             actions={
-              <HeaderIconButton
-                icon="options"
-                onPress={() => setShowPrefsModal(true)}
-                accessibilityLabel={t('planner.preferencesModal.title')}
-              />
+              <CircleButton size="M" variant="plain" icon="settings-outline" onPress={() => setShowPrefsModal(true)} accessibilityLabel={t('planner.preferencesModal.title')} />
             }
           />
 
           {/* Progress bar */}
           <View style={styles.progressRow}>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${Math.round((weekPlansCount / maxMeals) * 100)}%` as any }]} />
+              <ProgressBar value={maxMeals > 0 ? weekPlansCount / maxMeals : 0} />
             </View>
             <Text style={styles.progressLabel}>{t('planner.mealsCount', { count: weekPlansCount, max: maxMeals })}</Text>
           </View>
@@ -384,23 +383,21 @@ export default function PlannerScreen() {
 
         {/* ─── Week Navigation ─── */}
         <View style={styles.weekNav}>
-          <TouchableOpacity
-            style={[styles.weekNavBtn, weekOffset <= -1 && styles.weekNavBtnDisabled]}
+          <CircleButton
+            size="S"
+            icon="chevron-back"
             onPress={() => setWeekOffset(o => Math.max(-1, o - 1))}
             disabled={weekOffset <= -1}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-back" size={18} color={weekOffset <= -1 ? colors.textMuted : colors.primaryText} />
-          </TouchableOpacity>
+            accessibilityLabel={t('planner.prevWeek')}
+          />
           <Text style={styles.weekNavLabel}>{weekLabel}</Text>
-          <TouchableOpacity
-            style={[styles.weekNavBtn, weekOffset >= 1 && styles.weekNavBtnDisabled]}
+          <CircleButton
+            size="S"
+            icon="chevron-forward"
             onPress={() => setWeekOffset(o => Math.min(1, o + 1))}
             disabled={weekOffset >= 1}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-forward" size={18} color={weekOffset >= 1 ? colors.textMuted : colors.primaryText} />
-          </TouchableOpacity>
+            accessibilityLabel={t('planner.nextWeek')}
+          />
         </View>
 
         {/* ─── Days Bar ─── */}
@@ -423,7 +420,7 @@ export default function PlannerScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.dayChipName, isSelected && styles.dayChipNameSelected]}>
-                    {d.dayName.slice(0, 3)}
+                    {d.dayShort}
                   </Text>
                   <Text style={[styles.dayChipNum, isSelected && styles.dayChipNumSelected]}>
                     {d.dayNumber}
@@ -450,39 +447,33 @@ export default function PlannerScreen() {
                 {selectedDayInfo?.dayName} {selectedDayInfo?.dayNumber} {selectedDayInfo?.monthName}
               </Text>
               <Text style={styles.daySub}>
-                {selectedDayEntries} pasti pianificati
+                {t('planner.plannedMeals', { count: selectedDayEntries })}
               </Text>
             </View>
 
           {/* Plan / Delete buttons for current week */}
           {weekOffset === 0 && (
               <View style={styles.dayActionsInline}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                <TouchableOpacity
-                  style={styles.generateBtn}
-                  onPress={() => setShowConfirmRegen(true)}
-                  activeOpacity={0.8}
-                  disabled={isGenerating}
-                >
-                  {isGenerating ? (
-                    <ActivityIndicator size="small" color={colors.onPrimary} />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons name="chef-hat" size={16} color={colors.onPrimary} style={{ marginRight: 5 }} />
-                      <Text style={styles.generateBtnText}>{t('planner.planBtn')}</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md, alignItems: 'center' }}>
+                {isGenerating ? (
+                  <View style={styles.generatingBox}>
+                    <Spinner tone="onPrimary" />
+                  </View>
+                ) : (
+                  <Button
+                    icon="restaurant-outline"
+                    label={t('planner.planBtn')}
+                    onPress={() => setShowConfirmRegen(true)}
+                  />
+                )}
                 {weekPlansCount > 0 && (
-                  <TouchableOpacity
-                    style={styles.deleteBtn}
+                  <Button
+                    variant="danger"
+                    icon="trash-outline"
+                    label={t('planner.deleteBtn')}
                     onPress={() => setShowDeleteModal(true)}
-                    activeOpacity={0.8}
                     disabled={isGenerating}
-                  >
-                    <Ionicons name="trash-outline" size={15} color={colors.danger} />
-                    <Text style={styles.deleteBtnText}>{t('planner.deleteBtn')}</Text>
-                  </TouchableOpacity>
+                  />
                 )}
               </View>
             </View>
@@ -595,15 +586,14 @@ export default function PlannerScreen() {
         <Animated.View
           pointerEvents="none"
           style={[
-            styles.toastBanner,
+            StyleSheet.absoluteFill,
             {
               opacity: toastAnim,
               transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={16} color={colors.onPrimary} style={{ marginRight: 6 }} />
-          <Text style={styles.toastText}>{toastMessage}</Text>
+          <Toast message={toastMessage} />
         </Animated.View>
       )}
     </SafeAreaView>
@@ -637,8 +627,8 @@ const MealSlotCard = React.memo(function MealSlotCard({
   onView,
 }: MealSlotCardProps) {
   const { t } = useTranslation();
-  const { colors, isDark } = useTheme();
-  const styles = useMemo(() => makeStyles(colors, isDark), [colors, isDark]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   // Recipes no longer in the catalog stay hidden; missing simple dishes show a placeholder
   const visibleItems = items.filter(isVisiblePlannedItem);
 
@@ -646,18 +636,16 @@ const MealSlotCard = React.memo(function MealSlotCard({
     <View style={styles.slotContainer}>
       <View style={[styles.slotHeader, styles.slotHeaderRow]}>
         <View style={[styles.slotBadge, { backgroundColor: bgColor }]}>
-          <Ionicons name={icon as any} size={16} color={color} />
+          <Ionicons name={icon as any} size={iconSize.sm} color={color} />
           <Text style={[styles.slotBadgeText, { color }]}>{label}</Text>
         </View>
         {visibleItems.length > 0 && (
-          <TouchableOpacity
-            style={[styles.slotAddBtn, { backgroundColor: bgColor }]}
+          <CircleButton
+            size="S"
+            icon="add"
             onPress={() => onAdd(slot)}
-            activeOpacity={0.7}
             accessibilityLabel={t('planner.addMeal')}
-          >
-            <Ionicons name="add" size={18} color={color} />
-          </TouchableOpacity>
+          />
         )}
       </View>
 
@@ -678,7 +666,7 @@ const MealSlotCard = React.memo(function MealSlotCard({
       ) : (
         <TouchableOpacity style={styles.emptySlot} onPress={() => onAdd(slot)} activeOpacity={0.8}>
           <View style={[styles.addSlotCircle, { backgroundColor: bgColor }]}>
-            <Ionicons name="add" size={20} color={color} />
+            <Ionicons name="add" size={iconSize.lg} color={color} />
           </View>
           <Text style={styles.emptySlotText}>
             {t('planner.emptySlot')}
@@ -691,101 +679,76 @@ const MealSlotCard = React.memo(function MealSlotCard({
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 // Data/brand colors that have no token: dark variant for the dark theme
-const deleteBorderPink = (isDark: boolean) => (isDark ? '#5A3634' : '#E8B4B1'); // delete border
 
-const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   mainWrapper: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
 
-  header: { paddingBottom: 8 },
+  header: { paddingBottom: space.md },
 
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10, marginHorizontal: 16 },
-  progressBar: {
-    flex: 1, height: 4, borderRadius: 2,
-    backgroundColor: colors.primarySoft, overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 2 },
-  progressLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginTop: space.lg, marginHorizontal: space.xxxl },
+  progressBar: { flex: 1 },
+  progressLabel: { fontSize: text.label, color: colors.textMuted, fontWeight: '600' },
 
-  toastBanner: {
-    position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 100, elevation: 6,
-    backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 16,
-    borderRadius: 14,
-    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10,
-  },
-  toastText: { color: colors.onPrimary, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
 
   weekNav: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 6,
+    paddingHorizontal: space.huge, paddingVertical: space.sm,
   },
-  weekNavBtn: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
-  },
-  weekNavBtnDisabled: { backgroundColor: colors.surfaceMuted },
-  weekNavLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
+  weekNavLabel: { fontSize: text.caption, fontWeight: '700', color: colors.text },
 
-  daysBarWrapper: { paddingVertical: 4 },
-  daysBar: { flexDirection: 'row', paddingHorizontal: 16, gap: 6 },
+  daysBarWrapper: { paddingVertical: space.xs },
+  daysBar: { flexDirection: 'row', paddingHorizontal: space.xxxl, gap: space.sm },
   dayChip: {
-    flex: 1, minWidth: 0, paddingVertical: 10, borderRadius: 14,
+    flex: 1, minWidth: 0, paddingVertical: space.lg, borderRadius: cardRadius,
     backgroundColor: colors.surface, alignItems: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
   dayChipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  dayChipName: { fontSize: 10, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
+  dayChipName: { fontSize: text.label, fontWeight: '600', color: colors.textMuted, textTransform: 'uppercase' },
   dayChipNameSelected: { color: colors.onPrimary },
-  dayChipNum: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 3 },
+  dayChipNum: { fontSize: text.title, fontWeight: '700', color: colors.text, marginTop: 3 },
   dayChipNumSelected: { color: colors.onPrimary },
   // Current day: green border of the same thickness as the days, continuous with the button border
   dayChipToday: { borderColor: colors.primary },
-  mealDotRow: { flexDirection: 'row', gap: 3, marginTop: 4 },
-  mealDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: colors.primary },
+  mealDotRow: { flexDirection: 'row', gap: 2, marginTop: space.xs },
+  mealDot: { width: 5, height: 5, borderRadius: radius.full, backgroundColor: colors.primary },
   mealDotSelected: { backgroundColor: colors.onPrimary },
 
-  scrollContent: { flex: 1, paddingHorizontal: 20 },
+  scrollContent: { flex: 1, paddingHorizontal: space.huge },
   dayHeaderFixed: {
-    paddingHorizontal: 20,
+    paddingHorizontal: space.huge,
   },
+  // Wraps: on narrow screens the Plan / Delete buttons drop under the date instead of sitting beside it
   dayHeader: {
-    marginTop: 12, marginBottom: 14,
-    flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between',
+    marginTop: space.xl, marginBottom: space.xxl,
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between',
+    rowGap: space.md, columnGap: space.md,
   },
-  dayHeading: { fontSize: 17, fontWeight: '700', color: colors.text },
-  daySub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  dayActionsInline: { marginLeft: 8, flexShrink: 1 },
-  generateBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: 10, shadowColor: colors.shadow, shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+  dayHeading: { fontSize: text.title, fontWeight: '700', color: colors.text },
+  daySub: { fontSize: text.caption, color: colors.textMuted, marginTop: 2 },
+  dayActionsInline: { flexShrink: 0 },
+  generatingBox: {
+    height: sizes.field.M, paddingHorizontal: space.huge, borderRadius: radius.full,
+    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
   },
-  generateBtnText: { color: colors.onPrimary, fontSize: 13, fontWeight: '700' },
-  deleteBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-    borderWidth: 1, borderColor: deleteBorderPink(isDark),
-  },
-  deleteBtnText: { color: colors.danger, fontSize: 13, fontWeight: '700' },
 
-  slotContainer: { marginBottom: 16 },
-  slotCardsGroup: { gap: 16 },
-  entryBlock: { gap: 8 },
+  slotContainer: { marginBottom: space.xxxl },
+  slotCardsGroup: { gap: space.xxxl },
+  entryBlock: { gap: space.md },
   slotHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  slotAddBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  slotHeader: { marginBottom: 8 },
+  slotHeader: { marginBottom: space.md },
   slotBadge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, gap: 6,
+    paddingHorizontal: space.lg, paddingVertical: space.xs, borderRadius: radius.full, gap: space.sm,
   },
-  slotBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  slotBadgeText: { fontSize: text.label, fontWeight: '700', letterSpacing: 0.5 },
   emptySlot: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, borderRadius: 16,
-    paddingVertical: 18, paddingHorizontal: 16,
-    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', gap: 12,
+    backgroundColor: colors.surface, borderRadius: cardRadius,
+    paddingVertical: 18, paddingHorizontal: space.xxxl,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', gap: space.xl,
   },
-  addSlotCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  emptySlotText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  addSlotCircle: { width: 36, height: 36, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  emptySlotText: { fontSize: text.body, fontWeight: '600', color: colors.textMuted },
 });

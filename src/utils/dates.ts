@@ -16,6 +16,18 @@ export function formatDayAndDate(dateString: string, locale: string): string {
   return `${weekday} ${dd}/${mm}`;
 }
 
+// Weekday name in the given language ('long' = "lunedì", 'short' = "lun"). Computed on every call, so a language change is picked up.
+export function formatWeekday(date: Date, locale: string, style: 'long' | 'short'): string {
+  const name = date.toLocaleDateString(locale, { weekday: style });
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+// Short month name in the given language ("gen", "Jan")
+export function formatMonthShort(date: Date, locale: string): string {
+  const name = date.toLocaleDateString(locale, { month: 'short' }).replace(/\.$/, '');
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export interface RollingDay {
   dateString: string;
   weekdayIndex: number; // 0 = Monday ... 6 = Sunday

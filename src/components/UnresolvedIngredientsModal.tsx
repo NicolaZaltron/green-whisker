@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { SheetModal } from './SheetModal';
 import { normalizeIngredientName } from '../utils/catalogNameMatch';
 import type { ImportChoice, KnownIngredient, UnresolvedIngredient } from '../utils/importResolution';
+import { Pill } from './ui/Pill';
+import { SearchBar } from './ui/SearchBar';
+import { Button } from './ui/Button';
+import { text, radius, space } from '../theme/tokens';
 
 const MAX_MATCHES = 8;
 const MAX_TITLES = 3;
@@ -52,8 +57,7 @@ export function UnresolvedIngredientsModal({ visible, items, known, onConfirm, o
   const nameOf = (id: string) => known.find(k => k.id === id)?.name ?? id;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
+    <SheetModal visible={visible} onClose={onCancel}>
         <View style={styles.box}>
           <Text style={styles.title}>{t('recipeBook.unresolved.title')}</Text>
           <Text style={styles.body}>{t('recipeBook.unresolved.body', { count: items.length })}</Text>
@@ -69,33 +73,17 @@ export function UnresolvedIngredientsModal({ visible, items, known, onConfirm, o
                   <Text style={styles.name}>{item.name}</Text>
                   <Text style={styles.used}>{t('recipeBook.unresolved.usedIn', { count: item.recipeTitles.length, titles: `${titles}${more}` })}</Text>
                   <View style={styles.choiceBar}>
-                    <TouchableOpacity
-                      style={[styles.chip, choice?.kind === 'existing' && styles.chipActive]}
-                      onPress={() => { setOpenKey(open ? null : item.key); setQuery(''); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.chipText, choice?.kind === 'existing' && styles.chipTextActive]}>
-                        {choice?.kind === 'existing' ? nameOf(choice.ingredientId) : t('recipeBook.unresolved.linkExisting')}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.chip, choice?.kind === 'new' && styles.chipActive]}
-                      onPress={() => { choose(item.key, { kind: 'new' }); }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.chipText, choice?.kind === 'new' && styles.chipTextActive]}>
-                        {t('recipeBook.unresolved.addNew')}
-                      </Text>
-                    </TouchableOpacity>
+                    <Pill label={choice?.kind === 'existing' ? nameOf(choice.ingredientId) : t('recipeBook.unresolved.linkExisting')} size="M" selected={choice?.kind === 'existing'} onPress={() => { setOpenKey(open ? null : item.key); setQuery(''); }} />
+                    <Pill label={t('recipeBook.unresolved.addNew')} size="M" selected={choice?.kind === 'new'} onPress={() => { choose(item.key, { kind: 'new' }); }} />
                   </View>
                   {open && (
                     <View style={styles.search}>
-                      <TextInput
-                        style={styles.searchInput}
+                      <SearchBar
+                        size="M"
                         value={query}
                         onChangeText={setQuery}
                         placeholder={t('recipeBook.unresolved.searchPlaceholder')}
-                        placeholderTextColor={colors.textMuted}
+                        accessibilityLabel={t('recipeBook.unresolved.searchPlaceholder')}
                         autoFocus
                       />
                       {matches.map(match => (
@@ -116,53 +104,31 @@ export function UnresolvedIngredientsModal({ visible, items, known, onConfirm, o
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity style={[styles.button, styles.buttonSecondary]} onPress={onCancel} activeOpacity={0.7}>
-              <Text style={styles.buttonSecondaryText}>{t('mealPicker.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, !allChosen && styles.buttonDisabled]}
+            <Button label={t('mealPicker.cancel')} onPress={onCancel} size="M" variant="secondary" />
+            <Button
+              label={t('recipeBook.unresolved.confirm')}
               onPress={() => onConfirm(choices)}
               disabled={!allChosen}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.buttonPrimaryText}>{t('recipeBook.unresolved.confirm')}</Text>
-            </TouchableOpacity>
+              size="M"
+              variant="primary"
+            />
           </View>
         </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'center', padding: 20 },
-  box: { backgroundColor: colors.surface, borderRadius: 18, padding: 18, maxHeight: '85%', gap: 10 },
-  title: { fontSize: 17, fontWeight: '800', color: colors.text },
-  body: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+  box: { padding: 18, gap: space.lg },
+  title: { fontSize: text.page, fontWeight: '700', color: colors.text },
+  body: { fontSize: text.caption, color: colors.textSecondary, lineHeight: 18 },
   list: { flexGrow: 0 },
-  row: { paddingVertical: 10, borderTopWidth: 1, borderColor: colors.border, gap: 6 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.text },
-  used: { fontSize: 11, color: colors.textMuted },
-  choiceBar: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16,
-    backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  chipTextActive: { color: colors.onPrimary, fontWeight: '700' },
-  search: { gap: 6 },
-  searchInput: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
-    fontSize: 14, color: colors.text, backgroundColor: colors.surfaceAlt,
-  },
-  match: { paddingVertical: 8, paddingHorizontal: 6, borderRadius: 8, backgroundColor: colors.surfaceMuted },
-  matchText: { fontSize: 13, color: colors.text },
-  footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-  button: { minHeight: 38, paddingHorizontal: 16, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  buttonSecondary: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
-  buttonSecondaryText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  buttonPrimary: { backgroundColor: colors.primary },
-  buttonPrimaryText: { fontSize: 13, fontWeight: '700', color: colors.onPrimary },
-  buttonDisabled: { opacity: 0.4 },
+  row: { paddingVertical: space.lg, borderTopWidth: 1, borderColor: colors.border, gap: space.sm },
+  name: { fontSize: text.body, fontWeight: '700', color: colors.text },
+  used: { fontSize: text.label, color: colors.textMuted },
+  choiceBar: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
+  search: { gap: space.sm },
+  match: { paddingVertical: space.md, paddingHorizontal: space.sm, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+  matchText: { fontSize: text.caption, color: colors.text },
+  footer: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.md },
 });

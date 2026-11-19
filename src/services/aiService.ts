@@ -887,7 +887,8 @@ function normalizeParsedRecipe(rawContent: string, sourceUrl?: string, catalogEn
 
   const recipe: Recipe & { substitutions?: { from: string; to: string }[] } = {
     id: safeId,
-    title: parsed.title || parsed.titolo || 'Nuova Ricetta',
+    // Empty when the model gives no title: the caller provides the fallback
+    title: parsed.title || parsed.titolo || '',
     source: 'Personalizzata (AI)',
     url: sourceUrl || parsed.url || '',
     image: (parsed.image || (parsed.immagine && typeof parsed.immagine === 'string' && parsed.immagine.trim() && parsed.immagine !== 'null'))

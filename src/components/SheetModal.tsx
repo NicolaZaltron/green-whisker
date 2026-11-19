@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { cardRadius, space } from '../theme/tokens';
 
 // Card that rises from the bottom, with the same rounded corners and background as the advanced filters.
 // A tap outside the card closes it; the space below is that of the system bar.
@@ -65,17 +66,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: cardRadius,
+    borderTopRightRadius: cardRadius,
     overflow: 'hidden',
-    paddingBottom: 16,
+    paddingBottom: space.xxxl,
   },
   sheetAuto: { maxHeight: '80%' },
   sheetTablet: {
     maxWidth: 520,
     width: '100%',
     alignSelf: 'center',
-    borderRadius: 24,
+    borderRadius: cardRadius,
     // On wide screens the card is vertically centered, like the advanced filters on the home
     marginTop: 'auto',
     marginBottom: 'auto',

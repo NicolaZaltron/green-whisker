@@ -1,15 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity
-} from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { TabFlatList } from '../../components/TabScrollViews';
-import { AppTextField } from '../../components/ui/AppTextField';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, router } from 'expo-router';
 import { RecipeSummary } from '../../types/recipe';
 import { RecipeCard } from '../../components/RecipeCard';
@@ -89,16 +84,13 @@ export default function FavoritesScreen() {
       <View style={styles.mainWrapper}>
         <View style={styles.header}>
           <ScreenHeader
-            icon="heart"
             title={t('favorites.title')}
             subtitle={t('favorites.subtitle', { count: favoriteRecipes.length })}
           />
 
           {favoriteRecipes.length > 0 && (
-            <AppTextField
-              variant="search"
+            <SearchBar
               style={styles.searchField}
-              leftIcon={<Ionicons name="search" size={18} color={colors.textMuted} />}
               placeholder={t('favorites.searchPlaceholder')}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -115,29 +107,12 @@ export default function FavoritesScreen() {
           contentContainerStyle={styles.listContent}
           renderItem={renderFavoriteItem}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="heart-dislike-outline" size={42} color="#D97757" />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {searchQuery ? t('explore.noRecipesTitle') : t('favorites.emptyTitle')}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery
-                  ? t('explore.noRecipesSub')
-                  : t('favorites.emptySub')}
-              </Text>
-              {!searchQuery && (
-                <TouchableOpacity
-                  style={styles.exploreBtn}
-                  onPress={() => router.push('/(tabs)')}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="compass-outline" size={18} color={colors.onPrimary} />
-                  <Text style={styles.exploreBtnText}>{t('favorites.exploreRecipes')}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <EmptyState
+              icon="heart-dislike-outline"
+              title={searchQuery ? t('explore.noRecipesTitle') : t('favorites.emptyTitle')}
+              subtitle={searchQuery ? t('explore.noRecipesSub') : t('favorites.emptySub')}
+              action={searchQuery ? undefined : { label: t('favorites.exploreRecipes'), onPress: () => router.push('/(tabs)') }}
+            />
           }
         />
 
@@ -183,51 +158,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   fullWidthItem: {
     width: '100%',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 70,
-    paddingHorizontal: 30,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  exploreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  exploreBtnText: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

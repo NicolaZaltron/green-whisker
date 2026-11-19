@@ -37,7 +37,8 @@ export async function generateVariant(sourceSummary: RecipeSummary, diet: Varian
   ].filter(Boolean).join('\n\n');
 
   const adapted = await parseRecipeWithAI({ text, diet, adapt: true });
-  return buildVariantRecord(source, adapted, diet, Date.now());
+  // Without a title from the model, the variant keeps the original name
+  return buildVariantRecord(source, { ...adapted, title: adapted.title || source.title }, diet, Date.now());
 }
 
 /** Saves the verified variant in the catalog, replacing any previous version. Unknown ingredients need a choice. */

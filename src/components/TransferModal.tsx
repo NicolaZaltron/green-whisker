@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { text, space } from '../theme/tokens';
+import { SheetModal } from './SheetModal';
+import { Button } from './ui/Button';
+import { Spinner } from './ui/Spinner';
+import { InlineNotice } from './ui/InlineNotice';
 
 export type TransferKind = 'recipes' | 'ingredients' | 'readyMeals' | 'outOfHome' | 'backup';
 
@@ -50,59 +55,38 @@ export function TransferModal({ visible, kind, exportCount, onExport, onImport, 
   const exportDisabled = busy || exportCount === 0;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.box}>
-          <Text style={styles.title}>{t(`transfer.${kind}.title`)}</Text>
-          <Text style={styles.body}>{t(`transfer.${kind}.body`)}</Text>
+    <SheetModal visible={visible} onClose={onClose}>
+      <View style={styles.box}>
+        <Text style={styles.title}>{t(`transfer.${kind}.title`)}</Text>
+        <Text style={styles.body}>{t(`transfer.${kind}.body`)}</Text>
 
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary, exportDisabled && styles.buttonDisabled]}
-            onPress={() => run(onExport)}
-            disabled={exportDisabled}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.buttonPrimaryText}>
-              {t(`transfer.${kind}.export`, { count: exportCount ?? 0 })}
-            </Text>
-          </TouchableOpacity>
+        <Button
+          label={t(`transfer.${kind}.export`, { count: exportCount ?? 0 })}
+          onPress={() => run(onExport)}
+          disabled={exportDisabled}
+          size="L"
+          variant="primary"
+        />
 
-          <TouchableOpacity
-            style={[styles.button, styles.buttonSecondary, busy && styles.buttonDisabled]}
-            onPress={() => run(onImport)}
-            disabled={busy}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.buttonSecondaryText}>{t(`transfer.${kind}.import`)}</Text>
-          </TouchableOpacity>
+        <Button label={t(`transfer.${kind}.import`)} onPress={() => run(onImport)} disabled={busy} size="L" variant="secondary" />
 
-          {busy && <ActivityIndicator color={colors.primary} />}
-          {notice && <Text style={styles.message}>{notice}</Text>}
-          {message && (
-            <Text style={[styles.message, message.isError && { color: colors.danger }]}>{message.text}</Text>
-          )}
+        {busy && <Spinner />}
+        {notice && <Text style={styles.message}>{notice}</Text>}
+        {message && (message.isError ? (
+          <InlineNotice tone="danger" text={message.text} />
+        ) : (
+          <Text style={styles.message}>{message.text}</Text>
+        ))}
 
-          <TouchableOpacity style={styles.close} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.closeText}>{t('common.close')}</Text>
-          </TouchableOpacity>
-        </View>
+        <Button label={t('common.close')} onPress={onClose} size="M" variant="ghost" />
       </View>
-    </Modal>
+    </SheetModal>
   );
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'center', padding: 20 },
-  box: { backgroundColor: colors.surface, borderRadius: 18, padding: 18, gap: 12 },
-  title: { fontSize: 17, fontWeight: '800', color: colors.text },
-  body: { fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-  button: { minHeight: 42, paddingHorizontal: 16, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
-  buttonPrimary: { backgroundColor: colors.primary },
-  buttonPrimaryText: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },
-  buttonSecondary: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
-  buttonSecondaryText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
-  buttonDisabled: { opacity: 0.4 },
-  message: { fontSize: 13, color: colors.text, textAlign: 'center' },
-  close: { alignSelf: 'center', paddingVertical: 6 },
-  closeText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+  box: { padding: space.xxxl + space.xs, gap: space.xl },
+  title: { fontSize: text.page, fontWeight: '700', color: colors.text },
+  body: { fontSize: text.caption, color: colors.textSecondary, lineHeight: 18 },
+  message: { fontSize: text.caption, color: colors.text, textAlign: 'center' },
 });

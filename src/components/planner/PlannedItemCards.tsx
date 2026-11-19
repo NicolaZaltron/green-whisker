@@ -16,6 +16,9 @@ import type { MealPlanDetailInput } from '../../db/database';
 import { unitLabel } from '../../constants/simpleTags';
 import { ingredientDisplayName } from '../../utils/ingredientNames';
 import { RecipeServingsStep } from './RecipeServingsStep';
+import { cardRadius, elevation, radius, space, text, icon } from '../../theme/tokens';
+import { CircleButton } from '../ui/CircleButton';
+import { Card } from '../ui/Card';
 
 // Planned entry with data already resolved (recipe, ingredient, ready meal)
 export interface DayMealItem {
@@ -156,7 +159,7 @@ export function FoodRow({
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
-    <View style={styles.mealCard}>
+    <Card elevation={1} padding="xl" style={styles.foodCard}>
       <View style={styles.mealInfo}>
         {category !== '' && <Text style={[styles.mealCategory, { color: categoryColor }]}>{category}</Text>}
         <Text style={styles.mealTitle} numberOfLines={2}>
@@ -165,11 +168,9 @@ export function FoodRow({
         {name !== null && meta !== '' && <Text style={styles.mealMetaText}>{meta}</Text>}
       </View>
       <View style={styles.mealActions}>
-        <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
-          <Ionicons name="trash-outline" size={17} color={colors.danger} />
-        </TouchableOpacity>
+        <CircleButton icon="trash-outline" size="S" onPress={onDelete} accessibilityLabel={t('common.delete')} />
       </View>
-    </View>
+    </Card>
   );
 }
 
@@ -224,23 +225,23 @@ export function MealRow({
           />
         ) : (
           <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-            <Ionicons name={placeholderIcon} size={24} color={placeholderColor} />
+            <Ionicons name={placeholderIcon} size={icon.xl} color={placeholderColor} />
           </View>
         )}
         <View style={styles.mealInfo}>
           {categoryLabel}
           <Text style={styles.mealTitle} numberOfLines={2}>{recipe.title}</Text>
           <View style={styles.mealMeta}>
-            <Ionicons name="time-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+            <Ionicons name="time-outline" size={icon.xs} color={colors.textMuted} style={{ marginRight: 3 }} />
             <Text style={styles.mealMetaText}>{t('common.minutes', { count: recipe.times.total_minutes })}</Text>
             <Text style={styles.mealMetaDivider}>·</Text>
-            <Ionicons name="people-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+            <Ionicons name="people-outline" size={icon.xs} color={colors.textMuted} style={{ marginRight: 3 }} />
             <Text style={styles.mealMetaText}>{t('common.servings', { count: servings })}</Text>
           </View>
           <View style={[styles.sourceBadge, { backgroundColor: prepare ? colors.primarySoft : colors.surfaceMuted }]}>
             <Ionicons
               name={prepare ? 'flame-outline' : 'bag-check-outline'}
-              size={11}
+              size={icon.xs}
               color={prepare ? colors.primaryText : colors.textSecondary}
             />
             <Text style={[styles.sourceBadgeText, { color: prepare ? colors.primaryText : colors.textSecondary }]}>
@@ -251,13 +252,9 @@ export function MealRow({
   
         <View style={styles.mealActions}>
           {onView && (
-            <TouchableOpacity style={styles.viewMealBtn} onPress={onView} activeOpacity={0.7}>
-              <Ionicons name="book-outline" size={17} color={colors.primaryText} />
-            </TouchableOpacity>
+            <CircleButton icon="book-outline" size="S" onPress={onView} accessibilityLabel={t('common.view')} />
           )}
-          <TouchableOpacity style={styles.deleteMealBtn} onPress={onDelete} activeOpacity={0.7}>
-            <Ionicons name="trash-outline" size={17} color={colors.danger} />
-          </TouchableOpacity>
+          <CircleButton icon="trash-outline" size="S" onPress={onDelete} accessibilityLabel={t('common.delete')} />
         </View>
       </TouchableOpacity>
       {editStep}
@@ -269,19 +266,19 @@ export function MealRow({
 const makeStyles = (colors: Palette) => StyleSheet.create({
   mealCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surface, borderRadius: 16, padding: 12,
+    backgroundColor: colors.surface, borderRadius: cardRadius, padding: space.xl,
     borderWidth: 1, borderColor: colors.border,
-    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
+    ...elevation(1, colors),
   },
-  mealImage: { width: 64, height: 64, borderRadius: 12, marginRight: 12 },
+  foodCard: { flexDirection: 'row', alignItems: 'center' },
+  mealImage: { width: 64, height: 64, borderRadius: radius.md, marginRight: space.xl },
   mealImagePlaceholder: { backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
   mealInfo: { flex: 1 },
-  mealCategory: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  mealTitle: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2, lineHeight: 19 },
-  mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  mealMetaText: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
-  mealMetaDivider: { fontSize: 11, color: colors.textMuted, marginHorizontal: 4 },
+  mealCategory: { fontSize: text.label, fontWeight: '700', textTransform: 'uppercase' },
+  mealTitle: { fontSize: text.body, fontWeight: '700', color: colors.text, marginTop: 2, lineHeight: 19 },
+  mealMeta: { flexDirection: 'row', alignItems: 'center', marginTop: space.xs },
+  mealMetaText: { fontSize: text.label, color: colors.textMuted, fontWeight: '500' },
+  mealMetaDivider: { fontSize: text.label, color: colors.textMuted, marginHorizontal: space.xs },
   mealCardEditing: {
     marginBottom: 0,
     borderBottomLeftRadius: 0,
@@ -296,14 +293,12 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 4,
-    marginTop: 6,
-    paddingHorizontal: 8,
+    gap: space.xs,
+    marginTop: space.sm,
+    paddingHorizontal: space.md,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: radius.sm,
   },
-  sourceBadgeText: { fontSize: 10, fontWeight: '700' },
-  mealActions: { flexDirection: 'row', gap: 6 },
-  viewMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  deleteMealBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.dangerSoft, alignItems: 'center', justifyContent: 'center' },
+  sourceBadgeText: { fontSize: text.label, fontWeight: '700' },
+  mealActions: { flexDirection: 'row', gap: space.sm },
 });

@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { icon, radius, size as sizes, text } from '../../theme/tokens';
 
 export interface AppTextFieldProps {
   value: string;
@@ -33,6 +34,8 @@ export interface AppTextFieldProps {
   leftIcon?: React.ReactNode;
   /** Search field: white background, like the app's other search boxes. */
   variant?: 'default' | 'search';
+  /** Token size (M 40, L 52) with fully round border. Without it: legacy 44pt. Multiline always uses radius.md. */
+  size?: 'M' | 'L';
   accessibilityLabel?: string;
   testID?: string;
   /** Container override, for layout only (flex, width, margins). */
@@ -47,7 +50,7 @@ function createStyles(colors: Palette) {
       flexDirection: 'row',
       alignItems: 'center',
       height: FIELD_HEIGHT,
-      borderRadius: 12,
+      borderRadius: radius.md,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surfaceAlt,
@@ -59,12 +62,13 @@ function createStyles(colors: Palette) {
     containerMultiline: {
       height: undefined,
       minHeight: FIELD_HEIGHT,
+      borderRadius: radius.md,
       alignItems: 'flex-start',
       paddingVertical: 10,
     },
     input: {
       flex: 1,
-      fontSize: 15,
+      fontSize: text.title,
       fontWeight: '400',
       color: colors.text,
       paddingVertical: 0,
@@ -104,6 +108,7 @@ export const AppTextField = forwardRef<AppTextFieldHandle, AppTextFieldProps>(fu
     editable = true,
     leftIcon,
     variant = 'default',
+    size,
     accessibilityLabel,
     testID,
     style,
@@ -116,7 +121,15 @@ export const AppTextField = forwardRef<AppTextFieldHandle, AppTextFieldProps>(fu
   const showClear = editable && value.length > 0;
 
   return (
-    <View style={[styles.container, variant === 'search' && styles.containerSearch, multiline && styles.containerMultiline, style]}>
+    <View
+      style={[
+        styles.container,
+        variant === 'search' && styles.containerSearch,
+        size && { height: sizes.field[size], borderRadius: radius.full, paddingHorizontal: 16 },
+        multiline && styles.containerMultiline,
+        style,
+      ]}
+    >
       {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
       <TextInput
         ref={ref}
@@ -149,7 +162,7 @@ export const AppTextField = forwardRef<AppTextFieldHandle, AppTextFieldProps>(fu
           accessibilityLabel={t('common.clear')}
           style={styles.clearButton}
         >
-          <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          <Ionicons name="close-circle" size={icon.md} color={colors.textMuted} />
         </TouchableOpacity>
       ) : null}
     </View>

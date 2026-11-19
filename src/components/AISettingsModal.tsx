@@ -1,7 +1,5 @@
-import { SheetModal } from './SheetModal';
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Linking } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, Linking } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { AIProvider, PROVIDER_DEFAULTS, getEnvAIConfig } from '../services/aiService';
@@ -9,6 +7,12 @@ import { AISettings, ProviderSettings, loadAISettings, saveAISettings } from '..
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
+import { Button } from './ui/Button';
+import { CircleButton } from './ui/CircleButton';
+import { IconBadge } from './ui/IconBadge';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { TextButton } from './ui/TextButton';
+import { text, cardRadius, space } from '../theme/tokens';
 
 const PROVIDER_IDS = Object.keys(PROVIDER_DEFAULTS) as AIProvider[];
 const AI_STUDIO_KEYS_URL = 'https://aistudio.google.com/api-keys';
@@ -24,12 +28,13 @@ function defaultModels(id: AIProvider): { simple: string; complex: string } {
   return { simple: model, complex: model };
 }
 
-interface AISettingsModalProps {
+interface AISettingsSectionProps {
+  // Reload the saved settings every time this turns true (the settings page opens)
   visible: boolean;
-  onClose: () => void;
 }
 
-export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
+// AI provider settings, rendered as a section of the settings page
+export function AISettingsSection({ visible }: AISettingsSectionProps) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -57,15 +62,11 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
     });
   };
 
-  const close = () => {
-    setMessage('');
-    setShowKey(false);
-    onClose();
-  };
-
   useEffect(() => {
     if (!visible) return;
     (async () => {
+      setMessage('');
+      setShowKey(false);
       const loaded = await loadAISettings();
       setSettings(loaded);
       showProvider(loaded.provider ?? getEnvAIConfig().provider, loaded);
@@ -114,49 +115,29 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
       : t('aiSettings.noKey');
 
   return (
-    <SheetModal visible={visible} onClose={close} fullScreen>
-      <View style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('aiSettings.title')}</Text>
-          <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
-            <Ionicons name="close" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <View>
           <Text style={styles.label}>{t('aiSettings.provider')}</Text>
-          <View style={styles.chips}>
-            {PROVIDER_IDS.map(id => {
-              const active = id === provider;
-              return (
-                <TouchableOpacity
-                  key={id}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => showProvider(id, settings)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{PROVIDER_DEFAULTS[id].label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <SegmentedControl
+            accessibilityLabel={t('aiSettings.provider')}
+            options={PROVIDER_IDS.map(id => ({ key: id, label: PROVIDER_DEFAULTS[id].label }))}
+            value={provider}
+            onChange={key => showProvider(key as typeof provider, settings)}
+          />
 
           {provider === 'gemini' && (
             <View style={styles.guide}>
               <Text style={styles.guideTitle}>{t('aiSettings.guide.title')}</Text>
-              <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(AI_STUDIO_KEYS_URL)} activeOpacity={0.85}>
-                <Ionicons name="open-outline" size={16} color={colors.onPrimary} />
-                <Text style={styles.linkBtnText}>{t('aiSettings.guide.open')}</Text>
-              </TouchableOpacity>
+              <View style={styles.linkBtn}>
+                <Button label={t('aiSettings.guide.open')} onPress={() => Linking.openURL(AI_STUDIO_KEYS_URL)} size="L" variant="primary" icon="open-outline" />
+              </View>
 
               <GuideStep n={1} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step1')}</Text></GuideStep>
               <GuideStep n={2} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step2')}</Text></GuideStep>
               <GuideStep n={3} colors={colors}>
                 <Text style={styles.guideText}>{t('aiSettings.guide.step3')}</Text>
-                <TouchableOpacity style={styles.copyNameBtn} onPress={copyKeyName} activeOpacity={0.8}>
-                  <Ionicons name="copy-outline" size={15} color={colors.primaryText} />
-                  <Text style={styles.copyNameText}>{t('aiSettings.guide.copyName', { name: AI_STUDIO_KEY_NAME })}</Text>
-                </TouchableOpacity>
+                <View style={styles.copyNameBtn}>
+                  <TextButton icon="copy-outline" label={t('aiSettings.guide.copyName', { name: AI_STUDIO_KEY_NAME })} onPress={copyKeyName} />
+                </View>
               </GuideStep>
               <GuideStep n={4} colors={colors}><Text style={styles.guideText}>{t('aiSettings.guide.step4')}</Text></GuideStep>
             </View>
@@ -166,20 +147,26 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           <View style={styles.inputRow}>
             <AppTextField
               style={styles.inputFlex}
+              size="M"
               value={fields.apiKey ?? ''}
               onChangeText={apiKey => setFields(f => ({ ...f, apiKey }))}
               secureTextEntry={!showKey}
               autoCapitalize="none"
               autoCorrect={false}
             />
-            <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowKey(s => !s)} hitSlop={8}>
-              <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
+            <CircleButton
+              icon={showKey ? 'eye-off-outline' : 'eye-outline'}
+              onPress={() => setShowKey(s => !s)}
+              accessibilityLabel={t('aiSettings.apiKey')}
+              size="M"
+              variant="outline"
+            />
           </View>
           <Text style={styles.hint}>{keyStatus}</Text>
 
           <Text style={styles.label}>{t('aiSettings.simpleOps')}</Text>
           <AppTextField
+            size="M"
             value={fields.simpleModel ?? ''}
             onChangeText={simpleModel => setFields(f => ({ ...f, simpleModel }))}
             placeholder={modelDefaults.simple}
@@ -188,6 +175,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           />
           {provider === 'gemini' && (
             <ModelPresetChips
+              label={t('aiSettings.simpleOps')}
               presets={GEMINI_MODEL_PRESETS}
               selected={fields.simpleModel}
               onSelect={preset => setFields(f => ({ ...f, simpleModel: preset }))}
@@ -198,6 +186,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
 
           <Text style={styles.label}>{t('aiSettings.complexOps')}</Text>
           <AppTextField
+            size="M"
             value={fields.complexModel ?? ''}
             onChangeText={complexModel => setFields(f => ({ ...f, complexModel }))}
             placeholder={modelDefaults.complex}
@@ -206,6 +195,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           />
           {provider === 'gemini' && (
             <ModelPresetChips
+              label={t('aiSettings.complexOps')}
               presets={GEMINI_MODEL_PRESETS}
               selected={fields.complexModel}
               onSelect={preset => setFields(f => ({ ...f, complexModel: preset }))}
@@ -218,6 +208,7 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
             <>
               <Text style={styles.label}>{t('aiSettings.baseUrl')}</Text>
               <AppTextField
+                size="M"
                 value={fields.baseUrl ?? ''}
                 onChangeText={baseUrl => setFields(f => ({ ...f, baseUrl }))}
                 placeholder={envConfig.baseUrl}
@@ -231,27 +222,27 @@ export function AISettingsModal({ visible, onClose }: AISettingsModalProps) {
           <Text style={styles.privacy}>{t('aiSettings.privacy')}</Text>
           {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => persist(fields)} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>{t('aiSettings.save')}</Text>
-          </TouchableOpacity>
+          <View style={styles.saveBtn}>
+            <Button label={t('aiSettings.save')} onPress={() => persist(fields)} size="L" variant="primary" />
+          </View>
 
           {savedKey ? (
-            <TouchableOpacity style={styles.secondaryBtn} onPress={removeKey} activeOpacity={0.85}>
-              <Text style={styles.secondaryBtnText}>{t('aiSettings.removeKey')}</Text>
-            </TouchableOpacity>
+            <View style={styles.removeBtn}>
+              <Button label={t('aiSettings.removeKey')} onPress={removeKey} size="M" variant="ghost" />
+            </View>
           ) : null}
-        </ScrollView>
-      </View>
-    </SheetModal>
+    </View>
   );
 }
 
 function ModelPresetChips({
+  label,
   presets,
   selected,
   onSelect,
   colors,
 }: {
+  label: string;
   presets: string[];
   selected?: string;
   onSelect: (preset: string) => void;
@@ -259,20 +250,13 @@ function ModelPresetChips({
 }) {
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <View style={[styles.chips, styles.presetChips]}>
-      {presets.map(preset => {
-        const active = selected === preset;
-        return (
-          <TouchableOpacity
-            key={preset}
-            style={[styles.chip, active && styles.chipActive]}
-            onPress={() => onSelect(preset)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{preset}</Text>
-          </TouchableOpacity>
-        );
-      })}
+    <View style={styles.presetChips}>
+      <SegmentedControl
+        accessibilityLabel={label}
+        options={presets.map(preset => ({ key: preset, label: preset }))}
+        value={selected ?? ''}
+        onChange={onSelect}
+      />
     </View>
   );
 }
@@ -281,9 +265,7 @@ function GuideStep({ n, children, colors }: { n: number; children: React.ReactNo
   const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.stepRow}>
-      <View style={styles.stepBadge}>
-        <Text style={styles.stepBadgeText}>{n}</Text>
-      </View>
+      <IconBadge size="S" text={String(n)} />
       <View style={styles.stepBody}>{children}</View>
     </View>
   );
@@ -292,95 +274,24 @@ function GuideStep({ n, children, colors }: { n: number; children: React.ReactNo
 const makeStyles = (colors: Palette) => StyleSheet.create({
   guide: {
     marginTop: 18,
-    padding: 14,
-    borderRadius: 16,
+    padding: space.xxl,
+    borderRadius: cardRadius,
     backgroundColor: colors.primarySoft,
   },
-  guideTitle: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 12 },
-  guideText: { fontSize: 13, color: colors.text, lineHeight: 18 },
-  linkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 10,
-    marginBottom: 14,
-  },
-  linkBtnText: { color: colors.onPrimary, fontSize: 14, fontWeight: '700' },
-  stepRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  stepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-  },
-  stepBadgeText: { color: colors.onPrimary, fontSize: 12, fontWeight: '800' },
+  guideTitle: { fontSize: text.body, fontWeight: '800', color: colors.text, marginBottom: space.xl },
+  guideText: { fontSize: text.caption, color: colors.text, lineHeight: 18 },
+  linkBtn: { marginBottom: space.xxl },
+  stepRow: { flexDirection: 'row', gap: space.lg, marginBottom: space.xl },
   stepBody: { flex: 1 },
-  copyNameBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  copyNameText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
-  safeArea: { flex: 1, backgroundColor: colors.surfaceAlt },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
-  label: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginTop: 18, marginBottom: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  presetChips: { marginTop: 8 },
-  chipText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
-  chipTextActive: { color: colors.onPrimary },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Wrapper only: the link button fits its content inside the primarySoft guide box
+  copyNameBtn: { alignSelf: 'flex-start', marginTop: space.md },
+  label: { fontSize: text.caption, fontWeight: '700', color: colors.textSecondary, marginTop: 18, marginBottom: space.md },
+  presetChips: { marginTop: space.md },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   inputFlex: { flex: 1 },
-  eyeBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
-  privacy: { fontSize: 12, color: colors.textSecondary, marginTop: 22, lineHeight: 18 },
-  message: { fontSize: 13, fontWeight: '700', color: colors.primaryText, marginTop: 12 },
-  primaryBtn: {
-    marginTop: 18,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  primaryBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
-  secondaryBtn: { marginTop: 12, paddingVertical: 12, alignItems: 'center' },
-  secondaryBtnText: { color: colors.danger, fontSize: 14, fontWeight: '700' },
+  hint: { fontSize: text.caption, color: colors.textSecondary, marginTop: space.sm },
+  privacy: { fontSize: text.caption, color: colors.textSecondary, marginTop: 22, lineHeight: 18 },
+  message: { fontSize: text.caption, fontWeight: '700', color: colors.primaryText, marginTop: space.xl },
+  saveBtn: { marginTop: 18 },
+  removeBtn: { marginTop: space.xl },
 });

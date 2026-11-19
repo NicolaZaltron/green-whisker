@@ -6,13 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  Modal,
   RefreshControl,
 } from 'react-native';
 import { TabSectionList } from '../../components/TabScrollViews';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenHeader, HeaderIconButton } from '../../components/ui/ScreenHeader';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { useFocusEffect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { ShoppingItem } from '../../types/recipe';
@@ -43,12 +42,22 @@ import {
   formatShoppingListShareText,
 } from '../../utils/shareHelper';
 import { useTheme } from '../../context/ThemeContext';
+import { SheetModal } from '../../components/SheetModal';
 import { CenterDialog } from '../../components/ui/CenterDialog';
 import { AppTextField } from '../../components/ui/AppTextField';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { CircleButton } from '../../components/ui/CircleButton';
+import { Checkbox } from '../../components/ui/Checkbox';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Toast } from '../../components/ui/Toast';
 import { SHOPPING_UNITS, toSelectableUnit } from '../../constants/shoppingUnits';
 import { unitLabel } from '../../constants/simpleTags';
 import ShoppingPlanModal from '../../components/ShoppingPlanModal';
 import type { Palette } from '../../theme/palette';
+import { Pill } from '../../components/ui/Pill';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { radius, space, text, icon } from '../../theme/tokens';
 
 interface DepartmentSection {
   department: ShoppingDepartment;
@@ -139,14 +148,14 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
     : displayQuantity;
 
   return (
-    <View style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
+    <Card elevation={1} style={[styles.itemCard, item.checked && styles.itemCardChecked]}>
       <TouchableOpacity
         style={styles.checkArea}
         onPress={() => onToggle(item.id)}
         activeOpacity={0.7}
       >
-        <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
-          {item.checked && <Ionicons name="checkmark" size={13} color={colors.onPrimary} />}
+        <View style={styles.checkboxWrap}>
+          <Checkbox checked={item.checked} onToggle={() => onToggle(item.id)} accessibilityLabel={displayName} />
         </View>
         <View style={styles.itemRowContent}>
           <Text
@@ -169,15 +178,15 @@ const ShoppingItemRow = memo(function ShoppingItemRow({
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.deleteBtn}
-        onPress={() => onDelete(item.id)}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="close" size={16} color={colors.textMuted} />
-      </TouchableOpacity>
-    </View>
+      <View style={styles.deleteWrap}>
+        <CircleButton
+          size="S"
+          icon="close"
+          onPress={() => onDelete(item.id)}
+          accessibilityLabel={t('common.delete')}
+        />
+      </View>
+    </Card>
   );
 });
 
@@ -488,10 +497,10 @@ export default function ShoppingScreen() {
     }
 
     const shareText = formatShoppingListShareText(items);
-    const shared = await shareNative('Lista della Spesa Green-Whisker', shareText);
+    const shared = await shareNative(t('shopping.shareTitle'), shareText);
     if (!shared) {
       await copyRecipeToClipboard(shareText);
-      showToast('Lista copiata negli appunti!');
+      showToast(t('shopping.copiedToast'));
     }
   };
 
@@ -531,7 +540,6 @@ export default function ShoppingScreen() {
         {/* Header */}
         <View style={styles.header}>
           <ScreenHeader
-            icon="cart"
             title={t('shopping.title')}
             subtitle={items.length === 0
               ? t('shopping.emptySubtitle')
@@ -543,7 +551,7 @@ export default function ShoppingScreen() {
                 })}
             actions={
               <>
-                <HeaderIconButton
+                <CircleButton size="M" variant="plain"
                   icon="calendar-outline"
                   onPress={() => setShowPlanModal(true)}
                   accessibilityLabel={t('shopping.syncWeekPlan')}
@@ -551,22 +559,22 @@ export default function ShoppingScreen() {
 
                 {items.length > 0 && (
                   <>
-                    <HeaderIconButton
-                      icon="share-outline"
+                    <CircleButton size="M" variant="plain"
+                      icon="share-social"
                       onPress={handleShare}
                       accessibilityLabel={t('recipeDetail.share')}
                     />
 
                     {completedCount > 0 && (
-                      <HeaderIconButton
-                        icon="checkmark-done-outline"
+                      <CircleButton size="M" variant="plain"
+                        icon="checkmark-done"
                         onPress={requestClearCompleted}
                         accessibilityLabel={t('shopping.removeCompleted')}
                       />
                     )}
 
-                    <HeaderIconButton
-                      icon="trash-outline"
+                    <CircleButton size="M" variant="plain"
+                      icon="trash"
                       onPress={requestClearAll}
                       accessibilityLabel={t('shopping.clearAll')}
                     />
@@ -577,10 +585,11 @@ export default function ShoppingScreen() {
           />
 
           {/* Quick manual item adder */}
-          <View style={styles.inputContainer}>
+          <Card elevation={1} padding="lg" style={styles.inputContainer}>
             <View style={styles.inputRow}>
               <AppTextField
                 variant="search"
+                size="M"
                 style={styles.flexField}
                 placeholder={t('shopping.addCustomPlaceholder')}
                 value={newItemText}
@@ -593,14 +602,13 @@ export default function ShoppingScreen() {
                 onSubmitEditing={handleAddManual}
                 returnKeyType="done"
               />
-              <TouchableOpacity
-                style={[styles.addBtn, !newItemText.trim() && styles.addBtnDisabled]}
+              <CircleButton
+                icon="add"
+                variant="filled"
                 onPress={handleAddManual}
                 disabled={!newItemText.trim()}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="add" size={22} color={colors.onPrimary} />
-              </TouchableOpacity>
+                accessibilityLabel={t('common.add')}
+              />
             </View>
 
             {/* Suggestions from ingredients and ready meals, while typing */}
@@ -616,7 +624,7 @@ export default function ShoppingScreen() {
                   >
                     <Ionicons
                       name={(DEPARTMENT_ICONS[entry.department] as any) || 'basket-outline'}
-                      size={16}
+                      size={icon.sm}
                       color={colors.textMuted}
                     />
                     <Text style={styles.suggestionText} numberOfLines={1}>
@@ -644,7 +652,7 @@ export default function ShoppingScreen() {
                 >
                   <Ionicons
                     name={(DEPARTMENT_ICONS[detectedDept] as any) || 'basket-outline'}
-                    size={13}
+                    size={icon.xs}
                     color={detectedColors.text}
                   />
                   <Text
@@ -655,77 +663,30 @@ export default function ShoppingScreen() {
                   >
                     {t('shoppingDepartments.' + detectedDept, { defaultValue: detectedDept })}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+                  <Ionicons name="chevron-down" size={icon.xs} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </Card>
 
           {/* Filter Pills (Active Departments) */}
           {groupedSections.length > 1 && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterPillsContainer}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.filterPill,
-                  selectedDeptFilter === 'ALL' && styles.filterPillActive,
+            <View style={styles.filterPillsContainer}>
+              <SegmentedControl
+                accessibilityLabel={t('shopping.departmentFilter')}
+                options={[
+                  { key: 'ALL', label: `${t('shopping.all')} (${items.length})` },
+                  ...groupedSections.map(sec => ({
+                    key: sec.department,
+                    icon: (DEPARTMENT_ICONS[sec.department] as any) || 'basket-outline',
+                    label: `${t('shoppingDepartments.' + sec.department, { defaultValue: sec.department })} (${sec.total})`,
+                  })),
                 ]}
-                onPress={() => setSelectedDeptFilter('ALL')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    selectedDeptFilter === 'ALL' && styles.filterPillTextActive,
-                  ]}
-                >
-                  {t('shopping.all')} ({items.length})
-                </Text>
-              </TouchableOpacity>
-
-              {groupedSections.map(sec => {
-                const isActive = selectedDeptFilter === sec.department;
-                const deptColors = departmentColors(sec.department, isDark);
-                const iconName = (DEPARTMENT_ICONS[sec.department] as any) || 'basket-outline';
-
-                return (
-                  <TouchableOpacity
-                    key={sec.department}
-                    style={[
-                      styles.filterPill,
-                      isActive && {
-                        backgroundColor: deptColors.bg,
-                        borderColor: deptColors.border,
-                      },
-                    ]}
-                    onPress={() =>
-                      setSelectedDeptFilter(prev => (prev === sec.department ? 'ALL' : sec.department))
-                    }
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name={iconName}
-                      size={14}
-                      color={isActive ? deptColors.text : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.filterPillText,
-                        isActive && { color: deptColors.text, fontWeight: '700' },
-                      ]}
-                    >
-                      {t('shoppingDepartments.' + sec.department, { defaultValue: sec.department })} ({sec.total})
-                    </Text>
-                    {sec.isAllChecked && (
-                      <Ionicons name="checkmark-circle" size={13} color={colors.primaryText} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                pinnedKey="ALL"
+                value={selectedDeptFilter}
+                onChange={key => setSelectedDeptFilter(prev => (key !== 'ALL' && prev === key ? 'ALL' : (key as ShoppingDepartment | 'ALL')))}
+              />
+            </View>
           )}
         </View>
 
@@ -761,7 +722,7 @@ export default function ShoppingScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={[styles.sectionIconCircle, { backgroundColor: deptColors.bg }]}>
-                    <Ionicons name={iconName} size={17} color={deptColors.text} />
+                    <Ionicons name={iconName} size={icon.md} color={deptColors.text} />
                   </View>
 
                   <View style={{ flex: 1 }}>
@@ -782,7 +743,7 @@ export default function ShoppingScreen() {
                   <View style={styles.collapseBtn}>
                     <Ionicons
                       name={isCollapsed ? 'chevron-down' : 'chevron-up'}
-                      size={18}
+                      size={icon.md}
                       color={colors.textMuted}
                     />
                   </View>
@@ -792,64 +753,33 @@ export default function ShoppingScreen() {
           }}
           renderItem={renderShoppingItem}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="basket-outline" size={44} color={colors.primaryText} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {selectedDeptFilter !== 'ALL'
+            <EmptyState
+              icon="basket-outline"
+              title={
+                selectedDeptFilter !== 'ALL'
                   ? t('shopping.emptyDeptTitle', { dept: t('shoppingDepartments.' + selectedDeptFilter, { defaultValue: selectedDeptFilter }) })
-                  : t('shopping.emptyTitle')}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {selectedDeptFilter !== 'ALL'
-                  ? t('shopping.emptyDeptSub')
-                  : t('shopping.emptySub')}
-              </Text>
-              <TouchableOpacity
-                style={[styles.exploreBtn, styles.exploreBtnWide]}
-                onPress={() => router.push('/(tabs)')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="restaurant-outline" size={18} color={colors.onPrimary} />
-                <Text style={styles.exploreBtnText}>{t('shopping.browseRecipes')}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.exploreBtn, styles.exploreBtnWide, { backgroundColor: colors.primarySoft, marginTop: 10, shadowOpacity: 0 }]}
-                onPress={() => setShowPlanModal(true)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calendar-outline" size={18} color={colors.primaryText} />
-                <Text style={[styles.exploreBtnText, { color: colors.primaryText }]}>
-                  {t('shopping.syncWeekPlan')}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  : t('shopping.emptyTitle')
+              }
+              subtitle={selectedDeptFilter !== 'ALL' ? t('shopping.emptyDeptSub') : t('shopping.emptySub')}
+              actions={[
+                { label: t('shopping.browseRecipes'), onPress: () => router.push('/(tabs)'), icon: 'restaurant-outline', size: 'XL' },
+                { label: t('shopping.syncWeekPlan'), onPress: () => setShowPlanModal(true), icon: 'calendar-outline', variant: 'secondary', size: 'XL' },
+              ]}
+            />
           }
         />
 
         {/* Modal for manual department selection */}
-        <Modal
-          visible={showDeptPickerModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowDeptPickerModal(false)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setShowDeptPickerModal(false)}
-          >
-            <View style={styles.modalCard} onStartShouldSetResponder={() => true}>
+        <SheetModal visible={showDeptPickerModal} onClose={() => setShowDeptPickerModal(false)}>
+            <View style={styles.modalCard}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{t('shopping.chooseDept')}</Text>
-                <TouchableOpacity
+                <CircleButton
+                  variant="plain"
+                  icon="close"
                   onPress={() => setShowDeptPickerModal(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="close" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                  accessibilityLabel={t('common.close')}
+                />
               </View>
 
               <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
@@ -872,7 +802,7 @@ export default function ShoppingScreen() {
                       activeOpacity={0.7}
                     >
                       <View style={[styles.deptOptionIcon, { backgroundColor: deptColors.bg }]}>
-                        <Ionicons name={iconName} size={18} color={deptColors.text} />
+                        <Ionicons name={iconName} size={icon.md} color={deptColors.text} />
                       </View>
                       <Text
                         style={[
@@ -883,23 +813,17 @@ export default function ShoppingScreen() {
                         {t('shoppingDepartments.' + dept, { defaultValue: dept })}
                       </Text>
                       {isSelected && (
-                        <Ionicons name="checkmark" size={18} color={deptColors.text} />
+                        <Ionicons name="checkmark" size={icon.md} color={deptColors.text} />
                       )}
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
             </View>
-          </TouchableOpacity>
-        </Modal>
+        </SheetModal>
 
         {/* Floating Toast Notification */}
-        {feedbackToast && (
-          <View style={styles.toast}>
-            <Ionicons name="information-circle" size={18} color={colors.background} />
-            <Text style={styles.toastText}>{feedbackToast}</Text>
-          </View>
-        )}
+        {feedbackToast && <Toast message={feedbackToast} />}
       </View>
       <CenterDialog visible={pendingAction !== null} onClose={() => setPendingAction(null)}>
         <View style={styles.confirmSheet}>
@@ -912,16 +836,12 @@ export default function ShoppingScreen() {
             {pendingAction === 'clearAll' && t('shopping.confirm.clearBody', { count: items.length })}
           </Text>
           <View style={styles.confirmRow}>
-            <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setPendingAction(null)} activeOpacity={0.85}>
-              <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.confirmOkBtn, pendingAction === 'clearAll' && styles.confirmOkBtnDanger]}
+            <Button variant="secondary" label={t('common.cancel')} onPress={() => setPendingAction(null)} />
+            <Button
+              variant={pendingAction === 'clearAll' ? 'danger' : 'primary'}
+              label={t('shopping.confirm.confirmButton')}
               onPress={confirmPendingAction}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.confirmOkText}>{t('shopping.confirm.confirmButton')}</Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
       </CenterDialog>
@@ -938,14 +858,12 @@ export default function ShoppingScreen() {
               {QUICK_QUANTITIES.map(quick => {
                 const quickUnit = unitLabel(quick.unit, t, quick.amount);
                 return (
-                  <TouchableOpacity
+                  <Pill
                     key={`${quick.amount}-${quick.unit}`}
-                    style={styles.quickPill}
+                    label={`${quick.amount} ${quickUnit}`}
+                    size="M"
                     onPress={() => addWithQuickQuantity(quantityTarget.name, quick.amount, quick.unit)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.quickPillText}>{`${quick.amount} ${quickUnit}`}</Text>
-                  </TouchableOpacity>
+                  />
                 );
               })}
             </View>
@@ -967,13 +885,12 @@ export default function ShoppingScreen() {
               <Text style={styles.qtyUnitText} numberOfLines={1}>
                 {unitLabel(qtyUnitText, t) || t('shopping.unitNone')}
               </Text>
-              <Ionicons name={unitMenuOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
+              <Ionicons name={unitMenuOpen ? 'chevron-up' : 'chevron-down'} size={icon.xs} color={colors.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.confirmOkBtn, styles.qtyConfirmBtn]} onPress={confirmQuantity} activeOpacity={0.85}>
-              <Text style={[styles.confirmOkText, styles.qtyConfirmText]}>
-                {quantityTarget?.mode === 'add' ? t('shopping.quantityAdd') : t('shopping.quantitySave')}
-              </Text>
-            </TouchableOpacity>
+            <Button
+              label={quantityTarget?.mode === 'add' ? t('common.add') : t('shopping.quantitySave')}
+              onPress={confirmQuantity}
+            />
           </View>
           {unitMenuOpen && (
             <ScrollView style={styles.unitMenu} nestedScrollEnabled keyboardShouldPersistTaps="handled">
@@ -998,9 +915,7 @@ export default function ShoppingScreen() {
             </ScrollView>
           )}
           <View style={styles.confirmRow}>
-            <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setQuantityTarget(null)} activeOpacity={0.85}>
-              <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
+            <Button variant="secondary" label={t('common.cancel')} onPress={() => setQuantityTarget(null)} />
           </View>
         </View>
       </CenterDialog>
@@ -1025,54 +940,33 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignSelf: 'center',
   },
   header: {
-    paddingBottom: 8,
+    paddingBottom: space.md,
   },
   inputContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-    marginBottom: 8,
+    marginBottom: space.md,
     // Aligned with the ScreenHeader title text
-    marginHorizontal: 16,
+    marginHorizontal: space.xxxl,
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: space.md,
     alignItems: 'center',
   },
   flexField: { flex: 1 },
   input: {
     flex: 1,
     backgroundColor: colors.surfaceAlt,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderRadius: radius.sm,
+    paddingHorizontal: space.xl,
     height: 42,
-    fontSize: 14,
+    fontSize: text.body,
     borderWidth: 1,
     borderColor: colors.border,
     color: colors.text,
   },
-  addBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addBtnDisabled: {
-    backgroundColor: colors.borderStrong,
-    opacity: 0.6,
-  },
   suggestionsList: {
-    marginTop: 8,
-    borderRadius: 10,
+    marginTop: space.md,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
@@ -1081,26 +975,26 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: space.md,
+    paddingHorizontal: space.xl,
     minHeight: 38,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
   suggestionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: text.body,
     color: colors.text,
   },
   detectedDeptRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-    paddingHorizontal: 4,
+    gap: space.md,
+    marginTop: space.md,
+    paddingHorizontal: space.xs,
   },
   detectedDeptLabel: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '600',
     color: colors.textMuted,
   },
@@ -1109,59 +1003,35 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
     borderWidth: 1,
   },
   detectedDeptText: {
-    fontSize: 12,
+    fontSize: text.caption,
     fontWeight: '600',
   },
   filterPillsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  filterPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  filterPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  filterPillTextActive: {
-    color: colors.onPrimary,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.sm,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: space.xxxl,
     paddingBottom: 36,
-    paddingTop: 4,
+    paddingTop: space.xs,
   },
   sectionHeaderWrapper: {
-    marginTop: 12,
-    marginBottom: 6,
+    marginTop: space.xl,
+    marginBottom: space.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: space.lg,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingVertical: 9,
-    paddingHorizontal: 12,
+    paddingHorizontal: space.xl,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -1172,23 +1042,23 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   sectionIconCircle: {
     width: 32,
     height: 32,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.md,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
-    fontSize: 11,
+    fontSize: text.label,
     fontWeight: '500',
     color: colors.textMuted,
     marginTop: 1,
@@ -1198,33 +1068,24 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     backgroundColor: colors.primary,
-    paddingHorizontal: 6,
+    paddingHorizontal: space.sm,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   completedBadgeText: {
     color: colors.onPrimary,
-    fontSize: 9,
+    fontSize: text.label,
     fontWeight: '700',
   },
   collapseBtn: {
-    padding: 4,
+    padding: space.xs,
   },
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
+    paddingVertical: space.xxl,
+    paddingHorizontal: space.xxxl,
+    marginBottom: space.md,
   },
   itemCardChecked: {
     backgroundColor: colors.surfaceAlt,
@@ -1235,29 +1096,17 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
+  checkboxWrap: { marginRight: space.xxl },
+  deleteWrap: { marginLeft: space.xs },
   itemRowContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingRight: 6,
+    paddingRight: space.sm,
   },
   itemName: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
     flexShrink: 1,
@@ -1268,201 +1117,80 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '500',
   },
-  itemQty: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textMuted,
-    marginLeft: 12,
-  },
   itemQtyChecked: {
     textDecorationLine: 'line-through',
     color: colors.textMuted,
   },
-  deleteBtn: {
-    padding: 4,
-    marginLeft: 4,
-  },
   qtyEditBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginLeft: 8,
-    borderRadius: 8,
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+    marginLeft: space.md,
+    borderRadius: radius.sm,
     backgroundColor: colors.surfaceAlt,
   },
   qtyEditText: {
-    fontSize: 13,
+    fontSize: text.caption,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  qtyProductName: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  quickPillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  quickPill: {
-    height: 34,
-    borderRadius: 17,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickPillText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  qtyInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
+  qtyProductName: { fontSize: text.page, fontWeight: '800', color: colors.text, marginBottom: space.md },
+  quickPillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginBottom: space.huge },
+  qtyInputRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginBottom: space.huge },
   // Fixed height: no vertical padding from the base button, otherwise the text drops relative to the center
-  qtyConfirmBtn: { height: 44, paddingVertical: 0, justifyContent: 'center', alignItems: 'center' },
-  qtyConfirmText: { lineHeight: 18, textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
   qtyAmountInput: { width: 96 },
   qtyUnitInput: { flex: 1, height: 44 },
-  qtyUnitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
-  qtyUnitText: { fontSize: 14, color: colors.text, flexShrink: 1 },
-  unitMenu: { maxHeight: 240, marginTop: -12, marginBottom: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  unitOption: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  qtyUnitSelect: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space.xl },
+  qtyUnitText: { fontSize: text.body, color: colors.text, flexShrink: 1 },
+  unitMenu: { maxHeight: 240, marginTop: -12, marginBottom: space.xxxl, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  unitOption: { paddingHorizontal: space.xxl, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   unitOptionActive: { backgroundColor: colors.primarySoft },
-  unitOptionText: { fontSize: 14, color: colors.text },
+  unitOptionText: { fontSize: text.body, color: colors.text },
   unitOptionTextActive: { fontWeight: '700', color: colors.primaryText },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 30,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  exploreBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 12,
-    gap: 8,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 3,
-  },
   // Same width and height for both empty-state buttons
-  exploreBtnWide: {
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  exploreBtnText: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: '700',
-    flexShrink: 1,
-    textAlign: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 18,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
-  },
+  modalCard: { padding: 18 },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    paddingBottom: 10,
+    marginBottom: space.xxl,
+    paddingBottom: space.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: text.page,
+    fontWeight: '700',
     color: colors.text,
   },
   deptOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 4,
+    paddingVertical: space.lg,
+    paddingHorizontal: space.xl,
+    borderRadius: radius.sm,
+    marginBottom: space.xs,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   deptOptionIcon: {
     width: 32,
     height: 32,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: space.lg,
   },
   deptOptionText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: text.body,
     fontWeight: '600',
     color: colors.text,
   },
-  toast: {
-    position: 'absolute',
-    bottom: 24,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.text,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 25,
-    gap: 8,
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-    zIndex: 999,
-  },
-  toastText: {
-    color: colors.background,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  confirmSheet: { padding: 20, paddingBottom: 28 },
-  confirmTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  confirmBody: { fontSize: 14, lineHeight: 20, color: colors.textSecondary, marginBottom: 20 },
-  confirmRow: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  confirmCancelBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.surfaceAlt },
-  confirmCancelText: { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
-  confirmOkBtn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, backgroundColor: colors.primary },
-  confirmOkBtnDanger: { backgroundColor: colors.danger },
-  confirmOkText: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },
+  confirmSheet: { padding: space.huge, paddingBottom: 28 },
+  confirmTitle: { fontSize: text.page, fontWeight: '700', color: colors.text, marginBottom: space.md },
+  confirmBody: { fontSize: text.body, lineHeight: 20, color: colors.textSecondary, marginBottom: space.huge },
+  confirmRow: { flexDirection: 'row', gap: space.lg, justifyContent: 'flex-end' },
 });

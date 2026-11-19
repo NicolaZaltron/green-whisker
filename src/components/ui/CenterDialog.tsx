@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { cardRadius } from '../../theme/tokens';
 
 interface CenterDialogProps {
   visible: boolean;
@@ -33,7 +34,7 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   box: {
     width: '100%',
     maxWidth: 420,
-    borderRadius: 20,
+    borderRadius: cardRadius,
     overflow: 'hidden',
     backgroundColor: colors.background,
   },

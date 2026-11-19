@@ -1,27 +1,28 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { icon as iconSize, space, text } from '../../theme/tokens';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface ScreenHeaderProps {
-  icon: IconName;
+  icon?: IconName;
   title: string;
   subtitle?: string;
-  // Buttons on the right, rendered with HeaderIconButton
+  // Buttons on the right, e.g. CircleButton
   actions?: React.ReactNode;
 }
 
-// Common header of the main screens: icon on the left, title and subtitle, actions on the right
+// Common header of the main screens: optional icon on the left, title and subtitle, actions on the right
 export function ScreenHeader({ icon, title, subtitle, actions }: ScreenHeaderProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <View style={styles.row}>
-      <Ionicons name={icon} size={28} color={colors.primaryText} />
+      {icon ? <Ionicons name={icon} size={iconSize.xl} color={colors.primaryText} /> : null}
       <View style={styles.textBlock}>
         <Text style={styles.title} numberOfLines={1}>{title}</Text>
         {subtitle ? (
@@ -33,71 +34,34 @@ export function ScreenHeader({ icon, title, subtitle, actions }: ScreenHeaderPro
   );
 }
 
-interface HeaderIconButtonProps {
-  icon: IconName;
-  onPress: () => void;
-  accessibilityLabel: string;
-}
-
-// Round header button: same size and style for all screens
-export function HeaderIconButton({ icon, onPress, accessibilityLabel }: HeaderIconButtonProps) {
-  const { colors } = useTheme();
-  const styles = useMemo(() => makeStyles(colors), [colors]);
-
-  return (
-    <TouchableOpacity
-      style={styles.button}
-      onPress={onPress}
-      activeOpacity={0.7}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Ionicons name={icon} size={22} color={colors.text} />
-    </TouchableOpacity>
-  );
-}
-
 const makeStyles = (colors: Palette) => StyleSheet.create({
+  // Same minimum height on every screen: the actions stay centered in the same place
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    gap: space.xl,
+    paddingHorizontal: space.xxxl,
+    paddingTop: space.md,
+    paddingBottom: space.xl,
   },
   textBlock: {
     flex: 1,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
+    fontSize: text.page,
     fontWeight: '700',
     color: colors.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 2,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: space.md,
     flexShrink: 0,
-  },
-  button: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    // Light shadow: the button reads as a button even without a border
-    shadowColor: colors.shadow,
-    shadowOpacity: 0.14,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
   },
 });

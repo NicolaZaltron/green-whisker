@@ -4,15 +4,17 @@ import {
   Text,
   View,
   ScrollView,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { SheetModal } from '../SheetModal';
+import { CircleButton } from '../ui/CircleButton';
 import { PlannerPreferences, savePlannerPreferences } from '../../services/plannerService';
 import { useTheme } from '../../context/ThemeContext';
 import type { Palette } from '../../theme/palette';
+import { space, text } from '../../theme/tokens';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { Toggle } from '../ui/Toggle';
 
 export interface PlannerPreferencesModalProps {
   visible: boolean;
@@ -77,9 +79,7 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
       <SafeAreaView style={styles.prefsSafeArea} edges={['left', 'right']}>
         <View style={styles.prefsHeader}>
           <Text style={styles.prefsTitle}>{t('planner.preferencesModal.title')}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.prefsCloseBtn}>
-            <Ionicons name="close" size={22} color={colors.text} />
-          </TouchableOpacity>
+          <CircleButton icon="close" variant="plain" onPress={onClose} accessibilityLabel={t('common.close')} />
         </View>
 
         <ScrollView contentContainerStyle={styles.prefsBody}>
@@ -89,19 +89,21 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
               <Text style={styles.prefSub}>{t('planner.preferencesModal.servingsSub')}</Text>
             </View>
             <View style={styles.prefStepper}>
-              <TouchableOpacity
-                style={styles.stepperBtn}
+              <CircleButton
+                icon="remove"
+                size="S"
+                variant="outline"
                 onPress={() => handleServingsChange(-1)}
-              >
-                <Ionicons name="remove" size={16} color={colors.primaryText} />
-              </TouchableOpacity>
+                accessibilityLabel={t('planner.preferencesModal.servings')}
+              />
               <Text style={styles.stepperVal}>{prefs.servings}</Text>
-              <TouchableOpacity
-                style={styles.stepperBtn}
+              <CircleButton
+                icon="add"
+                size="S"
+                variant="outline"
                 onPress={() => handleServingsChange(1)}
-              >
-                <Ionicons name="add" size={16} color={colors.primaryText} />
-              </TouchableOpacity>
+                accessibilityLabel={t('planner.preferencesModal.servings')}
+              />
             </View>
           </View>
 
@@ -110,13 +112,11 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.weekend')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.weekendSub')}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.toggle, prefs.includeWeekend && styles.toggleOn]}
-              onPress={handleToggleWeekend}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.toggleThumb, prefs.includeWeekend && styles.toggleThumbOn]} />
-            </TouchableOpacity>
+            <Toggle
+              value={prefs.includeWeekend}
+              onValueChange={handleToggleWeekend}
+              accessibilityLabel={t('planner.preferencesModal.weekend')}
+            />
           </View>
 
           <View style={styles.prefRow}>
@@ -124,13 +124,11 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.quickLunch')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.quickLunchSub')}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.toggle, prefs.maxWeekdayLunchMinutes !== null && styles.toggleOn]}
-              onPress={handleToggleQuickLunch}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.toggleThumb, prefs.maxWeekdayLunchMinutes !== null && styles.toggleThumbOn]} />
-            </TouchableOpacity>
+            <Toggle
+              value={prefs.maxWeekdayLunchMinutes !== null}
+              onValueChange={handleToggleQuickLunch}
+              accessibilityLabel={t('planner.preferencesModal.quickLunch')}
+            />
           </View>
 
           <View style={styles.prefRow}>
@@ -138,34 +136,21 @@ export const PlannerPreferencesModal: React.FC<PlannerPreferencesModalProps> = (
               <Text style={styles.prefLabel}>{t('planner.preferencesModal.autoMonday')}</Text>
               <Text style={styles.prefSub}>{t('planner.preferencesModal.autoMondaySub')}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.toggle, prefs.autoGenerateOnMonday && styles.toggleOn]}
-              onPress={handleToggleAutoMonday}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.toggleThumb, prefs.autoGenerateOnMonday && styles.toggleThumbOn]} />
-            </TouchableOpacity>
+            <Toggle
+              value={prefs.autoGenerateOnMonday}
+              onValueChange={handleToggleAutoMonday}
+              accessibilityLabel={t('planner.preferencesModal.autoMonday')}
+            />
           </View>
 
           <View style={styles.prefSection}>
             <Text style={styles.prefLabel}>{t('planner.calendar.title')}</Text>
-            <View style={styles.pillRow}>
-              {calendarOptions.map(option => {
-                const selected = prefs.calendarMode === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pill, selected && styles.pillSelected]}
-                    onPress={() => handleSetCalendarMode(option.value)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.pillText, selected && styles.pillTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <SegmentedControl
+              accessibilityLabel={t('planner.calendar.title')}
+              options={calendarOptions.map(option => ({ key: option.value, label: option.label }))}
+              value={prefs.calendarMode}
+              onChange={key => handleSetCalendarMode(key as typeof prefs.calendarMode)}
+            />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -183,46 +168,38 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: space.huge,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   prefsTitle: {
-    fontSize: 17,
-    fontWeight: '800',
+    fontSize: text.page,
+    fontWeight: '700',
     color: colors.text,
   },
-  prefsCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   prefsBody: {
-    padding: 20,
-    gap: 4,
+    padding: space.huge,
+    gap: space.xs,
   },
   prefRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: space.xxxl,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   prefLabel: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '600',
     color: colors.text,
   },
   prefText: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: space.xl,
   },
   prefSub: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textMuted,
     marginTop: 2,
   },
@@ -230,73 +207,19 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  stepperBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: space.xl,
   },
   stepperVal: {
-    fontSize: 16,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
     minWidth: 24,
     textAlign: 'center',
   },
-  toggle: {
-    width: 46,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.borderStrong,
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  toggleOn: {
-    backgroundColor: colors.primary,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.onPrimary,
-    alignSelf: 'flex-start',
-  },
-  toggleThumbOn: {
-    alignSelf: 'flex-end',
-  },
   prefSection: {
-    paddingVertical: 16,
-    gap: 10,
+    paddingVertical: space.xxxl,
+    gap: space.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pill: {
-    flex: 1,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 999,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  pillSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pillText: {
-    color: colors.primaryText,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  pillTextSelected: {
-    color: colors.onPrimary,
   },
 });

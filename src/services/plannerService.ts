@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { RecipeSummary, MealPlanEntry } from '../types/recipe';
-import { toLocalDateString, rollingDays } from '../utils/dates';
+import { toLocalDateString, rollingDays, formatWeekday, formatMonthShort } from '../utils/dates';
+import i18n from '../i18n';
+import { MEAL_COLORS_LIGHT, MEAL_COLORS_DARK } from '../theme/mealColors';
 import { getMealPlans, saveMealPlanEntriesBulk, deleteMealPlanEntry, getKV, setKV } from '../db/database';
 
 import { catalogRecipes } from './recipeCatalog';
@@ -34,7 +36,8 @@ export interface PlannerPreferences {
 
 export interface WeekDayInfo {
   dateString: string;
-  dayName: string;
+  dayName: string; // full weekday name in the active language
+  dayShort: string; // short weekday name in the active language
   dayNumber: number;
   monthName: string;
   isToday: boolean;
@@ -193,15 +196,6 @@ export const SLOT_ORDER: MealSlot[] = [
   'cena',
 ];
 
-/** Italian labels of the slots */
-export const SLOT_LABELS: Record<MealSlot, string> = {
-  colazione: 'Colazione',
-  spuntino_mattina: 'Spuntino Mattina',
-  pranzo: 'Pranzo',
-  spuntino_pomeriggio: 'Spuntino Pomeriggio',
-  cena: 'Cena',
-};
-
 /** Ionicons icons for each slot */
 export const SLOT_ICONS: Record<MealSlot, string> = {
   colazione: 'cafe-outline',
@@ -215,13 +209,14 @@ export const SLOT_ICONS: Record<MealSlot, string> = {
 export const SLOT_COLORS: Record<
   MealSlot,
   { color: string; bgColor: string; darkColor: string; darkBgColor: string }
-> = {
-  colazione:           { color: '#C07A3A', bgColor: '#FDF5EC', darkColor: '#E09A5C', darkBgColor: '#35291E' },
-  spuntino_mattina:   { color: '#7B6FA3', bgColor: '#F2F0FA', darkColor: '#A597D1', darkBgColor: '#2A2638' },
-  pranzo:             { color: '#4A6B53', bgColor: '#EAF0EB', darkColor: '#9CCBA8', darkBgColor: '#2A3D2E' },
-  spuntino_pomeriggio: { color: '#3A8C7E', bgColor: '#E6F4F1', darkColor: '#5FB8A8', darkBgColor: '#1F3530' },
-  cena:               { color: '#D97757', bgColor: '#FDF0EE', darkColor: '#E8957A', darkBgColor: '#3A2622' },
-};
+> = Object.fromEntries(
+  (Object.keys(MEAL_COLORS_LIGHT) as MealSlot[]).map(slot => [slot, {
+    color: MEAL_COLORS_LIGHT[slot].color,
+    bgColor: MEAL_COLORS_LIGHT[slot].bgColor,
+    darkColor: MEAL_COLORS_DARK[slot].color,
+    darkBgColor: MEAL_COLORS_DARK[slot].bgColor,
+  }]),
+) as Record<MealSlot, { color: string; bgColor: string; darkColor: string; darkBgColor: string }>;
 
 /**
  * Returns the suitable and recommended recipes for each of the 5 meal slots,
@@ -341,13 +336,12 @@ export function extractMainCarb(recipe: RecipeSummary): string | null {
 // WEEK DAYS HELPER
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ITALIAN_DAYS = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-const ITALIAN_MONTHS = [
-  'Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu',
-  'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic',
-];
+// Active app language, same source as the UI (i18next)
+function activeLocale(): 'it' | 'en' {
+  return i18n.language?.startsWith('en') ? 'en' : 'it';
+}
 
-export function getWeekDays(offsetWeeks: number = 0): WeekDaysResult {
+export function getWeekDays(offsetWeeks: number = 0, locale: 'it' | 'en' = activeLocale()): WeekDaysResult {
   const now = new Date();
   const base = new Date();
   base.setDate(now.getDate() + offsetWeeks * 7);
@@ -365,25 +359,27 @@ export function getWeekDays(offsetWeeks: number = 0): WeekDaysResult {
     const dateString = toLocalDateString(current);
     days.push({
       dateString,
-      dayName: ITALIAN_DAYS[i],
+      dayName: formatWeekday(current, locale, 'long'),
+      dayShort: formatWeekday(current, locale, 'short'),
       dayNumber: current.getDate(),
-      monthName: ITALIAN_MONTHS[current.getMonth()],
+      monthName: formatMonthShort(current, locale),
       isToday: dateString === todayStr,
     });
   }
 
-  let weekLabel = 'Questa Settimana';
-  if (offsetWeeks === 1) weekLabel = 'Prossima Settimana';
-  else if (offsetWeeks === -1) weekLabel = 'Settimana Scorsa';
-  else if (offsetWeeks !== 0) weekLabel = `Settimana dal ${days[0].dayNumber} ${days[0].monthName}`;
+  const tr = i18n.getFixedT(locale);
+  let weekLabel = tr('planner.week.this');
+  if (offsetWeeks === 1) weekLabel = tr('planner.week.next');
+  else if (offsetWeeks === -1) weekLabel = tr('planner.week.last');
+  else if (offsetWeeks !== 0) weekLabel = tr('planner.week.from', { day: days[0].dayNumber, month: days[0].monthName });
 
   return { days, weekLabel, offsetWeeks };
 }
 
 // Planner days based on calendar mode: 'week' uses getWeekDays, 'rolling' 7 days from today + offset*7
-export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale: 'it' | 'en' = 'it'): { days: WeekDayInfo[]; label: string } {
+export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale: 'it' | 'en' = activeLocale()): { days: WeekDayInfo[]; label: string } {
   if (mode === 'week') {
-    const { days, weekLabel } = getWeekDays(offset);
+    const { days, weekLabel } = getWeekDays(offset, locale);
     return { days, label: weekLabel };
   }
   const now = new Date();
@@ -391,13 +387,18 @@ export function getPlannerDays(mode: 'week' | 'rolling', offset: number, locale:
   const todayStr = toLocalDateString(now);
   const rolling = rollingDays(start, 7, locale);
   return {
-    days: rolling.days.map(d => ({
-      dateString: d.dateString,
-      dayName: ITALIAN_DAYS[d.weekdayIndex],
-      dayNumber: d.dayNumber,
-      monthName: ITALIAN_MONTHS[d.monthIndex],
-      isToday: d.dateString === todayStr,
-    })),
+    days: rolling.days.map(d => {
+      const [y, m, dd] = d.dateString.split('-').map(Number);
+      const date = new Date(y, m - 1, dd);
+      return {
+        dateString: d.dateString,
+        dayName: formatWeekday(date, locale, 'long'),
+        dayShort: formatWeekday(date, locale, 'short'),
+        dayNumber: d.dayNumber,
+        monthName: formatMonthShort(date, locale),
+        isToday: d.dateString === todayStr,
+      };
+    }),
     label: rolling.label,
   };
 }
@@ -952,7 +953,7 @@ export function formatWeekPlanShareText(
   weekLabel: string,
 ): string {
   const lines: string[] = [];
-  lines.push(`🗓️ *Menù Settimanale Green-Whisker*`);
+  lines.push(`🗓️ *${i18n.t('planner.share.title')}*`);
   lines.push(`_${weekLabel}_\n`);
 
   const planMap: Record<string, MealPlanEntry[]> = {};
@@ -979,12 +980,12 @@ export function formatWeekPlanShareText(
     dayEntries.forEach(({ slot, entry }) => {
       const r = recipesMap[entry.recipe_id!];
       const emoji = SLOT_EMOJIS[slot];
-      const label = SLOT_LABELS[slot];
-      lines.push(`  ${emoji} ${label}: ${r ? r.title : 'Ricetta'} (${entry.servings} p)`);
+      const label = i18n.t(`planner.slots.${slot}`);
+      lines.push(`  ${emoji} ${label}: ${r ? r.title : i18n.t('planner.share.recipe')} (${i18n.t('planner.share.servings', { count: entry.servings })})`);
     });
     lines.push('');
   });
 
-  lines.push('— Generato con Green-Whisker 🐾');
+  lines.push(`— ${i18n.t('planner.share.footer')} 🐾`);
   return lines.join('\n');
 }

@@ -7,7 +7,6 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Linking,
@@ -32,6 +31,16 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { AppTextField } from './ui/AppTextField';
+import { Button } from './ui/Button';
+import { CircleButton } from './ui/CircleButton';
+import { ModalHeader } from './ui/ModalHeader';
+import { SectionTitle } from './ui/SectionTitle';
+import { Pill } from './ui/Pill';
+import { text, icon, cardRadius, elevation, radius, size as sizes, space } from '../theme/tokens';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { Card } from './ui/Card';
+import { Divider } from './ui/Divider';
+import { InlineNotice } from './ui/InlineNotice';
 
 // Review of a generated recipe (e.g. a variant): the form is the same as the AI import
 export interface ReviewRequest {
@@ -263,7 +272,7 @@ export function MagicRecipeImporterModal({
 
   function loadRecipeIntoForm(recipe: Recipe, fallbackImage = '') {
     setParsedRecipe(recipe);
-    setEditTitle(recipe.title);
+    setEditTitle(recipe.title || t('recipeImporter.defaultTitle'));
     setEditCategory(recipe.macro_category || 'MACRO_PRIMI_E_CEREALI');
     setEditSubCategory(recipe.subcategory || recipe.category || '');
     setEditSlot((recipe.recommended_slot as any) || 'pranzo_cena');
@@ -451,84 +460,55 @@ export function MagicRecipeImporterModal({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerTitleRow}>
-              <View style={styles.sparkleIcon}>
-                <Ionicons name="sparkles" size={18} color={colors.primaryText} />
-              </View>
-              <View>
-                <Text style={styles.headerTitle}>
-                  {review ? review.title : editingRecipe ? t('recipeImporter.editTitle') : 'Magic Importer AI'}
-                </Text>
-                <Text style={styles.headerSubtitle}>
-                  {review
-                    ? t('recipeImporter.verifyBeforeSave')
-                    : editingRecipe ? t('recipeImporter.editSubtitle') : t('recipeImporter.importSubtitle')}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.7}>
-              <Ionicons name="close" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+          <ModalHeader
+            title={review ? review.title : editingRecipe ? t('recipeImporter.editTitle') : 'Magic Importer AI'}
+            subtitle={
+              review
+                ? t('recipeImporter.verifyBeforeSave')
+                : editingRecipe ? t('recipeImporter.editSubtitle') : t('recipeImporter.importSubtitle')
+            }
+            onClose={onClose}
+            closeLabel={t('common.close')}
+          />
 
           {!parsedRecipe ? (
             // INPUT SCREEN
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               {/* Tab Selector */}
               <View style={styles.tabBar}>
-                <TouchableOpacity
-                  style={[styles.tabItem, activeTab === 'text' && styles.tabItemActive]}
-                  onPress={() => { setActiveTab('text'); setErrorMsg(null); }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name="document-text"
-                    size={17}
-                    color={activeTab === 'text' ? colors.primaryText : colors.textMuted}
-                  />
-                  <Text style={[styles.tabLabel, activeTab === 'text' && styles.tabLabelActive]}>
-                    {t('recipeImporter.tabText')}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.tabItem, activeTab === 'photo' && styles.tabItemActive]}
-                  onPress={() => { setActiveTab('photo'); setErrorMsg(null); }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name="camera"
-                    size={17}
-                    color={activeTab === 'photo' ? colors.primaryText : colors.textMuted}
-                  />
-                  <Text style={[styles.tabLabel, activeTab === 'photo' && styles.tabLabelActive]}>
-                    {t('recipeImporter.tabPhoto')}
-                  </Text>
-                </TouchableOpacity>
+                <SegmentedControl
+                  accessibilityLabel={t('recipeImporter.tabsLabel')}
+                  options={[
+                    { key: 'text', label: t('recipeImporter.tabText'), icon: 'document-text' },
+                    { key: 'photo', label: t('recipeImporter.tabPhoto'), icon: 'camera' },
+                  ]}
+                  value={activeTab}
+                  onChange={key => { setActiveTab(key as 'text' | 'photo'); setErrorMsg(null); }}
+                />
               </View>
 
               {/* Error Box */}
               {errorMsg && (
                 <View style={styles.errorBox}>
-                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
-                  <Text style={styles.errorText}>{errorMsg}</Text>
+                  <InlineNotice tone="danger" icon="alert-circle" text={errorMsg} />
                 </View>
               )}
 
               {/* TAB 1: TEXT / URL */}
               {activeTab === 'text' && (
-                <View style={styles.inputSection}>
+                <Card elevation={1} style={styles.inputSection}>
                   <View style={styles.inputHeaderRow}>
-                    <Text style={styles.sectionTitle}>{t('recipeImporter.pasteTextTitle')}</Text>
-                    <TouchableOpacity style={styles.pasteButton} onPress={handlePasteFromClipboard} activeOpacity={0.75}>
-                      <Ionicons name="clipboard-outline" size={13} color={colors.primaryText} />
-                      <Text style={styles.pasteButtonText}>{t('recipeImporter.paste')}</Text>
-                    </TouchableOpacity>
+                    <View style={styles.sectionTitleWrap}>
+                      <SectionTitle title={t('recipeImporter.pasteTextTitle')} subtitle={t('recipeImporter.pasteHint')} />
+                    </View>
+                    <Button
+                      variant="secondary"
+                      size="M"
+                      icon="clipboard-outline"
+                      label={t('recipeImporter.paste')}
+                      onPress={handlePasteFromClipboard}
+                    />
                   </View>
-                  <Text style={styles.sectionSubtitle}>
-                    {t('recipeImporter.pasteHint')}
-                  </Text>
                   <AppTextField
                     style={styles.textAreaField}
                     multiline
@@ -537,28 +517,26 @@ export function MagicRecipeImporterModal({
                     value={inputText}
                     onChangeText={setInputText}
                   />
-                </View>
+                </Card>
               )}
 
               {/* TAB 2: PHOTO / CAMERA */}
               {activeTab === 'photo' && (
-                <View style={styles.inputSection}>
+                <Card elevation={1} style={styles.inputSection}>
                   <View style={styles.inputHeaderRow}>
-                    <Text style={styles.sectionTitle}>{t('recipeImporter.bookPagesTitle')}</Text>
+                    <View style={styles.sectionTitleWrap}>
+                      <SectionTitle title={t('recipeImporter.bookPagesTitle')} subtitle={t('recipeImporter.photoHint')} />
+                    </View>
                     {capturedPages.length > 0 && (
-                      <TouchableOpacity
-                        style={styles.clearPagesBtn}
+                      <Button
+                        variant="danger"
+                        size="M"
+                        icon="trash-outline"
+                        label={t('recipeImporter.removeAll')}
                         onPress={() => setCapturedPages([])}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="trash-outline" size={13} color={colors.danger} />
-                        <Text style={styles.clearPagesText}>{t('recipeImporter.removeAll')}</Text>
-                      </TouchableOpacity>
+                      />
                     )}
                   </View>
-                  <Text style={styles.sectionSubtitle}>
-                    {t('recipeImporter.photoHint')}
-                  </Text>
 
                   {capturedPages.length > 0 ? (
                     <View style={styles.pagesContainer}>
@@ -576,16 +554,17 @@ export function MagicRecipeImporterModal({
                               transition={200}
                             />
                             <View style={styles.pageBadge}>
-                              <Text style={styles.pageBadgeText}>{t('recipeImporter.pageBadge', { n: index + 1 })}</Text>
+                              <Pill variant="primary" label={t('recipeImporter.pageBadge', { n: index + 1 })} />
                             </View>
-                            <TouchableOpacity
-                              style={styles.pageDeleteBtn}
-                              onPress={() => handleRemovePage(index)}
-                              activeOpacity={0.8}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Ionicons name="close" size={14} color={colors.onPrimary} />
-                            </TouchableOpacity>
+                            <View style={styles.pageDeleteWrap}>
+                              <CircleButton
+                                size="S"
+                                variant="filled"
+                                icon="close"
+                                accessibilityLabel={t('recipeImporter.remove')}
+                                onPress={() => handleRemovePage(index)}
+                              />
+                            </View>
                           </View>
                         ))}
                       </ScrollView>
@@ -593,29 +572,31 @@ export function MagicRecipeImporterModal({
                       {/* Add more pages actions */}
                       {capturedPages.length < 5 && (
                         <View style={styles.appendPageRow}>
-                          <TouchableOpacity
-                            style={styles.appendPageBtn}
-                            onPress={handleTakePhoto}
-                            activeOpacity={0.75}
-                          >
-                            <Ionicons name="camera-outline" size={18} color={colors.primaryText} />
-                            <Text style={styles.appendPageBtnText}>{t('recipeImporter.takePageN', { n: capturedPages.length + 1 })}</Text>
-                          </TouchableOpacity>
+                          <View style={styles.buttonFill}>
+                            <Button
+                              variant="secondary"
+                              size="M"
+                              icon="camera-outline"
+                              label={t('recipeImporter.takePageN', { n: capturedPages.length + 1 })}
+                              onPress={handleTakePhoto}
+                            />
+                          </View>
 
-                          <TouchableOpacity
-                            style={[styles.appendPageBtn, styles.appendPageBtnSecondary]}
-                            onPress={handlePickImage}
-                            activeOpacity={0.75}
-                          >
-                            <Ionicons name="images-outline" size={18} color={colors.primaryText} />
-                            <Text style={styles.appendPageBtnText}>{t('recipeImporter.pickFromGallery')}</Text>
-                          </TouchableOpacity>
+                          <View style={styles.buttonFill}>
+                            <Button
+                              variant="secondary"
+                              size="M"
+                              icon="images-outline"
+                              label={t('recipeImporter.pickFromGallery')}
+                              onPress={handlePickImage}
+                            />
+                          </View>
                         </View>
                       )}
 
                       <View style={styles.pagesHintBox}>
                         <View style={styles.bannerIconSlot}>
-                          <Ionicons name="information-circle-outline" size={16} color={colors.primaryText} />
+                          <Ionicons name="information-circle-outline" size={icon.sm} color={colors.primaryText} />
                         </View>
                         <Text style={styles.pagesHintText}>
                           {capturedPages.length === 1
@@ -626,26 +607,36 @@ export function MagicRecipeImporterModal({
                     </View>
                   ) : (
                     <View style={styles.photoActionsRow}>
-                      <TouchableOpacity style={styles.photoActionButton} onPress={handleTakePhoto} activeOpacity={0.75}>
-                        <Ionicons name="camera-outline" size={30} color={colors.primaryText} />
-                        <Text style={styles.photoActionLabel}>{t('recipeImporter.takeFirstPage')}</Text>
+                      <View style={styles.photoActionCol}>
+                        <Button
+                          variant="secondary"
+                          size="M"
+                          icon="camera-outline"
+                          label={t('recipeImporter.takeFirstPage')}
+                          onPress={handleTakePhoto}
+                        />
                         <Text style={styles.photoActionSub}>{t('recipeImporter.withCamera')}</Text>
-                      </TouchableOpacity>
+                      </View>
 
-                      <TouchableOpacity style={styles.photoActionButton} onPress={handlePickImage} activeOpacity={0.75}>
-                        <Ionicons name="images-outline" size={30} color={colors.primaryText} />
-                        <Text style={styles.photoActionLabel}>{t('recipeImporter.chooseFromGallery')}</Text>
+                      <View style={styles.photoActionCol}>
+                        <Button
+                          variant="secondary"
+                          size="M"
+                          icon="images-outline"
+                          label={t('recipeImporter.chooseFromGallery')}
+                          onPress={handlePickImage}
+                        />
                         <Text style={styles.photoActionSub}>{t('recipeImporter.multiPages')}</Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
                   )}
-                </View>
+                </Card>
               )}
 
               {/* VARIANTS: choose which versions to generate after the original */}
-              <View style={styles.dietCard}>
+              <Card elevation={2} padding="xxl" style={styles.dietCard}>
                 <DietSwitchRow
-                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={18} color={wantVegetarian ? colors.onPrimary : colors.primaryText} />}
+                  icon={<MaterialCommunityIcons name="food-drumstick-off-outline" size={icon.md} color={wantVegetarian ? colors.onPrimary : colors.primaryText} />}
                   title={t('recipeImporter.vegetarianVersion')}
                   hint={t('recipeImporter.vegetarianHint')}
                   value={wantVegetarian}
@@ -654,9 +645,9 @@ export function MagicRecipeImporterModal({
                   styles={styles}
                   colors={colors}
                 />
-                <View style={styles.dietDivider} />
+                <Divider marginVertical="xl" />
                 <DietSwitchRow
-                  icon={<Ionicons name="leaf" size={18} color={wantVegan ? colors.onPrimary : colors.primaryText} />}
+                  icon={<Ionicons name="leaf" size={icon.md} color={wantVegan ? colors.onPrimary : colors.primaryText} />}
                   title={t('recipeImporter.veganVersion')}
                   hint={t('recipeImporter.veganHint')}
                   value={wantVegan}
@@ -667,42 +658,34 @@ export function MagicRecipeImporterModal({
                 />
                 <View style={styles.dietSummary}>
                   <View style={styles.bannerIconSlot}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.primaryText} />
+                    <Ionicons name="information-circle-outline" size={icon.sm} color={colors.primaryText} />
                   </View>
                   <Text style={styles.dietSummaryText}>{t(VARIANT_SUMMARY[variantSummaryKey])}</Text>
                 </View>
-              </View>
+              </Card>
 
               {/* SUBMIT BUTTON */}
-              <TouchableOpacity
-                style={[styles.parseButton, loading && styles.parseButtonDisabled]}
+              <Button
+                variant="primary"
+                size="L"
+                icon={loading ? undefined : 'sparkles'}
+                label={
+                  loading
+                    ? loadingMessage
+                    : activeTab === 'photo' && capturedPages.length > 1
+                      ? t('recipeImporter.extractFromPages', { count: capturedPages.length })
+                      : t('recipeImporter.extractRecipe')
+                }
                 onPress={handleStartParsing}
                 disabled={loading}
-                activeOpacity={0.88}
-              >
-                {loading ? (
-                  <View style={styles.loadingRow}>
-                    <ActivityIndicator size="small" color={colors.onPrimary} />
-                    <Text style={styles.parseButtonText}>{loadingMessage}</Text>
-                  </View>
-                ) : (
-                  <View style={styles.loadingRow}>
-                    <Ionicons name="sparkles" size={18} color={colors.onPrimary} />
-                    <Text style={styles.parseButtonText}>
-                      {activeTab === 'photo' && capturedPages.length > 1
-                        ? t('recipeImporter.extractFromPages', { count: capturedPages.length })
-                        : t('recipeImporter.extractRecipe')}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+              />
             </ScrollView>
           ) : (
             // REVIEW & EDIT PARSED RECIPE SCREEN
             <View style={styles.reviewContainer}>
             <ScrollView style={styles.reviewScroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               <View style={styles.successBanner}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.primaryText} />
+                <Ionicons name="checkmark-circle" size={icon.lg} color={colors.primaryText} />
                 <Text style={styles.successBannerText}>{t('recipeImporter.extractSuccess')}</Text>
               </View>
 
@@ -710,6 +693,7 @@ export function MagicRecipeImporterModal({
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.title')}</Text>
                 <AppTextField
+                  size="M"
                   value={editTitle}
                   onChangeText={setEditTitle}
                 />
@@ -718,69 +702,56 @@ export function MagicRecipeImporterModal({
               {/* Category */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.category')}</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                  {CATEGORIES.map(cat => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.chip, editCategory === cat && styles.chipActive]}
-                      onPress={() => {
-                        setEditCategory(cat);
-                        const firstSub = RECIPE_TAXONOMY[cat as MacroCategory]?.[0] || '';
-                        setEditSubCategory(firstSub);
-                      }}
-                    >
-                      <Text style={[styles.chipText, editCategory === cat && styles.chipTextActive]}>
-                        {t('categories.' + cat, { defaultValue: cat })}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <SegmentedControl
+                  accessibilityLabel={t('recipeImporter.fields.category')}
+                  options={CATEGORIES.map(cat => ({ key: cat, label: t('categories.' + cat, { defaultValue: cat }) }))}
+                  value={editCategory}
+                  onChange={cat => {
+                    setEditCategory(cat);
+                    const firstSub = RECIPE_TAXONOMY[cat as MacroCategory]?.[0] || '';
+                    setEditSubCategory(firstSub);
+                  }}
+                />
               </View>
 
               {/* Subcategory */}
               {RECIPE_TAXONOMY[editCategory as MacroCategory] && (
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.subcategory')}</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-                    {RECIPE_TAXONOMY[editCategory as MacroCategory].map(sub => (
-                      <TouchableOpacity
-                        key={sub}
-                        style={[styles.chip, editSubCategory === sub && styles.chipActive]}
-                        onPress={() => setEditSubCategory(sub)}
-                      >
-                        <Text style={[styles.chipText, editSubCategory === sub && styles.chipTextActive]}>
-                          {t('categories.' + sub, { defaultValue: sub })}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  <SegmentedControl
+                    accessibilityLabel={t('recipeImporter.fields.subcategory')}
+                    options={RECIPE_TAXONOMY[editCategory as MacroCategory].map(sub => ({ key: sub, label: t('categories.' + sub, { defaultValue: sub }) }))}
+                    value={editSubCategory}
+                    onChange={setEditSubCategory}
+                  />
                 </View>
               )}
 
               {/* Slot Planner */}
               <View style={styles.fieldGroup}>
                 <Text style={styles.fieldLabel}>{t('recipeImporter.fields.plannerSlot')}</Text>
-                <SegmentedSelector options={SLOTS.map(s => ({ ...s, label: t(s.label) }))} value={editSlot} onChange={setEditSlot} styles={styles} />
+                <SegmentedControl
+                  accessibilityLabel={t('recipeImporter.fields.plannerSlot')}
+                  options={SLOTS.map(s => ({ key: s.value, label: t(s.label) }))}
+                  value={editSlot}
+                  onChange={key => setEditSlot(key as typeof editSlot)}
+                />
               </View>
 
               {/* Diet: computed from the ingredients, manually correctable */}
               <View style={styles.fieldGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm }}>
                   <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.diet')}</Text>
                   {dietChosenByHand ? (
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('recipeImporter.fields.dietByHand')}</Text>
+                    <Text style={{ fontSize: text.label, color: colors.textSecondary }}>{t('recipeImporter.fields.dietByHand')}</Text>
                   ) : null}
                 </View>
-                <SegmentedSelector
-                  options={[
-                    { value: 'omnivore' as RecipeDiet, label: t('recipeImporter.diet.omnivore') },
-                    { value: 'vegetarian' as RecipeDiet, label: t('recipeImporter.diet.vegetarian') },
-                    { value: 'vegan' as RecipeDiet, label: t('recipeImporter.diet.vegan') },
-                  ]}
+                <SegmentedControl
+                  accessibilityLabel={t('recipeImporter.fields.diet')}
+                  options={(['omnivore', 'vegetarian', 'vegan'] as const).map(d => ({ key: d, label: t(`recipeImporter.diet.${d}`) }))}
                   value={editDiet}
-                  styles={styles}
-                  onChange={value => {
-                    setEditDiet(value);
+                  onChange={key => {
+                    setEditDiet(key as RecipeDiet);
                     setDietChosenByHand(true);
                   }}
                 />
@@ -791,14 +762,16 @@ export function MagicRecipeImporterModal({
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.servings')}</Text>
                   <AppTextField
+                    size="M"
                     value={editServings}
                     onChangeText={setEditServings}
                     keyboardType="number-pad"
                   />
                 </View>
-                <View style={[styles.fieldGroup, { flex: 1, marginHorizontal: 8 }]}>
+                <View style={[styles.fieldGroup, { flex: 1, marginHorizontal: space.md }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.time')}</Text>
                   <AppTextField
+                    size="M"
                     value={editTotalTime}
                     onChangeText={setEditTotalTime}
                     keyboardType="number-pad"
@@ -806,33 +779,33 @@ export function MagicRecipeImporterModal({
                 </View>
                 <View style={[styles.fieldGroup, { flex: 1 }]}>
                   <Text style={styles.fieldLabel}>{t('recipeImporter.fields.difficulty')}</Text>
-                  <SegmentedSelector
-                    options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ value: d, label: t(`recipeImporter.difficultyShort.${d}`) }))}
+                  <SegmentedControl
+                    accessibilityLabel={t('recipeImporter.fields.difficulty')}
+                    options={(['Facile', 'Media', 'Difficile'] as const).map(d => ({ key: d, label: t(`recipeImporter.difficultyShort.${d}`) }))}
                     value={editDifficulty}
-                    styles={styles}
-                    onChange={setEditDifficulty}
+                    onChange={key => setEditDifficulty(key as typeof editDifficulty)}
                   />
                 </View>
               </View>
 
               {/* Substitutions made by the AI: read-only, for checking them */}
               {substitutions.length > 0 && (
-                <View style={styles.substitutionsCard}>
+                <Card padding="xxl" style={styles.substitutionsCard}>
                   <Text style={styles.substitutionsTitle}>{t('recipeImporter.substitutions')}</Text>
                   <Text style={styles.substitutionsNote}>{t('recipeImporter.substitutionsNote')}</Text>
                   {substitutions.map((s, index) => (
                     <View key={`${s.from}-${index}`} style={styles.substitutionRow}>
                       <Text style={styles.substitutionFrom}>{s.from}</Text>
-                      <Ionicons name="arrow-forward" size={14} color={colors.primaryText} />
+                      <Ionicons name="arrow-forward" size={icon.xs} color={colors.primaryText} />
                       <Text style={styles.substitutionTo}>{s.to}</Text>
                     </View>
                   ))}
-                </View>
+                </Card>
               )}
 
               {/* Image URL */}
               <View style={styles.fieldGroup}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm }}>
                   <Text style={[styles.fieldLabel, { marginBottom: 0 }]}>{t('recipeImporter.fields.imageLink')}</Text>
                   {editImageUrl ? (
                     <TouchableOpacity
@@ -842,11 +815,12 @@ export function MagicRecipeImporterModal({
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Text style={{ fontSize: 12, color: colors.danger, fontWeight: '600' }}>{t('recipeImporter.remove')}</Text>
+                      <Text style={{ fontSize: text.caption, color: colors.danger, fontWeight: '600' }}>{t('recipeImporter.remove')}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
                 <AppTextField
+                  size="M"
                   placeholder="https://..."
                   value={editImageUrl}
                   onChangeText={(text) => {
@@ -857,17 +831,27 @@ export function MagicRecipeImporterModal({
                   autoCorrect={false}
                 />
                 <View style={styles.imageActionsRow}>
-                  <TouchableOpacity style={styles.imageActionBtn} onPress={openGoogleImageSearch} activeOpacity={0.75}>
-                    <Ionicons name="search-outline" size={14} color={colors.primaryText} />
-                    <Text style={styles.imageActionText}>{t('recipeImporter.searchGoogleImages')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.imageActionBtn} onPress={handlePasteImageUrl} activeOpacity={0.75}>
-                    <Ionicons name="clipboard-outline" size={14} color={colors.primaryText} />
-                    <Text style={styles.imageActionText}>{t('recipeImporter.pasteLink')}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.buttonFill}>
+                    <Button
+                      variant="secondary"
+                      size="M"
+                      icon="search-outline"
+                      label={t('recipeImporter.searchGoogleImages')}
+                      onPress={openGoogleImageSearch}
+                    />
+                  </View>
+                  <View style={styles.buttonFill}>
+                    <Button
+                      variant="secondary"
+                      size="M"
+                      icon="clipboard-outline"
+                      label={t('recipeImporter.pasteLink')}
+                      onPress={handlePasteImageUrl}
+                    />
+                  </View>
                 </View>
                 {editImageUrl && !imageLoadError ? (
-                  <View style={{ marginTop: 8, height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }}>
+                  <View style={{ marginTop: space.md, height: 180, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border }}>
                     <ExpoImage
                       source={{ uri: editImageUrl }}
                       style={{ width: '100%', height: '100%' }}
@@ -878,11 +862,8 @@ export function MagicRecipeImporterModal({
                     />
                   </View>
                 ) : editImageUrl && imageLoadError ? (
-                  <View style={{ marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="image-outline" size={18} color={colors.danger} />
-                    <Text style={{ fontSize: 12, color: colors.danger, flex: 1 }}>
-                      {t('recipeImporter.previewUnavailable')}
-                    </Text>
+                  <View style={{ marginTop: space.md }}>
+                    <InlineNotice tone="danger" icon="image-outline" text={t('recipeImporter.previewUnavailable')} />
                   </View>
                 ) : null}
               </View>
@@ -923,27 +904,27 @@ export function MagicRecipeImporterModal({
               {review && (
                 <View style={styles.fieldGroup}>
                   {review.recipe.needs_review ? (
-                    <Text style={styles.reviewWarning}>
-                      {t('recipeImporter.needsReviewWarning')}
-                    </Text>
+                    <View style={styles.reviewWarning}>
+                      <InlineNotice tone="caution" text={t('recipeImporter.needsReviewWarning')} />
+                    </View>
                   ) : null}
                   <View style={styles.retrySection}>
                     <Text style={styles.fieldLabel}>{t('recipeImporter.retryInstructions')}</Text>
                     <AppTextField
+                      size="M"
                       placeholder={t('recipeImporter.retryPlaceholder')}
                       value={retryInstructions}
                       onChangeText={setRetryInstructions}
                       autoCapitalize="sentences"
                     />
-                    <TouchableOpacity
-                      style={[styles.retryBtnFull, retrying && styles.disabledBtn]}
+                    <Button
+                      variant="secondary"
+                      size="L"
+                      icon="refresh"
+                      label={retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}
                       onPress={handleRetry}
                       disabled={retrying}
-                      activeOpacity={0.75}
-                    >
-                      <Ionicons name="refresh" size={14} color={colors.primaryText} />
-                      <Text style={styles.imageActionText}>{retrying ? t('recipeImporter.generating') : t('recipeImporter.retry')}</Text>
-                    </TouchableOpacity>
+                    />
                   </View>
                 </View>
               )}
@@ -953,23 +934,36 @@ export function MagicRecipeImporterModal({
               {/* Actions Footer */}
               <View style={styles.actionsFooter}>
                 {review ? (
-                  <TouchableOpacity style={styles.resetButton} onPress={discardReview} activeOpacity={0.75}>
-                    <Ionicons name="trash-outline" size={18} color={colors.textSecondary} />
-                    <Text style={styles.resetButtonText}>{t('recipeImporter.discard')}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.buttonFill}>
+                    <Button
+                      variant="secondary"
+                      size="M"
+                      icon="trash-outline"
+                      label={t('recipeImporter.discard')}
+                      onPress={discardReview}
+                    />
+                  </View>
                 ) : !editingRecipe && (
-                  <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.75}>
-                    <Ionicons name="arrow-back" size={18} color={colors.textSecondary} />
-                    <Text style={styles.resetButtonText}>{t('recipeImporter.restart')}</Text>
-                  </TouchableOpacity>
+                  <View style={styles.buttonFill}>
+                    <Button
+                      variant="secondary"
+                      size="M"
+                      icon="arrow-back"
+                      label={t('recipeImporter.restart')}
+                      onPress={handleReset}
+                    />
+                  </View>
                 )}
 
-                <TouchableOpacity style={styles.saveRecipeBtn} onPress={handleSaveRecipe} activeOpacity={0.88}>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.onPrimary} />
-                  <Text style={styles.saveRecipeBtnText}>
-                    {review ? t('recipeImporter.saveVariant') : wantedVariants.length > 0 && !editingRecipe ? t('recipeImporter.saveAndCheckVariants') : t('recipeImporter.saveToRecipeBook')}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.saveFill}>
+                  <Button
+                    variant="primary"
+                    size="L"
+                    icon="checkmark-circle"
+                    label={review ? t('recipeImporter.saveVariant') : wantedVariants.length > 0 && !editingRecipe ? t('recipeImporter.saveAndCheckVariants') : t('recipeImporter.saveToRecipeBook')}
+                    onPress={handleSaveRecipe}
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -995,252 +989,77 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    backgroundColor: colors.surfaceAlt,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sparkleIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   scrollContent: {
     padding: 18,
     paddingBottom: 40,
   },
   tabBar: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: 16,
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 6,
-    borderRadius: 10,
-  },
-  tabItemActive: {
-    backgroundColor: colors.surface,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  tabLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tabLabelActive: {
-    color: colors.primaryText,
-    fontWeight: '700',
+    marginBottom: space.xxxl,
   },
   errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.dangerSoft,
-    borderColor: colors.danger,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    fontWeight: '600',
+    marginBottom: space.xxxl,
   },
   inputSection: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
     padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 20,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: space.huge,
   },
   inputHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: space.sm,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  dietHintText: { fontSize: 12, color: colors.textSecondary, marginTop: 6 },
-  reviewWarning: { fontSize: 13, fontWeight: '600', color: (isDark ? '#FCD34D' : '#B45309'), backgroundColor: (isDark ? '#3D2E0E' : '#FEF3C7'), borderRadius: 10, padding: 10, marginBottom: 12, lineHeight: 18 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 8 },
+  sectionTitleWrap: { flex: 1, marginRight: space.md },
+  reviewWarning: { marginBottom: space.xl },
   retrySection: {
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
+    borderRadius: cardRadius,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
-    gap: 8,
-  },
-  retryBtnFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    padding: space.xxl,
+    gap: space.md,
   },
   reviewContainer: { flex: 1 },
   reviewScroll: { flex: 1 },
-  disabledBtn: { opacity: 0.5 },
-  imageActionsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  imageActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  imageActionText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
-  pasteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  pasteButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryText,
-  },
+  imageActionsRow: { flexDirection: 'row', gap: space.md, marginTop: space.md },
+  // Makes each Button in a row share the available width
+  buttonFill: { flex: 1 },
   textAreaField: {
     minHeight: 170,
   },
   photoActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: space.xl,
   },
-  photoActionButton: {
+  photoActionCol: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-    borderRadius: 16,
-    paddingVertical: 26,
-    gap: 8,
-  },
-  photoActionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
+    gap: space.sm,
   },
   photoActionSub: {
-    fontSize: 11,
+    fontSize: text.label,
     color: colors.textMuted,
     marginTop: -2,
-  },
-  clearPagesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.dangerSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  clearPagesText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.danger,
+    textAlign: 'center',
   },
   pagesContainer: {
-    gap: 12,
+    gap: space.xl,
   },
   pagesScrollList: {
     flexDirection: 'row',
-    paddingVertical: 4,
-    gap: 12,
+    paddingVertical: space.xs,
+    gap: space.xl,
   },
   pageCard: {
     width: 140,
     height: 180,
-    borderRadius: 14,
+    borderRadius: cardRadius,
     overflow: 'hidden',
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
     position: 'relative',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    ...elevation(2, colors),
   },
   pageThumbnail: {
     width: '100%',
@@ -1250,51 +1069,16 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: `${colors.primary}E6`,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
   },
-  pageBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.onPrimary,
-  },
-  pageDeleteBtn: {
+  // Positions the round delete button over the thumbnail corner
+  pageDeleteWrap: {
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.overlay,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   appendPageRow: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  appendPageBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    paddingVertical: 11,
-    borderRadius: 12,
-  },
-  appendPageBtnSecondary: {
-    backgroundColor: colors.surfaceAlt,
-    borderColor: colors.border,
-  },
-  appendPageBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryText,
+    gap: space.lg,
   },
   // Icon aligned with the first line of text: same height as the line (lineHeight 17)
   bannerIconSlot: {
@@ -1304,62 +1088,32 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   pagesHintBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: space.md,
     backgroundColor: colors.primarySoft,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: space.xl,
+    paddingVertical: space.md,
+    borderRadius: radius.sm,
   },
   pagesHintText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.text,
     lineHeight: 17,
     fontWeight: '500',
   },
-  parseButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  parseButtonDisabled: {
-    opacity: 0.7,
-  },
   dietCard: {
-    marginTop: 16,
-    marginBottom: 16,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    marginTop: space.xxxl,
+    marginBottom: space.xxxl,
   },
   dietRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  dietDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 12,
+    gap: space.xl,
   },
   dietIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: sizes.circle.S,
+    height: sizes.circle.S,
+    borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primarySoft,
@@ -1371,12 +1125,12 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     flex: 1,
   },
   dietTitle: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
   },
   dietHint: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textSecondary,
     lineHeight: 17,
     marginTop: 2,
@@ -1384,68 +1138,52 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
   dietSummary: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 14,
-    padding: 10,
-    borderRadius: 12,
+    gap: space.md,
+    marginTop: space.xxl,
+    padding: space.lg,
+    borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
   },
   dietSummaryText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.primaryText,
     lineHeight: 17,
   },
   substitutionsCard: {
     marginBottom: 15,
-    padding: 14,
-    borderRadius: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   substitutionsTitle: {
-    fontSize: 15,
+    fontSize: text.title,
     fontWeight: '700',
     color: colors.text,
   },
   substitutionsNote: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textSecondary,
     marginTop: 2,
-    marginBottom: 10,
+    marginBottom: space.lg,
   },
   substitutionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginTop: 6,
-    borderRadius: 12,
+    gap: space.md,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.lg,
+    marginTop: space.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
   },
   substitutionFrom: {
     flex: 1,
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textSecondary,
   },
   substitutionTo: {
     flex: 1,
-    fontSize: 13,
+    fontSize: text.caption,
     fontWeight: '600',
     color: colors.text,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  parseButtonText: {
-    color: colors.onPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
   successBanner: {
     flexDirection: 'row',
@@ -1453,14 +1191,14 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     backgroundColor: colors.primarySoft,
     borderColor: colors.borderStrong,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
+    borderRadius: cardRadius,
+    padding: space.xxl,
+    gap: space.lg,
     marginBottom: 18,
   },
   successBannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: text.caption,
     fontWeight: '600',
     color: colors.text,
     lineHeight: 18,
@@ -1469,144 +1207,28 @@ const makeStyles = (colors: Palette, isDark: boolean) => StyleSheet.create({
     marginBottom: 15,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: text.caption,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 6,
-  },
-  chipsScroll: {
-    flexDirection: 'row',
-  },
-  chip: {
-    paddingHorizontal: 13,
-    paddingVertical: 7,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  chipText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  chipTextActive: {
-    color: colors.onPrimary,
-    fontWeight: '700',
+    marginBottom: space.sm,
   },
   rowThree: {
     flexDirection: 'row',
   },
-  diffSelector: {
-    flexDirection: 'row',
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    height: 42,
-  },
-  diffItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  diffItemActive: {
-    backgroundColor: colors.primary,
-  },
-  diffItemText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  diffItemTextActive: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-  },
   actionsFooter: {
     flexDirection: 'row',
-    gap: 12,
+    gap: space.xl,
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingVertical: space.xl,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surfaceAlt,
   },
-  resetButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 6,
-  },
-  resetButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  saveRecipeBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 6,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveRecipeBtnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.onPrimary,
-  },
+  // Footer save button takes twice the width of the secondary action
+  saveFill: { flex: 2 },
 });
 
 type Styles = ReturnType<typeof makeStyles>;
-
-// Segmented selector: single style for slot, difficulty and diet
-function SegmentedSelector<T extends string>({
-  options,
-  value,
-  onChange,
-  styles,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  styles: Styles;
-}) {
-  return (
-    <View style={styles.diffSelector}>
-      {options.map(option => {
-        const active = option.value === value;
-        return (
-          <TouchableOpacity
-            key={option.value}
-            style={[styles.diffItem, active && styles.diffItemActive]}
-            onPress={() => onChange(option.value)}
-          >
-            <Text style={[styles.diffItemText, active && styles.diffItemTextActive]}>{option.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
 
 function DietSwitchRow({
   icon,

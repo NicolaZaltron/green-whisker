@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
 import { SheetModal } from './SheetModal';
+import { Spinner } from './ui/Spinner';
+import { Checkbox } from './ui/Checkbox';
+import { CircleButton } from './ui/CircleButton';
+import { TextButton } from './ui/TextButton';
 import { getRecipeDetail, getShoppingItems, getShoppingPlanEntries } from '../db/database';
 import { listIngredients } from '../db/ingredientsDb';
 import { listReadyMeals } from '../db/readyMealsDb';
@@ -16,6 +19,9 @@ import { saveShoppingSelection } from '../services/shoppingPlanSave';
 import type { MealPlanEntry, RecipeSummary, ShoppingItem } from '../types/recipe';
 import type { Ingredient, ReadyMeal } from '../types/catalog';
 import { AppTextField } from './ui/AppTextField';
+import { InlineNotice } from './ui/InlineNotice';
+import { Button } from './ui/Button';
+import { space, text } from '../theme/tokens';
 
 interface ShoppingPlanModalProps {
   visible: boolean;
@@ -212,20 +218,14 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
 
     return (
       <View style={styles.row}>
-        <TouchableOpacity
-          onPress={() => toggleRow(row)}
-          disabled={!selectable}
-          activeOpacity={0.7}
-          style={styles.checkbox}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: isChecked, disabled: !selectable }}
-        >
-          <Ionicons
-            name={isChecked ? 'checkbox' : 'square-outline'}
-            size={24}
-            color={selectable ? colors.primaryText : colors.textMuted}
+        <View style={styles.checkbox}>
+          <Checkbox
+            checked={isChecked}
+            onToggle={() => toggleRow(row)}
+            disabled={!selectable}
+            accessibilityLabel={row.name}
           />
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.rowBody}>
           <Text style={styles.name}>{row.name}</Text>
@@ -247,6 +247,7 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
 
         <View style={styles.amountBox}>
           <AppTextField
+            size="M"
             style={styles.amountInput}
             value={getAmountText(row)}
             onChangeText={text => changeAmount(row, text)}
@@ -267,30 +268,24 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
             <Text style={styles.title}>{t('shoppingPlan.title')}</Text>
             <Text style={styles.subtitle}>{t('shoppingPlan.subtitle')}</Text>
           </View>
-          <TouchableOpacity
+          <CircleButton
+            icon="close"
+            variant="plain"
             onPress={onClose}
-            style={styles.closeBtn}
-            activeOpacity={0.7}
             accessibilityLabel={t('common.close')}
-          >
-            <Ionicons name="close" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
+          />
         </View>
 
         {rows.length > 0 && (
           <View style={styles.selectRow}>
-            <TouchableOpacity onPress={handleSelectAll} style={styles.selectBtn} activeOpacity={0.7}>
-              <Text style={styles.selectBtnText}>{t('shoppingPlan.selectAll')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleDeselectAll} style={styles.selectBtn} activeOpacity={0.7}>
-              <Text style={styles.selectBtnText}>{t('shoppingPlan.deselectAll')}</Text>
-            </TouchableOpacity>
+            <TextButton label={t('shoppingPlan.selectAll')} onPress={handleSelectAll} />
+            <TextButton label={t('shoppingPlan.deselectAll')} onPress={handleDeselectAll} />
           </View>
         )}
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator color={colors.primary} />
+            <Spinner />
           </View>
         ) : rows.length === 0 || !hasPlannedMeals ? (
           <View style={styles.center}>
@@ -308,20 +303,24 @@ export default function ShoppingPlanModal({ visible, onClose, onSaved }: Shoppin
           />
         )}
 
-        {error !== null && <Text style={styles.error}>{error}</Text>}
+        {error !== null && (
+          <View style={styles.error}>
+            <InlineNotice tone="danger" text={error} />
+          </View>
+        )}
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.backBtn} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.backBtnText}>{t('shoppingPlan.back')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.saveBtn, (selectedRows.length === 0 || saving) && styles.saveBtnDisabled]}
-            onPress={handleSave}
-            disabled={selectedRows.length === 0 || saving}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.saveBtnText}>{t('shoppingPlan.save')}</Text>
-          </TouchableOpacity>
+          <View style={styles.footerBtn}>
+            <Button label={t('shoppingPlan.back')} onPress={onClose} size="L" variant="secondary" />
+          </View>
+          <View style={styles.footerBtn}>
+            <Button
+              label={t('shoppingPlan.save')}
+              onPress={handleSave}
+              size="L"
+              disabled={selectedRows.length === 0 || saving}
+            />
+          </View>
         </View>
       </SafeAreaView>
     </SheetModal>
@@ -337,43 +336,29 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.xl,
   },
   titleBlock: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: space.xl,
   },
   title: {
-    fontSize: 20,
+    fontSize: text.page,
     fontWeight: '700',
     color: colors.text,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: text.caption,
     lineHeight: 18,
     color: colors.textMuted,
     marginTop: 2,
   },
-  closeBtn: {
-    padding: 4,
-  },
   selectRow: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  selectBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-  },
-  selectBtnText: {
-    color: colors.primaryText,
-    fontWeight: '600',
-    fontSize: 13,
+    gap: space.lg,
+    paddingHorizontal: space.xxxl,
+    paddingBottom: space.md,
   },
   center: {
     flex: 1,
@@ -384,19 +369,19 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   emptyText: {
     color: colors.textSecondary,
     textAlign: 'center',
-    fontSize: 15,
+    fontSize: text.title,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: space.xxxl,
+    paddingBottom: space.xxxl,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 12,
+    paddingVertical: space.xl,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    gap: 10,
+    gap: space.lg,
   },
   checkbox: {
     paddingTop: 2,
@@ -405,24 +390,24 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 16,
+    fontSize: text.title,
     fontWeight: '600',
     color: colors.text,
   },
   detail: {
-    fontSize: 13,
+    fontSize: text.caption,
     color: colors.textSecondary,
     marginTop: 2,
   },
   warning: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.danger,
     marginTop: 2,
   },
   sources: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: space.xs,
   },
   amountBox: {
     alignItems: 'flex-end',
@@ -432,51 +417,21 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     width: 80,
   },
   unit: {
-    fontSize: 12,
+    fontSize: text.caption,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: space.xs,
   },
   error: {
-    color: colors.danger,
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    fontSize: 13,
+    paddingHorizontal: space.xxxl,
+    paddingBottom: space.md,
   },
+  // Buttons stacked full width: two side by side would not fit the L minimum width on phones
   footer: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: space.lg,
+    paddingHorizontal: space.xxxl,
+    paddingVertical: space.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  backBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  backBtnText: {
-    color: colors.text,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-  saveBtnDisabled: {
-    opacity: 0.4,
-  },
-  saveBtnText: {
-    color: colors.onPrimary,
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  footerBtn: { width: '100%' },
 });

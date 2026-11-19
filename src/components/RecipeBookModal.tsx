@@ -1,7 +1,11 @@
 import { SheetModal } from './SheetModal';
 import { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Switch, StyleSheet } from 'react-native';
-import { ConfirmModal } from './ui/ConfirmModal';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { CircleButton } from './ui/CircleButton';
+import { ConfirmDialog } from './ui/ConfirmDialog';
+import { Button } from './ui/Button';
+import { ModalHeader } from './ui/ModalHeader';
+import { Spinner } from './ui/Spinner';
 import { TransferModal } from './TransferModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +21,10 @@ import { useCatalogVersion } from '../hooks/useCatalog';
 import { ExportFilter, ParsedCatalogFile, filterCatalog, withVariants } from '../services/catalogFormat';
 import { useTheme } from '../context/ThemeContext';
 import type { Palette } from '../theme/palette';
+import { text, icon, cardRadius, space } from '../theme/tokens';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { TextButton } from './ui/TextButton';
+import { Toggle } from './ui/Toggle';
 
 interface RecipeBookModalProps {
   visible: boolean;
@@ -221,7 +229,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
         <TouchableOpacity style={styles.rowMain} onPress={() => toggleRecipe(item.id)} activeOpacity={0.7}>
           <Ionicons
             name={checked ? 'checkbox' : 'square-outline'}
-            size={22}
+            size={icon.xl}
             color={checked ? colors.primaryText : colors.textMuted}
           />
           <Text style={styles.rowTitle} numberOfLines={1}>
@@ -229,10 +237,10 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => openPreview(item.id)} hitSlop={10} accessibilityLabel={t('recipeBook.preview')}>
-          <Ionicons name="open-outline" size={18} color={colors.primaryText} />
+          <Ionicons name="open-outline" size={icon.md} color={colors.primaryText} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setPendingDelete([item.id])} hitSlop={10} accessibilityLabel={t('common.delete')}>
-          <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          <Ionicons name="trash-outline" size={icon.md} color={colors.danger} />
         </TouchableOpacity>
       </View>
     );
@@ -268,56 +276,41 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
   ) => (
     <View style={styles.filterGroup}>
       <Text style={styles.filterLabel}>{label}</Text>
-      <View style={styles.chips}>
-        {options.map(option => {
-          const active = option.value === current;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => onSelect(option.value)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{option.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        accessibilityLabel={label}
+        options={options.map(option => ({ key: String(option.value), label: option.label }))}
+        value={String(current)}
+        onChange={key => onSelect(options.find(option => String(option.value) === key)!.value)}
+      />
     </View>
   );
 
   return (
     <SheetModal visible={visible} onClose={close} fullScreen>
       <View style={styles.safeArea}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{t('recipeBook.title')}</Text>
-          <TouchableOpacity onPress={close} hitSlop={12} accessibilityLabel={t('common.close')}>
-            <Ionicons name="close" size={24} color={colors.primaryText} />
-          </TouchableOpacity>
-        </View>
+        <ModalHeader title={t('recipeBook.title')} onClose={close} closeLabel={t('common.close')} />
 
         <View style={styles.content}>
           <Text style={styles.description}>{t('recipeBook.description')}</Text>
 
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(true)} activeOpacity={0.8}>
-            <Ionicons name="options-outline" size={16} color={colors.primaryText} />
-            <Text style={styles.filterButtonText}>
-              {t('recipeBook.filtersButton')}{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.filterButton}>
+            <Button
+              label={`${t('recipeBook.filtersButton')}${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
+              onPress={() => setShowFilters(true)}
+              size="M"
+              variant="secondary"
+              icon="options-outline"
+            />
+          </View>
 
           <View style={styles.selectionRow}>
             <Text style={styles.selectionCount}>
               {t('recipeBook.selectedCount', { selected: selected.length, total: listed.length })}
             </Text>
-            <TouchableOpacity
+            <TextButton
+              label={deselectedIds.size === 0 ? t('recipeBook.deselectAll') : t('recipeBook.selectAll')}
               onPress={() => setDeselectedIds(deselectedIds.size === 0 ? new Set(listed.map(r => r.id)) : new Set())}
-              hitSlop={8}
-            >
-              <Text style={styles.selectionToggle}>
-                {deselectedIds.size === 0 ? t('recipeBook.deselectAll') : t('recipeBook.selectAll')}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
 
           <FlatList
@@ -330,13 +323,10 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           />
 
           <View style={styles.variantsRow}>
-            <Text style={styles.variantsLabel}>{t('recipeBook.includeVariants')}</Text>
-            <Switch
+            <Toggle
+              label={t('recipeBook.includeVariants')}
               value={includeVariants}
               onValueChange={setIncludeVariants}
-              trackColor={{ false: colors.borderStrong, true: colors.primary }}
-              thumbColor={colors.onPrimary}
-              ios_backgroundColor={colors.borderStrong}
             />
           </View>
 
@@ -344,34 +334,41 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
             <View style={styles.confirmBox}>
               <Text style={styles.confirmText}>{t('recipeBook.deleteMessage', { count: pendingDelete.length })}</Text>
               <View style={styles.confirmRow}>
-                <TouchableOpacity style={styles.confirmCancel} onPress={() => setPendingDelete(null)} activeOpacity={0.85}>
-                  <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmDelete} onPress={() => runDelete(pendingDelete)} activeOpacity={0.85}>
-                  <Text style={styles.confirmDeleteText}>{t('common.delete')}</Text>
-                </TouchableOpacity>
+                <View style={styles.confirmBtn}>
+                  <Button label={t('common.cancel')} onPress={() => setPendingDelete(null)} size="M" variant="secondary" />
+                </View>
+                <View style={styles.confirmBtn}>
+                  <Button label={t('common.delete')} onPress={() => runDelete(pendingDelete)} size="M" variant="danger" />
+                </View>
               </View>
             </View>
           ) : null}
 
-          <TouchableOpacity
-            style={[styles.dangerBtn, (busy || selected.length === 0) && styles.disabledBtn]}
-            onPress={() => setPendingDelete(selected.map(r => r.id))}
-            disabled={busy || selected.length === 0}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.danger} style={styles.btnIcon} />
-            <Text style={styles.dangerBtnText}>{t('recipeBook.deleteSelected', { count: selected.length })}</Text>
-          </TouchableOpacity>
+          <View style={styles.actionBtn}>
+            <Button
+              label={t('recipeBook.deleteSelected', { count: selected.length })}
+              icon="trash-outline"
+              variant="danger"
+              size="M"
+              onPress={() => setPendingDelete(selected.map(r => r.id))}
+              disabled={busy || selected.length === 0}
+            />
+          </View>
 
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => setTransferOpen(true)} disabled={busy} activeOpacity={0.85}>
-            <Ionicons name="swap-vertical-outline" size={18} color={colors.primaryText} style={styles.btnIcon} />
-            <Text style={styles.secondaryBtnText}>{t('transfer.recipes.title')}</Text>
-          </TouchableOpacity>
+          <View style={styles.actionBtn}>
+            <Button
+              label={t('transfer.recipes.title')}
+              icon="swap-vertical-outline"
+              variant="secondary"
+              size="L"
+              onPress={() => setTransferOpen(true)}
+              disabled={busy}
+            />
+          </View>
 
           {busy ? (
             <View style={styles.progressRow}>
-              <ActivityIndicator color={colors.primaryText} />
+              <Spinner />
               {progress ? (
                 <Text style={styles.progressText}>
                   {progress.phase === 'checking'
@@ -390,17 +387,15 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           <View style={styles.filterSheet}>
             <View style={styles.filterHeader}>
               <Text style={styles.title}>{t('recipeBook.filtersTitle')}</Text>
-              <TouchableOpacity onPress={() => setShowFilters(false)} hitSlop={12} accessibilityLabel={t('common.close')}>
-                <Ionicons name="close" size={24} color={colors.primaryText} />
-              </TouchableOpacity>
+              <CircleButton variant="plain" icon="close" onPress={() => setShowFilters(false)} accessibilityLabel={t('common.close')} />
             </View>
             {renderChips(t('recipeBook.filterScope'), scopeOptions, filter.scope, v => changeFilter('scope', v))}
             {renderChips(t('recipeBook.filterKind'), kindOptions, filter.kind, v => changeFilter('kind', v))}
             {renderChips(t('recipeBook.filterDiet'), dietOptions, filter.diet, v => changeFilter('diet', v))}
             {renderChips(t('recipeBook.filterOrigin'), originOptions, filter.origin, v => changeFilter('origin', v))}
-            <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowFilters(false)} activeOpacity={0.85}>
-              <Text style={styles.primaryBtnText}>{t('common.done')}</Text>
-            </TouchableOpacity>
+            <View style={styles.doneBtn}>
+              <Button label={t('common.done')} size="L" variant="primary" onPress={() => setShowFilters(false)} />
+            </View>
           </View>
         </SheetModal>
 
@@ -425,7 +420,7 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
           }}
         />
 
-        <ConfirmModal
+        <ConfirmDialog
           visible={conflict !== null}
           icon="copy-outline"
           title={t('recipeBook.conflictTitle')}
@@ -462,119 +457,52 @@ export function RecipeBookModal({ visible, onClose, onChanged }: RecipeBookModal
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surfaceAlt },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  title: { fontSize: 20, fontWeight: '800', color: colors.text },
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12 },
-  description: { fontSize: 14, color: colors.textSecondary, lineHeight: 20, marginBottom: 10 },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-    marginBottom: 8,
-  },
-  filterButtonText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
-  filterSheet: { padding: 20, paddingBottom: 4 },
+  title: { fontSize: text.page, fontWeight: '700', color: colors.text },
+  content: { flex: 1, paddingHorizontal: space.huge, paddingTop: space.xs, paddingBottom: space.xl },
+  description: { fontSize: text.body, color: colors.textSecondary, lineHeight: 20, marginBottom: space.lg },
+  filterButton: { alignSelf: 'flex-start', marginBottom: space.md },
+  filterSheet: { padding: space.huge, paddingBottom: space.xs },
   // Title row of the filter sheet: no extra margin, it sits inside the sheet padding
-  filterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 0, marginBottom: 16 },
-  filterGroup: { marginBottom: 8 },
-  filterLabel: { fontSize: 11, fontWeight: '700', color: colors.textSecondary, marginBottom: 4, textTransform: 'uppercase' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: '700', color: colors.primaryText },
-  chipTextActive: { color: colors.onPrimary },
+  filterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 0, marginBottom: space.xxxl },
+  filterGroup: { marginBottom: space.md },
+  filterLabel: { fontSize: text.label, fontWeight: '700', color: colors.textSecondary, marginBottom: space.xs, textTransform: 'uppercase' },
   selectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: space.sm,
+    marginBottom: space.sm,
   },
-  selectionCount: { fontSize: 13, color: colors.textSecondary },
-  selectionToggle: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
-  list: { flex: 1, backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
+  selectionCount: { fontSize: text.caption, color: colors.textSecondary },
+  list: { flex: 1, backgroundColor: colors.surface, borderRadius: cardRadius, borderWidth: 1, borderColor: colors.border },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: space.xl,
+    paddingHorizontal: space.xxl,
+    paddingVertical: space.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowTitle: { flex: 1, fontSize: 14, color: colors.text },
-  empty: { padding: 16, fontSize: 13, color: colors.textSecondary, textAlign: 'center' },
+  rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.xl },
+  rowTitle: { flex: 1, fontSize: text.body, color: colors.text },
+  empty: { padding: space.xxxl, fontSize: text.caption, color: colors.textSecondary, textAlign: 'center' },
   variantsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: space.lg,
   },
-  variantsLabel: { fontSize: 13, color: colors.text, flex: 1, marginRight: 8 },
-  btnIcon: { marginRight: 8 },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  disabledBtn: { opacity: 0.5 },
-  primaryBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: '800' },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: 14,
-    paddingVertical: 14,
-  },
-  secondaryBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: '800' },
-  dangerBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 14,
-    paddingVertical: 12,
-  },
-  confirmBox: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger },
-  confirmText: { fontSize: 13, color: colors.text, lineHeight: 18 },
-  confirmRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  confirmCancel: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
-  confirmCancelText: { fontSize: 14, fontWeight: '700', color: colors.primaryText },
-  confirmDelete: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: colors.danger },
-  confirmDeleteText: { fontSize: 14, fontWeight: '800', color: colors.onPrimary },
-  dangerBtnText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
-  busy: { marginTop: 12 },
-  progressRow: { marginTop: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  progressText: { fontSize: 13, fontWeight: '600' },
-  message: { fontSize: 14, fontWeight: '600', color: colors.primaryText, marginTop: 12, lineHeight: 20 },
+  actionBtn: { marginTop: space.lg },
+  doneBtn: { marginTop: space.xl },
+  confirmBox: { marginTop: space.xl, padding: space.xl, borderRadius: cardRadius, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger },
+  confirmText: { fontSize: text.caption, color: colors.text, lineHeight: 18 },
+  confirmRow: { flexDirection: 'row', gap: space.md, marginTop: space.lg },
+  // Wrapper only: shares the row width between the two confirm buttons
+  confirmBtn: { flex: 1 },
+  busy: { marginTop: space.xl },
+  progressRow: { marginTop: space.xl, flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  progressText: { fontSize: text.caption, fontWeight: '600' },
+  message: { fontSize: text.body, fontWeight: '600', color: colors.primaryText, marginTop: space.xl, lineHeight: 20 },
   messageError: { color: colors.danger },
 });

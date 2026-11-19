@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useColorScheme } from 'react-native';
+import { Appearance, Platform, useColorScheme } from 'react-native';
 import { darkPalette, lightPalette, Palette } from '../theme/palette';
 import { ThemeMode, loadThemeMode, saveThemeMode } from '../services/preferencesService';
 
@@ -19,6 +19,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     loadThemeMode().then(setModeState);
   }, []);
+
+  // Align native chrome (modals, dialogs, keyboard, bars on Android) with the chosen theme, not the system one.
+  // Web has no native chrome and does not support setColorScheme, so it is skipped there.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    Appearance.setColorScheme(mode === 'system' ? 'unspecified' : mode);
+  }, [mode]);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);

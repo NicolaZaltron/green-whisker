@@ -46,3 +46,25 @@ export async function saveLanguage(lng: 'it' | 'en'): Promise<void> {
   }
   await SecureStore.setItemAsync(LANGUAGE_KEY, lng);
 }
+
+const SEGMENTED_BACKGROUND_KEY = 'gw_segmented_background';
+
+// Whether segmented controls show a background on unselected options (default: yes)
+export async function loadSegmentedBackground(): Promise<boolean> {
+  try {
+    const raw = Platform.OS === 'web'
+      ? window.localStorage.getItem(SEGMENTED_BACKGROUND_KEY)
+      : await SecureStore.getItemAsync(SEGMENTED_BACKGROUND_KEY);
+    return raw !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+export async function saveSegmentedBackground(value: boolean): Promise<void> {
+  if (Platform.OS === 'web') {
+    window.localStorage.setItem(SEGMENTED_BACKGROUND_KEY, String(value));
+    return;
+  }
+  await SecureStore.setItemAsync(SEGMENTED_BACKGROUND_KEY, String(value));
+}
